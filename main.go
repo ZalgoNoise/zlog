@@ -1,11 +1,20 @@
 package main
 
-import "github.com/ZalgoNoise/zlog/log"
+import (
+	"os"
+
+	"github.com/ZalgoNoise/zlog/log"
+)
 
 func main() {
-	log := log.New()
+	log := log.New(os.Stdout, "test-logs", 1)
 
-	log.Log(2, "test log")
-	log.Log(0, "another test")
-	log.Log(5, "panic test")
+	data := []int{
+		2, 3, 5,
+	}
+
+	log.Infoln("test log")
+	log.Debugf("%v\n", len(data))
+	log.Warnln("big warning")
+	log.Panicln("i am out")
 }

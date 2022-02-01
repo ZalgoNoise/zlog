@@ -7,8 +7,8 @@ import (
 )
 
 type logOutput struct {
-	output io.ReadWriteCloser
-	errors io.ReadWriteCloser
+	output io.Writer
+	errors io.Writer
 }
 
 // basic output types (implementing io.Reader and io.Writer interfaces)
@@ -50,16 +50,15 @@ func (l *Log) Log(level int, msg string) {
 	// TODO:
 	// append contents to file, don't overwrite
 	for idx, _ := range l.outputs {
-		var out io.ReadWriteCloser
+		var out io.Writer
 
 		if level > 3 {
 			out = l.outputs[idx].errors
 		} else {
 			out = l.outputs[idx].output
 		}
-		defer out.Close()
 
-		_, err := out.Write(l.logMessage.logMsg)
+		_, err := out.Write(l.logMessage.output)
 
 		if err != nil {
 			fmt.Printf("[LOGGER][ERR] Unable to write data to output stream")

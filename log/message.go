@@ -54,8 +54,16 @@ type LogMessage struct {
 }
 
 func New(prefix string, format int, outs ...io.Writer) *Logger {
+	var out io.Writer
+
+	if len(outs) == 0 {
+		out = os.Stdout
+	} else if len(outs) > 0 {
+		out = io.MultiWriter(outs...)
+	}
+
 	return &Logger{
-		out:    io.MultiWriter(outs...),
+		out:    out,
 		buf:    []byte{},
 		prefix: prefix,
 		fmt:    format,

@@ -53,9 +53,11 @@ type LogMessage struct {
 	// Metadata  map[string]interface{} `json:"metadata,omitemtpy"`
 }
 
-func New(out io.Writer, prefix string, format int) *Logger {
+func New(prefix string, format int, outs ...io.Writer) *Logger {
+	var outputs io.Writer = io.MultiWriter(outs...)
+
 	return &Logger{
-		out:    out,
+		out:    outputs,
 		buf:    []byte{},
 		prefix: prefix,
 		fmt:    format,
@@ -81,8 +83,10 @@ func (l *Logger) Output(level int, msg string) error {
 	l.buf = buf
 
 	_, err = l.out.Write(l.buf)
-	return err
-
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func formatMessage(format int, log *LogMessage) ([]byte, error) {
@@ -113,6 +117,8 @@ func formatMessage(format int, log *LogMessage) ([]byte, error) {
 	}
 	return buf, nil
 }
+
+// output setter methods
 
 // print methods
 

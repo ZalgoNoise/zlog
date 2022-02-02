@@ -54,10 +54,8 @@ type LogMessage struct {
 }
 
 func New(prefix string, format int, outs ...io.Writer) *Logger {
-	var outputs io.Writer = io.MultiWriter(outs...)
-
 	return &Logger{
-		out:    outputs,
+		out:    io.MultiWriter(outs...),
 		buf:    []byte{},
 		prefix: prefix,
 		fmt:    format,
@@ -83,6 +81,7 @@ func (l *Logger) Output(level int, msg string) error {
 	l.buf = buf
 
 	_, err = l.out.Write(l.buf)
+
 	if err != nil {
 		return err
 	}
@@ -119,6 +118,16 @@ func formatMessage(format int, log *LogMessage) ([]byte, error) {
 }
 
 // output setter methods
+
+func (l *Logger) SetOuts(outs ...io.Writer) {
+	l.out = io.MultiWriter(outs...)
+}
+
+func (l *Logger) AddOuts(outs ...io.Writer) {
+	var writers []io.Writer = outs
+	writers = append(writers, l.out)
+	l.out = io.MultiWriter(writers...)
+}
 
 // print methods
 

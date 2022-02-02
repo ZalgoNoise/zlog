@@ -15,12 +15,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	log := log.New("test-logs", 1, os.Stdout, logFile1, logFile2)
-
 	data := []int{
 		2, 3, 5,
 	}
+
+	log := log.New("test-logs", 1)
+
+	log.SetOuts(os.Stdout)
+	log.AddOuts(logFile1, logFile2)
 
 	log.Infoln("test log")
 	log.Debugf("%v\n", len(data))

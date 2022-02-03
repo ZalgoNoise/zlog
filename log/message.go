@@ -91,13 +91,13 @@ func (l *Logger) Output(level int, msg string) error {
 
 // output setter methods
 
-func (l *Logger) SetOuts(outs ...io.Writer) *Logger {
+func (l *Logger) SetOuts(outs ...io.Writer) LoggerI {
 	l.out = io.MultiWriter(outs...)
 
 	return l
 }
 
-func (l *Logger) AddOuts(outs ...io.Writer) *Logger {
+func (l *Logger) AddOuts(outs ...io.Writer) LoggerI {
 	var writers []io.Writer = outs
 	writers = append(writers, l.out)
 	l.out = io.MultiWriter(writers...)
@@ -107,7 +107,7 @@ func (l *Logger) AddOuts(outs ...io.Writer) *Logger {
 
 // prefix setter methods
 
-func (l *Logger) SetPrefix(prefix string) *Logger {
+func (l *Logger) SetPrefix(prefix string) LoggerI {
 	l.prefix = prefix
 
 	return l
@@ -115,7 +115,7 @@ func (l *Logger) SetPrefix(prefix string) *Logger {
 
 // metadata methods
 
-func (l *Logger) Fields(fields map[string]interface{}) *Logger {
+func (l *Logger) Fields(fields map[string]interface{}) LoggerI {
 	l.meta = fields
 
 	return l
@@ -133,6 +133,20 @@ func (l *Logger) Println(v ...interface{}) {
 
 func (l *Logger) Printf(format string, v ...interface{}) {
 	l.Output(2, fmt.Sprintf(format, v...))
+}
+
+// log methods
+
+func (l *Logger) Log(level int, v ...interface{}) {
+	l.Output(level, fmt.Sprint(v...))
+}
+
+func (l *Logger) Logln(level int, v ...interface{}) {
+	l.Output(level, fmt.Sprintln(v...))
+}
+
+func (l *Logger) Logf(level int, format string, v ...interface{}) {
+	l.Output(level, fmt.Sprintf(format, v...))
 }
 
 // panic methods

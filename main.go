@@ -19,20 +19,36 @@ func main() {
 		2, 3, 5,
 	}
 
-	logger := log.New("test-logs", &log.TextFmt{})
+	// logger := log.New("test-logs", &log.TextFmt{})
 
-	logger.SetOuts(os.Stdout).AddOuts(logFile1, logFile2)
+	// logger.SetOuts(os.Stdout).AddOuts(logFile1, logFile2)
 
-	logger.Info("test log")
-	logger.SetPrefix("debug-logs").Debugf("%v", len(data))
-	logger.Warn("big warning")
-	logger.SetPrefix("prod-logs").Fields(map[string]interface{}{
+	// logger.Info("test log")
+	// logger.SetPrefix("debug-logs").Debugf("%v", len(data))
+	// logger.Warn("big warning")
+	// logger.SetPrefix("prod-logs").Fields(map[string]interface{}{
+	// 	"path":  "/src/srv/stack",
+	// 	"error": 9,
+	// 	"proc": map[string]interface{}{
+	// 		"test": true,
+	// 	},
+	// }).Warn("urgent error")
+	// log.Panicln("i am out")
+
+	multi := log.MultiLogger(
+		log.New("alpha-log", &log.TextFmt{}),
+		log.New("beta-log", &log.JSONFmt{}, logFile1, logFile2),
+	)
+
+	multi.Info("test log")
+	multi.SetPrefix("multi-logs").Debugf("%v", len(data))
+	multi.Warn("multi warning")
+	multi.SetPrefix("prod-logs").Fields(map[string]interface{}{
 		"path":  "/src/srv/stack",
 		"error": 9,
 		"proc": map[string]interface{}{
 			"test": true,
 		},
 	}).Warn("urgent error")
-	// log.Panicln("i am out")
 
 }

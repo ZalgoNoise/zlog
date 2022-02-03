@@ -19,14 +19,14 @@ func main() {
 		2, 3, 5,
 	}
 
-	logger := log.New("test-logs", &log.JSONFmt{})
+	logger := log.New("test-logs", &log.TextFmt{})
 
 	logger.SetOuts(os.Stdout).AddOuts(logFile1, logFile2)
 
 	logger.Infoln("test log")
-	logger.Debugf("%v\n", len(data))
+	logger.SetPrefix("debug-logs").Debugf("%v\n", len(data))
 	logger.Warnln("big warning")
-	logger.Fields(map[string]interface{}{
+	logger.SetPrefix("prod-logs").Fields(map[string]interface{}{
 		"path":  "/src/srv/stack",
 		"error": 9,
 		"proc": map[string]interface{}{

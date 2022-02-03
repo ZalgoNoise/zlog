@@ -105,6 +105,14 @@ func (l *Logger) AddOuts(outs ...io.Writer) *Logger {
 	return l
 }
 
+// prefix setter methods
+
+func (l *Logger) SetPrefix(prefix string) *Logger {
+	l.prefix = prefix
+
+	return l
+}
+
 // metadata methods
 
 func (l *Logger) Fields(fields map[string]interface{}) *Logger {

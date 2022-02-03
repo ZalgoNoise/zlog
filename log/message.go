@@ -1,7 +1,6 @@
 package log
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -28,52 +27,11 @@ var logTypeVals = map[int]string{
 	9: "panic",
 }
 
-// var formatTypeKeys = map[string]int{
-// 	"text": 0,
-// 	"json": 1,
-// }
-
-// var formatTypeVals = map[int]string{
-// 	0: "text",
-// 	1: "json",
-// }
-
-// TODO: consider an interface / struct combo instead of func maps
-var formatTypeFunc = map[int]func(log *LogMessage) ([]byte, error){
-	0: func(log *LogMessage) ([]byte, error) {
-		var buf []byte
-		message := fmt.Sprintf(
-			"[%s]\t[%s] [%s]\t%s",
-			log.Time,
-			log.Prefix,
-			log.Level,
-			log.Msg,
-		)
-
-		buf = []byte(message)
-		return buf, nil
-	},
-	1: func(log *LogMessage) ([]byte, error) {
-		var buf []byte
-		// remove trailing newline on JSON format
-		if log.Msg[len(log.Msg)-1] == 10 {
-			log.Msg = log.Msg[:len(log.Msg)-1]
-		}
-
-		data, err := json.Marshal(log)
-		if err != nil {
-			return nil, err
-		}
-		buf = data
-		return buf, nil
-	},
-}
-
 type Logger struct {
 	out    io.Writer
 	buf    []byte
 	prefix string
-	fmt    int
+	fmt    LogFormatter
 }
 
 type LogMessage struct {
@@ -84,7 +42,7 @@ type LogMessage struct {
 	// Metadata  map[string]interface{} `json:"metadata,omitemtpy"`
 }
 
-func New(prefix string, format int, outs ...io.Writer) *Logger {
+func New(prefix string, format LogFormatter, outs ...io.Writer) *Logger {
 	var out io.Writer
 
 	if len(outs) == 0 {
@@ -111,7 +69,7 @@ func (l *Logger) Output(level int, msg string) error {
 		Msg:    msg,
 	}
 
-	buf, err := formatMessage(l.fmt, log)
+	buf, err := l.fmt.Format(log)
 
 	if err != nil {
 		return err
@@ -125,10 +83,6 @@ func (l *Logger) Output(level int, msg string) error {
 		return err
 	}
 	return nil
-}
-
-func formatMessage(format int, log *LogMessage) ([]byte, error) {
-	return formatTypeFunc[format](log)
 }
 
 // output setter methods

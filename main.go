@@ -19,13 +19,13 @@ func main() {
 		2, 3, 5,
 	}
 
-	log := log.New("test-logs", 1)
+	logger := log.New("test-logs", &log.TextFmt{})
 
-	log.SetOuts(os.Stdout)
-	log.AddOuts(logFile1, logFile2)
-
-	log.Infoln("test log")
-	log.Debugf("%v\n", len(data))
-	log.Warnln("big warning")
+	logger.SetOuts(os.Stdout)
+	logger.AddOuts(logFile1, logFile2)
+	logger.Infoln("test log")
+	logger.Debugf("%v\n", len(data))
+	logger.Warnln("big warning")
 	// log.Panicln("i am out")
+
 }

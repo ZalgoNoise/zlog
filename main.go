@@ -23,16 +23,16 @@ func main() {
 
 	logger.SetOuts(os.Stdout).AddOuts(logFile1, logFile2)
 
-	logger.Infoln("test log")
-	logger.SetPrefix("debug-logs").Debugf("%v\n", len(data))
-	logger.Warnln("big warning")
+	logger.Info("test log")
+	logger.SetPrefix("debug-logs").Debugf("%v", len(data))
+	logger.Warn("big warning")
 	logger.SetPrefix("prod-logs").Fields(map[string]interface{}{
 		"path":  "/src/srv/stack",
 		"error": 9,
 		"proc": map[string]interface{}{
 			"test": true,
 		},
-	}).Warnln("urgent error")
+	}).Warn("urgent error")
 	// log.Panicln("i am out")
 
 }

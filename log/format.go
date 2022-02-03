@@ -20,31 +20,37 @@ type JSONFmt struct{}
 
 func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 	message := fmt.Sprintf(
-		"[%s]\t[%s]\t[%s]\t%s",
+		"[%s]\t[%s]\t[%s]\t%s\t%s\n",
 		log.Time,
 		log.Level,
 		log.Prefix,
 		log.Msg,
+		f.fmtMetadata(log.Metadata),
 	)
-
-	if log.Metadata != nil {
-		message = message + "\t" + f.fmtMetadata(log.Metadata) + "\n"
-	}
 
 	buf = []byte(message)
 	return
 }
 
 func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
-	var meta string
+	if len(data) == 0 {
+		return ""
+	}
+	var meta string = "[ "
+
 	for k, v := range data {
 		switch value := v.(type) {
 		case map[string]interface{}:
-			meta += " {" + f.fmtMetadata(value) + " }"
+			meta += f.fmtMetadata(value)
+		case string:
+			meta += fmt.Sprintf("%s = \"%s\" ; ", k, v)
 		default:
-			meta += fmt.Sprintf(" %s = %v ;", k, v)
+			meta += fmt.Sprintf("%s = %v ; ", k, v)
 		}
 	}
+
+	meta += "] "
+
 	return meta
 }
 

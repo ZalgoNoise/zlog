@@ -19,13 +19,20 @@ func main() {
 		2, 3, 5,
 	}
 
-	logger := log.New("test-logs", &log.TextFmt{})
+	logger := log.New("test-logs", &log.JSONFmt{})
 
 	logger.SetOuts(os.Stdout)
 	logger.AddOuts(logFile1, logFile2)
 	logger.Infoln("test log")
 	logger.Debugf("%v\n", len(data))
 	logger.Warnln("big warning")
+	logger.Fields(map[string]interface{}{
+		"path":  "/src/srv/stack",
+		"error": 9,
+		"proc": map[string]interface{}{
+			"test": true,
+		},
+	}).Warnln("urgent error")
 	// log.Panicln("i am out")
 
 }

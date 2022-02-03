@@ -27,8 +27,25 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 		log.Msg,
 	)
 
+	if log.Metadata != nil {
+		message = message + "\t-- " + f.fmtMetadata(log.Metadata) + "\n"
+	}
+
 	buf = []byte(message)
 	return
+}
+
+func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
+	var meta string
+	for k, v := range data {
+		switch value := v.(type) {
+		case map[string]interface{}:
+			meta += " {" + f.fmtMetadata(value) + " }"
+		default:
+			meta += fmt.Sprintf(" %s = %v ;", k, v)
+		}
+	}
+	return meta
 }
 
 func (f *JSONFmt) Format(log *LogMessage) (buf []byte, err error) {

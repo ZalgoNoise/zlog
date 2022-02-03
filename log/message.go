@@ -32,14 +32,15 @@ type Logger struct {
 	buf    []byte
 	prefix string
 	fmt    LogFormatter
+	meta   map[string]interface{}
 }
 
 type LogMessage struct {
-	Time   string `json:"timestamp,omitempty"`
-	Prefix string `json:"service,omitempty"`
-	Level  string `json:"level,omitempty"`
-	Msg    string `json:"message,omitempty"`
-	// Metadata  map[string]interface{} `json:"metadata,omitemtpy"`
+	Time     string                 `json:"timestamp,omitempty"`
+	Prefix   string                 `json:"service,omitempty"`
+	Level    string                 `json:"level,omitempty"`
+	Msg      string                 `json:"message,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitemtpy"`
 }
 
 func New(prefix string, format LogFormatter, outs ...io.Writer) *Logger {
@@ -63,11 +64,14 @@ func (l *Logger) Output(level int, msg string) error {
 	now := time.Now()
 
 	log := &LogMessage{
-		Time:   now.Format(time.RFC3339Nano),
-		Prefix: l.prefix,
-		Level:  logTypeVals[level],
-		Msg:    msg,
+		Time:     now.Format(time.RFC3339Nano),
+		Prefix:   l.prefix,
+		Level:    logTypeVals[level],
+		Msg:      msg,
+		Metadata: l.meta,
 	}
+	// clear metadata
+	l.meta = nil
 
 	buf, err := l.fmt.Format(log)
 
@@ -95,6 +99,14 @@ func (l *Logger) AddOuts(outs ...io.Writer) {
 	var writers []io.Writer = outs
 	writers = append(writers, l.out)
 	l.out = io.MultiWriter(writers...)
+}
+
+// metadata methods
+
+func (l *Logger) Fields(fields map[string]interface{}) *Logger {
+	l.meta = fields
+
+	return l
 }
 
 // print methods

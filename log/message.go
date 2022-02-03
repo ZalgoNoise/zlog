@@ -91,14 +91,18 @@ func (l *Logger) Output(level int, msg string) error {
 
 // output setter methods
 
-func (l *Logger) SetOuts(outs ...io.Writer) {
+func (l *Logger) SetOuts(outs ...io.Writer) *Logger {
 	l.out = io.MultiWriter(outs...)
+
+	return l
 }
 
-func (l *Logger) AddOuts(outs ...io.Writer) {
+func (l *Logger) AddOuts(outs ...io.Writer) *Logger {
 	var writers []io.Writer = outs
 	writers = append(writers, l.out)
 	l.out = io.MultiWriter(writers...)
+
+	return l
 }
 
 // metadata methods

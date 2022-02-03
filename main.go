@@ -21,8 +21,8 @@ func main() {
 
 	logger := log.New("test-logs", &log.JSONFmt{})
 
-	logger.SetOuts(os.Stdout)
-	logger.AddOuts(logFile1, logFile2)
+	logger.SetOuts(os.Stdout).AddOuts(logFile1, logFile2)
+
 	logger.Infoln("test log")
 	logger.Debugf("%v\n", len(data))
 	logger.Warnln("big warning")

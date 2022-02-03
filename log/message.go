@@ -40,7 +40,7 @@ type LogMessage struct {
 	Prefix   string                 `json:"service,omitempty"`
 	Level    string                 `json:"level,omitempty"`
 	Msg      string                 `json:"message,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitemtpy"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 func New(prefix string, format LogFormatter, outs ...io.Writer) *Logger {

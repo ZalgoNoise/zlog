@@ -20,15 +20,15 @@ type JSONFmt struct{}
 
 func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 	message := fmt.Sprintf(
-		"[%s]\t[%s] [%s]\t%s",
+		"[%s]\t[%s]\t[%s]\t%s",
 		log.Time,
-		log.Prefix,
 		log.Level,
+		log.Prefix,
 		log.Msg,
 	)
 
 	if log.Metadata != nil {
-		message = message + "\t-- " + f.fmtMetadata(log.Metadata) + "\n"
+		message = message + "\t" + f.fmtMetadata(log.Metadata) + "\n"
 	}
 
 	buf = []byte(message)

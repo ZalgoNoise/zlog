@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -28,6 +29,7 @@ var logTypeVals = map[int]string{
 }
 
 type Logger struct {
+	mu     sync.Mutex
 	out    io.Writer
 	buf    []byte
 	prefix string
@@ -62,6 +64,8 @@ func New(prefix string, format LogFormatter, outs ...io.Writer) *Logger {
 
 func (l *Logger) Output(level int, msg string) error {
 	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
 	log := &LogMessage{
 		Time:     now.Format(time.RFC3339Nano),
@@ -92,12 +96,18 @@ func (l *Logger) Output(level int, msg string) error {
 // output setter methods
 
 func (l *Logger) SetOuts(outs ...io.Writer) LoggerI {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	l.out = io.MultiWriter(outs...)
 
 	return l
 }
 
 func (l *Logger) AddOuts(outs ...io.Writer) LoggerI {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	var writers []io.Writer = outs
 	writers = append(writers, l.out)
 	l.out = io.MultiWriter(writers...)
@@ -108,6 +118,9 @@ func (l *Logger) AddOuts(outs ...io.Writer) LoggerI {
 // prefix setter methods
 
 func (l *Logger) SetPrefix(prefix string) LoggerI {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	l.prefix = prefix
 
 	return l
@@ -116,6 +129,9 @@ func (l *Logger) SetPrefix(prefix string) LoggerI {
 // metadata methods
 
 func (l *Logger) Fields(fields map[string]interface{}) LoggerI {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	l.meta = fields
 
 	return l

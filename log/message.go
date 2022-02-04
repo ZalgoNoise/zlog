@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 // var logTypeKeys = map[string]int{
@@ -31,6 +32,37 @@ type LogMessage struct {
 	Level    string                 `json:"level,omitempty"`
 	Msg      string                 `json:"message,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+func (l *Logger) Output(level int, msg string) error {
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	log := &LogMessage{
+		Time:     now.Format(time.RFC3339Nano),
+		Prefix:   l.prefix,
+		Level:    logTypeVals[level],
+		Msg:      msg,
+		Metadata: l.meta,
+	}
+	// clear metadata
+	l.meta = nil
+
+	buf, err := l.fmt.Format(log)
+
+	if err != nil {
+		return err
+	}
+
+	l.buf = buf
+
+	_, err = l.out.Write(l.buf)
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // print methods

@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 	"sync"
-	"time"
 )
 
 var std = New("log", &TextFmt{}, os.Stdout)
@@ -33,37 +32,6 @@ func New(prefix string, format LogFormatter, outs ...io.Writer) *Logger {
 		prefix: prefix,
 		fmt:    format,
 	}
-}
-
-func (l *Logger) Output(level int, msg string) error {
-	now := time.Now()
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	log := &LogMessage{
-		Time:     now.Format(time.RFC3339Nano),
-		Prefix:   l.prefix,
-		Level:    logTypeVals[level],
-		Msg:      msg,
-		Metadata: l.meta,
-	}
-	// clear metadata
-	l.meta = nil
-
-	buf, err := l.fmt.Format(log)
-
-	if err != nil {
-		return err
-	}
-
-	l.buf = buf
-
-	_, err = l.out.Write(l.buf)
-
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // output setter methods

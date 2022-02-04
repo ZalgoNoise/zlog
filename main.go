@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/ZalgoNoise/zlog/log"
@@ -19,25 +20,17 @@ func main() {
 		2, 3, 5,
 	}
 
-	// logger := log.New("test-logs", &log.TextFmt{})
+	customLog, err := log.NewLogfile("/tmp/test-custom")
+	if err != nil {
+		fmt.Printf("err: %s\n", err)
+	}
 
-	// logger.SetOuts(os.Stdout).AddOuts(logFile1, logFile2)
-
-	// logger.Info("test log")
-	// logger.SetPrefix("debug-logs").Debugf("%v", len(data))
-	// logger.Warn("big warning")
-	// logger.SetPrefix("prod-logs").Fields(map[string]interface{}{
-	// 	"path":  "/src/srv/stack",
-	// 	"error": 9,
-	// 	"proc": map[string]interface{}{
-	// 		"test": true,
-	// 	},
-	// }).Warn("urgent error")
-	// log.Panicln("i am out")
+	customLog.MaxSize(5)
 
 	multi := log.MultiLogger(
+
 		log.New("alpha-log", &log.TextFmt{}),
-		log.New("beta-log", &log.JSONFmt{}, logFile1, logFile2),
+		log.New("beta-log", &log.JSONFmt{}, logFile1, logFile2, customLog),
 	)
 
 	multi.Info("test log")

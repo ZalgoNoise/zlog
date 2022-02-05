@@ -20,7 +20,7 @@ func main() {
 		2, 3, 5,
 	}
 
-	customLog, err := log.NewLogfile("/tmp/test-custom")
+	customLog, err := log.NewLogfile("/tmp/test-custom.log")
 	if err != nil {
 		fmt.Printf("err: %s\n", err)
 	}

@@ -41,7 +41,7 @@ func NewLogfile(path string) (*Logfile, error) {
 		if err != nil {
 			return nil, err
 		}
-		return f.new(path)
+		return f, nil
 	}
 
 }
@@ -65,12 +65,13 @@ func (f *Logfile) new(path string) (*Logfile, error) {
 }
 
 func (f *Logfile) load(path string) error {
-	file, err := os.Open(path)
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		return err
 	}
 	f.file = file
 	f.path = path
+
 	return nil
 }
 

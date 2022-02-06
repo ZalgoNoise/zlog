@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var std = New("log", &TextFmt{}, os.Stdout)
+var std = New("log", TextFormat, os.Stdout)
 
 type Logger struct {
 	mu     sync.Mutex

@@ -44,4 +44,13 @@ func main() {
 		},
 	}).Warn("urgent error")
 
+	multi.SetPrefix("custom-level").Fields(
+		map[string]interface{}{
+			"level":  0,
+			"string": "trace",
+			"var":    "log.LLTrace",
+			"val":    log.LLTrace,
+		},
+	).Log(log.LLTrace, "this is a custom level log entry")
+
 }

@@ -7,15 +7,15 @@ import (
 )
 
 type LoggerI interface {
-	Output(level int, msg string) error
+	Output(level LogLevel, msg string) error
 	SetOuts(outs ...io.Writer) LoggerI
 	AddOuts(outs ...io.Writer) LoggerI
 	SetPrefix(prefix string) LoggerI
 	Fields(fields map[string]interface{}) LoggerI
 
-	Log(level int, v ...interface{})
-	Logln(level int, v ...interface{})
-	Logf(level int, format string, v ...interface{})
+	Log(level LogLevel, v ...interface{})
+	Logln(level LogLevel, v ...interface{})
+	Logf(level LogLevel, format string, v ...interface{})
 
 	Print(v ...interface{})
 	Println(v ...interface{})
@@ -61,7 +61,7 @@ func MultiLogger(loggers ...LoggerI) LoggerI {
 	return &multiLogger{allLoggers}
 }
 
-func (l *multiLogger) Output(level int, msg string) error {
+func (l *multiLogger) Output(level LogLevel, msg string) error {
 	for _, logger := range l.loggers {
 		err := logger.Output(level, msg)
 		if err != nil {
@@ -130,19 +130,19 @@ func (l *multiLogger) Printf(format string, v ...interface{}) {
 
 // log methods
 
-func (l *multiLogger) Log(level int, v ...interface{}) {
+func (l *multiLogger) Log(level LogLevel, v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Log(level, v...)
 	}
 }
 
-func (l *multiLogger) Logln(level int, v ...interface{}) {
+func (l *multiLogger) Logln(level LogLevel, v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Logln(level, v...)
 	}
 }
 
-func (l *multiLogger) Logf(level int, format string, v ...interface{}) {
+func (l *multiLogger) Logf(level LogLevel, format string, v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Logf(level, format, v...)
 	}

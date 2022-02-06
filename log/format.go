@@ -14,6 +14,11 @@ var LogFormatters = map[int]LogFormatter{
 	1: &JSONFmt{},
 }
 
+var (
+	TextFormat LogFormatter = LogFormatters[0]
+	JSONFormat LogFormatter = LogFormatters[1]
+)
+
 type TextFmt struct{}
 
 type JSONFmt struct{}

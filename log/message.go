@@ -91,15 +91,36 @@ func (l *Logger) Printf(format string, v ...interface{}) {
 // log methods
 
 func (l *Logger) Log(level LogLevel, v ...interface{}) {
-	l.Output(level, fmt.Sprint(v...))
+	s := fmt.Sprint(v...)
+	l.Output(level, s)
+
+	if level == LLPanic {
+		panic(s)
+	} else if level == LLError {
+		os.Exit(1)
+	}
 }
 
 func (l *Logger) Logln(level LogLevel, v ...interface{}) {
-	l.Output(level, fmt.Sprintln(v...))
+	s := fmt.Sprintln(v...)
+	l.Output(level, s)
+
+	if level == LLPanic {
+		panic(s)
+	} else if level == LLError {
+		os.Exit(1)
+	}
 }
 
 func (l *Logger) Logf(level LogLevel, format string, v ...interface{}) {
-	l.Output(level, fmt.Sprintf(format, v...))
+	s := fmt.Sprintf(format, v...)
+	l.Output(level, s)
+
+	if level == LLPanic {
+		panic(s)
+	} else if level == LLError {
+		os.Exit(1)
+	}
 }
 
 // panic methods

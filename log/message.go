@@ -21,6 +21,10 @@ const (
 	LLPanic
 )
 
+func (ll LogLevel) String() string {
+	return logTypeVals[ll]
+}
+
 var logTypeVals = map[LogLevel]string{
 	0: "trace",
 	1: "debug",
@@ -47,7 +51,7 @@ func (l *Logger) Output(level LogLevel, msg string) error {
 	log := &LogMessage{
 		Time:     now.Format(time.RFC3339Nano),
 		Prefix:   l.prefix,
-		Level:    logTypeVals[level],
+		Level:    level.String(),
 		Msg:      msg,
 		Metadata: l.meta,
 	}

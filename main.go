@@ -54,15 +54,14 @@ func main() {
 		},
 	).Log(log.LLTrace, "this is a custom level log entry")
 
-	chl := log.New("test", log.TextFormat)
 	logCh := make(chan log.ChLogMessage)
 	go func() {
 		for {
 			msg, ok := <-logCh
 			if ok {
-				chl.SetPrefix(msg.Prefix).Fields(msg.Metadata).Log(msg.Level, msg.Msg)
+				multi.SetPrefix(msg.Prefix).Fields(msg.Metadata).Log(msg.Level, msg.Msg)
 			} else {
-				fmt.Println("channel closed")
+				multi.SetPrefix("logger").Log(log.LLInfo, "channel closed")
 				break
 			}
 		}
@@ -79,7 +78,7 @@ func main() {
 		},
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	logCh <- log.ChLogMessage{
 		Prefix: "test-chan-log",
@@ -102,5 +101,34 @@ func main() {
 			"test_id": 2,
 		},
 	}
+
+	time.Sleep(1 * time.Second)
+
+	logCh <- log.ChLogMessage{
+		Prefix: "test-chan-log",
+		Level:  log.LLWarn,
+		Msg:    "warn runime",
+		Metadata: map[string]interface{}{
+			"type":    "warn",
+			"data":    "this is a buffered logger in a goroutine",
+			"test_id": 3,
+		},
+	}
+
+	time.Sleep(1 * time.Second)
+
+	go func() {
+		logCh <- log.ChLogMessage{
+			Prefix: "test-chan-log",
+			Level:  log.LLPanic,
+			Msg:    "break runime",
+			Metadata: map[string]interface{}{
+				"type":    "panic",
+				"data":    "this is a goroutine panic into a logger in a goroutine",
+				"test_id": 4,
+			},
+		}
+	}()
+	time.Sleep(1 * time.Second)
 
 }

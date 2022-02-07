@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ZalgoNoise/zlog/log"
 )
@@ -52,5 +53,54 @@ func main() {
 			"val":    log.LLTrace,
 		},
 	).Log(log.LLTrace, "this is a custom level log entry")
+
+	chl := log.New("test", log.TextFormat)
+	logCh := make(chan log.ChLogMessage)
+	go func() {
+		for {
+			msg, ok := <-logCh
+			if ok {
+				chl.SetPrefix(msg.Prefix).Fields(msg.Metadata).Log(msg.Level, msg.Msg)
+			} else {
+				fmt.Println("channel closed")
+				break
+			}
+		}
+	}()
+
+	logCh <- log.ChLogMessage{
+		Prefix: "test-chan-log",
+		Level:  log.LLTrace,
+		Msg:    "test log message",
+		Metadata: map[string]interface{}{
+			"type":    "trace",
+			"data":    "this is a buffered logger in a goroutine",
+			"test_id": 0,
+		},
+	}
+
+	time.Sleep(10 * time.Second)
+
+	logCh <- log.ChLogMessage{
+		Prefix: "test-chan-log",
+		Level:  log.LLTrace,
+		Msg:    "test log message",
+		Metadata: map[string]interface{}{
+			"type":    "trace",
+			"data":    "this is a buffered logger in a goroutine",
+			"test_id": 1,
+		},
+	}
+
+	logCh <- log.ChLogMessage{
+		Prefix: "test-chan-log",
+		Level:  log.LLTrace,
+		Msg:    "test log message",
+		Metadata: map[string]interface{}{
+			"type":    "trace",
+			"data":    "this is a buffered logger in a goroutine",
+			"test_id": 2,
+		},
+	}
 
 }

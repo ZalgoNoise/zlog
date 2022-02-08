@@ -215,12 +215,203 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 }
 
 func TestLoggerSetOuts(t *testing.T) {
+	type test struct {
+		prefix string
+		format LogFormatter
+		outs   []io.Writer
+		bufs   []*bytes.Buffer
+	}
+
+	var tests []test
+
+	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
+	regx := regexp.MustCompile(regxStr)
+
+	prefix := "test-new-logger"
+	format := TextFormat
+	msg := "test content"
+
+	for i := 0; i < 5; i++ {
+		var writters []io.Writer
+		var buffers []*bytes.Buffer
+
+		for b := 0; b <= i; b++ {
+			var buf bytes.Buffer
+			writters = append(writters, &buf)
+			buffers = append(buffers, &buf)
+		}
+
+		tests = append(tests, test{
+			prefix: prefix,
+			format: format,
+			outs:   writters,
+			bufs:   buffers,
+		})
+	}
+
+	for _, test := range tests {
+		logger := New(test.prefix, test.format)
+		logger.SetOuts(test.outs...)
+		logger.Log(LLInfo, msg)
+
+		for id, buf := range test.bufs {
+			if !regx.MatchString(buf.String()) {
+				t.Errorf(
+					"#%v [Logger] SetOuts().Info(%s) -- message mismatch",
+					id,
+					msg,
+				)
+			}
+
+			t.Logf(
+				"#%v -- TESTED -- [Logger] SetOuts().Info(%s) over %v buffers",
+				id,
+				msg,
+				len(test.bufs),
+			)
+		}
+
+	}
+
 }
 
 func TestLoggerAddOuts(t *testing.T) {
+	type test struct {
+		prefix string
+		format LogFormatter
+		outs   []io.Writer
+		bufs   []*bytes.Buffer
+	}
+
+	var tests []test
+
+	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
+	regx := regexp.MustCompile(regxStr)
+
+	prefix := "test-new-logger"
+	format := TextFormat
+	msg := "test content"
+
+	for i := 1; i < 5; i++ {
+		var writters []io.Writer
+		var buffers []*bytes.Buffer
+
+		for b := 0; b <= i; b++ {
+			var buf bytes.Buffer
+			writters = append(writters, &buf)
+			buffers = append(buffers, &buf)
+		}
+
+		tests = append(tests, test{
+			prefix: prefix,
+			format: format,
+			outs:   writters,
+			bufs:   buffers,
+		})
+	}
+
+	for _, test := range tests {
+		logger := New(test.prefix, test.format, test.outs[0])
+		logger.AddOuts(test.outs[1:]...)
+		logger.Log(LLInfo, msg)
+
+		for id, buf := range test.bufs {
+			if !regx.MatchString(buf.String()) {
+				t.Errorf(
+					"#%v [Logger] AddOuts().Info(%s) -- message mismatch",
+					id,
+					msg,
+				)
+			}
+
+			t.Logf(
+				"#%v -- TESTED -- [Logger] AddOuts().Info(%s) over %v buffers",
+				id,
+				msg,
+				len(test.bufs),
+			)
+		}
+
+	}
 }
 
 func TestLoggerSetPrefix(t *testing.T) {
+	type test struct {
+		prefix string
+		format LogFormatter
+		outs   []io.Writer
+		bufs   []*bytes.Buffer
+	}
+
+	var tests []test
+
+	var testPrefixes = []string{
+		"logger-prefix",
+		"logger-test",
+		"logger-new",
+		"logger-changed",
+		"logger-done",
+	}
+
+	regxStr := `^\[.*\]\s*\[info\]\s*\[(.*)\]\s*test content\s*$`
+	regx := regexp.MustCompile(regxStr)
+
+	format := TextFormat
+	msg := "test content"
+
+	for _, p := range testPrefixes {
+		buf := &bytes.Buffer{}
+		tests = append(tests, test{
+			prefix: p,
+			format: format,
+			outs:   []io.Writer{buf},
+			bufs:   []*bytes.Buffer{buf},
+		})
+	}
+
+	for id, test := range tests {
+		logger := New("old", test.format, test.outs...)
+		logger.SetPrefix(test.prefix)
+		logger.Log(LLInfo, msg)
+
+		for _, buf := range test.bufs {
+			if !regx.MatchString(buf.String()) {
+				t.Errorf(
+					"#%v [Logger] SetPrefix().Info(%s) -- message regex mismatch: %s",
+					id,
+					msg,
+					regxStr,
+				)
+			}
+
+			match := regx.FindStringSubmatch(buf.String())
+
+			var ok bool
+			for _, v := range match {
+				ok = false
+				if v == test.prefix {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				t.Errorf(
+					"#%v [Logger] SetPrefix().Info(%s) -- unexpected prefix -- wanted %s",
+					id,
+					msg,
+					test.prefix,
+				)
+			}
+
+			t.Logf(
+				"#%v -- TESTED -- [Logger] SetPrefix().Info(%s) -- finding prefix %s",
+				id,
+				msg,
+				test.prefix,
+			)
+		}
+	}
+
 }
 
 func TestLoggerFields(t *testing.T) {

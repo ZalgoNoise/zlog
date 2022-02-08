@@ -1,6 +1,10 @@
 package log
 
-import "testing"
+import (
+	"bytes"
+	"regexp"
+	"testing"
+)
 
 func TestLogLevelString(t *testing.T) {
 	type test struct {
@@ -75,4 +79,84 @@ func TestLogLevelString(t *testing.T) {
 			)
 		}
 	}
+}
+
+func TestNewSingleWriterLogger(t *testing.T) {
+	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
+	regx := regexp.MustCompile(regxStr)
+
+	prefix := "test-new-logger"
+	format := TextFormat
+	msg := "test content"
+	var buf bytes.Buffer
+
+	logger := New(prefix, format, &buf)
+
+	logger.Log(LLInfo, msg)
+
+	if !regx.MatchString(buf.String()) {
+		t.Errorf(
+			"#%v [Logger] New(%s,%s).Info(%s) = %s ; expected %s",
+			0,
+			prefix,
+			"TextFormat",
+			msg,
+			buf.String(),
+			regxStr,
+		)
+	}
+
+	t.Logf(
+		"#%v -- TESTED -- [Logger] New(%s,%s).Info(%s) = %s",
+		0,
+		prefix,
+		"TextFormat",
+		msg,
+		buf.String(),
+	)
+
+}
+
+func TestNewMultiWriterLogger(t *testing.T) {
+	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
+	regx := regexp.MustCompile(regxStr)
+
+	prefix := "test-new-logger"
+	format := TextFormat
+	msg := "test content"
+
+	var buf1 bytes.Buffer
+	var buf2 bytes.Buffer
+	var buf3 bytes.Buffer
+
+	buffers := []*bytes.Buffer{
+		&buf1, &buf2, &buf3,
+	}
+
+	logger := New(prefix, format, &buf1, &buf2, &buf3)
+
+	logger.Log(LLInfo, msg)
+
+	for id, buf := range buffers {
+		if !regx.MatchString(buf.String()) {
+			t.Errorf(
+				"#%v [Logger] [multi-writer] New(%s,%s).Info(%s) = %s ; expected %s",
+				id,
+				prefix,
+				"TextFormat",
+				msg,
+				buf.String(),
+				regxStr,
+			)
+		}
+		t.Logf(
+			"#%v -- TESTED -- [Logger] [multi-writer] New(%s,%s).Info(%s) = %s",
+			id,
+			prefix,
+			"TextFormat",
+			msg,
+			buf.String(),
+		)
+	}
+
 }

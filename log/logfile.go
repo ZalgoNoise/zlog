@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	bytes int64 = 1 << (10 * iota)
+	_ int64 = 1 << (10 * iota)
 	kilobytes
 	megabytes
 )

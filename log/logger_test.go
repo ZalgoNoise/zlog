@@ -2,6 +2,8 @@ package log
 
 import (
 	"bytes"
+	"io"
+	"os"
 	"regexp"
 	"testing"
 )
@@ -159,4 +161,67 @@ func TestNewMultiWriterLogger(t *testing.T) {
 		)
 	}
 
+}
+
+func TestNewDefaultWriterLogger(t *testing.T) {
+	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
+	regx := regexp.MustCompile(regxStr)
+
+	prefix := "test-new-logger"
+	format := TextFormat
+	msg := "test content"
+
+	out := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	logger := New(prefix, format)
+	logger.Log(LLInfo, msg)
+
+	// https://stackoverflow.com/questions/10473800
+	// copy the output in a separate goroutine so printing can't block indefinitely
+	outCh := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		outCh <- buf.String()
+	}()
+
+	w.Close()
+	os.Stdout = out
+	result := <-outCh
+
+	if !regx.MatchString(result) {
+		t.Errorf(
+			"#%v [Logger] [default-writer] New(%s,%s).Info(%s) = %s ; expected %s",
+			0,
+			prefix,
+			"TextFormat",
+			msg,
+			result,
+			regxStr,
+		)
+	}
+
+	t.Logf(
+		"#%v -- TESTED -- [Logger] [multi-writer] New(%s,%s).Info(%s) = %s",
+		0,
+		prefix,
+		"TextFormat",
+		msg,
+		result,
+	)
+
+}
+
+func TestLoggerSetOuts(t *testing.T) {
+}
+
+func TestLoggerAddOuts(t *testing.T) {
+}
+
+func TestLoggerSetPrefix(t *testing.T) {
+}
+
+func TestLoggerFields(t *testing.T) {
 }

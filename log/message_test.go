@@ -248,15 +248,181 @@ func TestLoggerOutput(t *testing.T) {
 }
 
 func TestLoggerPrint(t *testing.T) {
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+	}
 
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		tests = append(tests, test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+		})
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		tests = append(tests, test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		})
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+
+		mockLogger.logger.Print(test.msg)
+
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v [LoggerMessage] Print(%s) -- unmarshal error: %s",
+				id,
+				test.msg,
+				err,
+			)
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v [LoggerMessage] Print(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+		}
+
+		t.Logf(
+			"#%v -- TESTED -- [LoggerMessage] Print(%s) : %s",
+			id,
+			test.msg,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+	}
 }
 
 func TestLoggerPrintln(t *testing.T) {
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+	}
 
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		tests = append(tests, test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+		})
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		tests = append(tests, test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		})
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+
+		mockLogger.logger.Println(test.msg)
+
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v [LoggerMessage] Println(%s) -- unmarshal error: %s",
+				id,
+				test.msg,
+				err,
+			)
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v [LoggerMessage] Println(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+		}
+
+		t.Logf(
+			"#%v -- TESTED -- [LoggerMessage] Println(%s) : %s",
+			id,
+			test.msg,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+	}
 }
 
 func TestLoggerPrintf(t *testing.T) {
+	type test struct {
+		format  string
+		v       []interface{}
+		wantMsg string
+		ok      bool
+	}
 
+	var tests []test
+
+	for a := 0; a < len(mockFmtMessages); a++ {
+		tests = append(tests, test{
+			format:  mockFmtMessages[a].format,
+			v:       mockFmtMessages[a].v,
+			wantMsg: fmt.Sprintf(mockFmtMessages[a].format, mockFmtMessages[a].v...),
+			ok:      true,
+		})
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+
+		mockLogger.logger.Printf(test.format, test.v...)
+
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v [LoggerMessage] Printf(%s, %s) -- unmarshal error: %s",
+				id,
+				test.format,
+				test.v,
+				err,
+			)
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v [LoggerMessage] Printf(%s, %s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+		}
+
+		t.Logf(
+			"#%v -- TESTED -- [LoggerMessage] Printf(%s, %s) : %s",
+			id,
+			test.format,
+			test.v,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+	}
 }
 
 func TestLoggerLog(t *testing.T) {

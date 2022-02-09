@@ -426,15 +426,419 @@ func TestLoggerPrintf(t *testing.T) {
 }
 
 func TestLoggerLog(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf(
+				"# -- TEST -- [Logger.Log()] Intended panic recovery -- %s",
+				r,
+			)
+		}
+	}()
+
+	type test struct {
+		level     LogLevel
+		msg       string
+		wantLevel string
+		wantMsg   string
+		ok        bool
+		panics    bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockLogLevelsOK); a++ {
+		if a == 5 {
+			continue // skip LLFatal, or os.Exit(1)
+		}
+		for b := 0; b < len(mockMessages); b++ {
+			test := test{
+				level:     mockLogLevelsOK[a],
+				msg:       mockMessages[b],
+				wantLevel: mockLogLevelsOK[a].String(),
+				wantMsg:   mockMessages[b],
+				ok:        true,
+				panics:    false,
+			}
+
+			if a == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+		for c := 0; c < len(mockFmtMessages); c++ {
+			test := test{
+				level:     mockLogLevelsOK[a],
+				msg:       fmt.Sprintf(mockFmtMessages[c].format, mockFmtMessages[c].v...),
+				wantLevel: mockLogLevelsOK[a].String(),
+				wantMsg:   fmt.Sprintf(mockFmtMessages[c].format, mockFmtMessages[c].v...),
+				ok:        true,
+				panics:    false,
+			}
+
+			if a == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+	}
+	for d := 0; d < len(mockLogLevelsNOK); d++ {
+		if d == 5 {
+			continue // skip LLFatal, or os.Exit(1)
+		}
+		for e := 0; e < len(mockMessages); e++ {
+			test := test{
+				level:     mockLogLevelsNOK[d],
+				msg:       mockMessages[e],
+				wantLevel: mockLogLevelsNOK[d].String(),
+				wantMsg:   mockMessages[e],
+				ok:        false,
+				panics:    false,
+			}
+
+			if d == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+		for f := 0; f < len(mockFmtMessages); f++ {
+			test := test{
+				level:     mockLogLevelsNOK[d],
+				msg:       fmt.Sprintf(mockFmtMessages[f].format, mockFmtMessages[f].v...),
+				wantLevel: mockLogLevelsNOK[d].String(),
+				wantMsg:   fmt.Sprintf(mockFmtMessages[f].format, mockFmtMessages[f].v...),
+				ok:        true,
+				panics:    false,
+			}
+
+			if d == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+
+		mockLogger.logger.Log(test.level, test.msg)
+
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v [LoggerMessage] Log(%s, %s) -- unmarshal error: %s",
+				id,
+				test.level.String(),
+				test.msg,
+				err,
+			)
+		}
+
+		if logEntry.Level != test.wantLevel {
+			t.Errorf(
+				"#%v [LoggerMessage] Log(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.level.String(),
+				test.msg,
+				test.wantLevel,
+				logEntry.Level,
+			)
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v [LoggerMessage] Log(%s, %s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.level.String(),
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+		}
+
+		t.Logf(
+			"#%v -- TESTED -- [LoggerMessage] Log(%s, %s) : %s",
+			id,
+			test.level.String(),
+			test.msg,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+	}
 
 }
 
 func TestLoggerLogln(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf(
+				"# -- TEST -- [Logger.Log()] Intended panic recovery -- %s",
+				r,
+			)
+		}
+	}()
 
+	type test struct {
+		level     LogLevel
+		msg       string
+		wantLevel string
+		wantMsg   string
+		ok        bool
+		panics    bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockLogLevelsOK); a++ {
+		if a == 5 {
+			continue // skip LLFatal, or os.Exit(1)
+		}
+		for b := 0; b < len(mockMessages); b++ {
+			test := test{
+				level:     mockLogLevelsOK[a],
+				msg:       mockMessages[b],
+				wantLevel: mockLogLevelsOK[a].String(),
+				wantMsg:   mockMessages[b],
+				ok:        true,
+				panics:    false,
+			}
+
+			if a == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+		for c := 0; c < len(mockFmtMessages); c++ {
+			test := test{
+				level:     mockLogLevelsOK[a],
+				msg:       fmt.Sprintf(mockFmtMessages[c].format, mockFmtMessages[c].v...),
+				wantLevel: mockLogLevelsOK[a].String(),
+				wantMsg:   fmt.Sprintf(mockFmtMessages[c].format, mockFmtMessages[c].v...),
+				ok:        true,
+				panics:    false,
+			}
+
+			if a == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+	}
+	for d := 0; d < len(mockLogLevelsNOK); d++ {
+		if d == 5 {
+			continue // skip LLFatal, or os.Exit(1)
+		}
+		for e := 0; e < len(mockMessages); e++ {
+			test := test{
+				level:     mockLogLevelsNOK[d],
+				msg:       mockMessages[e],
+				wantLevel: mockLogLevelsNOK[d].String(),
+				wantMsg:   mockMessages[e],
+				ok:        false,
+				panics:    false,
+			}
+
+			if d == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+		for f := 0; f < len(mockFmtMessages); f++ {
+			test := test{
+				level:     mockLogLevelsNOK[d],
+				msg:       fmt.Sprintf(mockFmtMessages[f].format, mockFmtMessages[f].v...),
+				wantLevel: mockLogLevelsNOK[d].String(),
+				wantMsg:   fmt.Sprintf(mockFmtMessages[f].format, mockFmtMessages[f].v...),
+				ok:        true,
+				panics:    false,
+			}
+
+			if d == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+
+		mockLogger.logger.Logln(test.level, test.msg)
+
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v [LoggerMessage] Log(%s, %s) -- unmarshal error: %s",
+				id,
+				test.level.String(),
+				test.msg,
+				err,
+			)
+		}
+
+		if logEntry.Level != test.wantLevel {
+			t.Errorf(
+				"#%v [LoggerMessage] Log(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.level.String(),
+				test.msg,
+				test.wantLevel,
+				logEntry.Level,
+			)
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v [LoggerMessage] Log(%s, %s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.level.String(),
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+		}
+
+		t.Logf(
+			"#%v -- TESTED -- [LoggerMessage] Log(%s, %s) : %s",
+			id,
+			test.level.String(),
+			test.msg,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+	}
 }
 
 func TestLoggerLogf(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf(
+				"# -- TEST -- [Logger.Log()] Intended panic recovery -- %s",
+				r,
+			)
+		}
+	}()
 
+	type test struct {
+		level     LogLevel
+		format    string
+		v         []interface{}
+		wantLevel string
+		wantMsg   string
+		ok        bool
+		panics    bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockLogLevelsOK); a++ {
+		if a == 5 {
+			continue // skip LLFatal, or os.Exit(1)
+		}
+
+		for b := 0; b < len(mockFmtMessages); b++ {
+			test := test{
+				level:     mockLogLevelsOK[a],
+				format:    mockFmtMessages[b].format,
+				v:         mockFmtMessages[b].v,
+				wantLevel: mockLogLevelsOK[a].String(),
+				wantMsg:   fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+				ok:        true,
+				panics:    false,
+			}
+
+			if a == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+	}
+	for c := 0; c < len(mockLogLevelsNOK); c++ {
+		if c == 5 {
+			continue // skip LLFatal, or os.Exit(1)
+		}
+
+		for d := 0; d < len(mockFmtMessages); d++ {
+			test := test{
+				level:     mockLogLevelsNOK[c],
+				format:    mockFmtMessages[d].format,
+				v:         mockFmtMessages[d].v,
+				wantLevel: mockLogLevelsNOK[c].String(),
+				wantMsg:   fmt.Sprintf(mockFmtMessages[d].format, mockFmtMessages[d].v...),
+				ok:        true,
+				panics:    false,
+			}
+
+			if c == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+
+		mockLogger.logger.Logf(test.level, test.format, test.v...)
+
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v [LoggerMessage] Logf(%s, %s, %s) -- unmarshal error: %s",
+				id,
+				test.level.String(),
+				test.format,
+				test.v,
+				err,
+			)
+		}
+
+		if logEntry.Level != test.wantLevel {
+			t.Errorf(
+				"#%v [LoggerMessage] Logf(%s, %s, %s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.level.String(),
+				test.format,
+				test.v,
+				test.wantLevel,
+				logEntry.Level,
+			)
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v [LoggerMessage] Logf(%s, %s, %s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.level.String(),
+				test.format,
+				test.v,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+		}
+
+		t.Logf(
+			"#%v -- TESTED -- [LoggerMessage] Logf(%s, %s, %s) : %s",
+			id,
+			test.level.String(),
+			test.format,
+			test.v,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+	}
 }
 
 func TestLoggerPanic(t *testing.T) {

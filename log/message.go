@@ -96,7 +96,7 @@ func (l *Logger) Log(level LogLevel, v ...interface{}) {
 
 	if level == LLPanic {
 		panic(s)
-	} else if level == LLError {
+	} else if level == LLFatal {
 		os.Exit(1)
 	}
 }
@@ -107,7 +107,7 @@ func (l *Logger) Logln(level LogLevel, v ...interface{}) {
 
 	if level == LLPanic {
 		panic(s)
-	} else if level == LLError {
+	} else if level == LLFatal {
 		os.Exit(1)
 	}
 }
@@ -118,7 +118,7 @@ func (l *Logger) Logf(level LogLevel, format string, v ...interface{}) {
 
 	if level == LLPanic {
 		panic(s)
-	} else if level == LLError {
+	} else if level == LLFatal {
 		os.Exit(1)
 	}
 }

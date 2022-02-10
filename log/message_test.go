@@ -59,7 +59,7 @@ var mockFmtMessages = []struct {
 	{
 		format: "'Hello world!' in a list: %s",
 		v: []interface{}{
-			[]rune{'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '!'},
+			[]string{"H", "e", "l", "l", "o", " ", "w", "o", "r", "l", "d", "!"},
 		},
 	},
 	{
@@ -114,34 +114,42 @@ func TestLogLevelString(t *testing.T) {
 	allTests = append(allTests, passingTests...)
 	allTests = append(allTests, failingTests...)
 
-	for id, test := range allTests {
-		result := test.input.String()
-
+	var verify = func(id int, test test, result string) {
 		if result == "" && test.pass {
 			t.Errorf(
-				"#%v [LogLevel] LogLevel(%v).String() -- unexpected reference, got %s",
+				"#%v -- FAILED -- [LogLevel] LogLevel(%v).String() -- unexpected reference, got %s",
 				id,
 				int(test.input),
 				result,
 			)
+			return
 		}
 
 		if result != test.ok && !test.pass {
 			t.Errorf(
-				"#%v [LogLevel] LogLevel(%v).String() -- expected %s, got %s",
+				"#%v -- FAILED -- [LogLevel] LogLevel(%v).String() -- expected %s, got %s",
 				id,
 				int(test.input),
 				test.ok,
 				result,
 			)
-		} else {
-			t.Logf(
-				"#%v -- TESTED -- [LogLevel] LogLevel(%v).String() = %s",
-				id,
-				int(test.input),
-				result,
-			)
+			return
 		}
+
+		t.Logf(
+			"#%v -- PASSED -- [LogLevel] LogLevel(%v).String() = %s",
+			id,
+			int(test.input),
+			result,
+		)
+
+	}
+
+	for id, test := range allTests {
+		result := test.input.String()
+
+		verify(id, test, result)
+
 	}
 }
 
@@ -197,46 +205,44 @@ func TestLoggerOutput(t *testing.T) {
 		}
 	}
 
-	for id, test := range tests {
-
-		logEntry := &LogMessage{}
-
-		mockLogger.logger.Output(test.level, test.msg)
-
+	var verify = func(id int, test test, logEntry *LogMessage) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
-				"#%v [LoggerMessage] Output(%s, %s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [LoggerMessage] Output(%s, %s) -- unmarshal error: %s",
 				id,
 				test.level.String(),
 				test.msg,
 				err,
 			)
+			return
 		}
 
 		if logEntry.Level != test.wantLevel {
 			t.Errorf(
-				"#%v [LoggerMessage] Output(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Output(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.level.String(),
 				test.msg,
 				test.wantLevel,
 				logEntry.Level,
 			)
+			return
 		}
 
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
-				"#%v [LoggerMessage] Output(%s, %s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Output(%s, %s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.level.String(),
 				test.msg,
 				test.wantMsg,
 				logEntry.Msg,
 			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [LoggerMessage] Output(%s, %s) : %s",
+			"#%v -- PASSED -- [LoggerMessage] Output(%s, %s) : %s",
 			id,
 			test.level.String(),
 			test.msg,
@@ -244,6 +250,17 @@ func TestLoggerOutput(t *testing.T) {
 		)
 
 		mockLogger.buf.Reset()
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		mockLogger.logger.Output(test.level, test.msg)
+
+		verify(id, test, logEntry)
+
 	}
 }
 
@@ -271,39 +288,46 @@ func TestLoggerPrint(t *testing.T) {
 		})
 	}
 
-	for id, test := range tests {
-
-		logEntry := &LogMessage{}
-
-		mockLogger.logger.Print(test.msg)
-
+	var verify = func(id int, test test, logEntry *LogMessage) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
-				"#%v [LoggerMessage] Print(%s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [LoggerMessage] Print(%s) -- unmarshal error: %s",
 				id,
 				test.msg,
 				err,
 			)
+			return
 		}
 
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
-				"#%v [LoggerMessage] Print(%s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Print(%s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
 				test.wantMsg,
 				logEntry.Msg,
 			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [LoggerMessage] Print(%s) : %s",
+			"#%v -- PASSED -- [LoggerMessage] Print(%s) : %s",
 			id,
 			test.msg,
 			mockLogger.buf.String(),
 		)
 
 		mockLogger.buf.Reset()
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		mockLogger.logger.Print(test.msg)
+
+		verify(id, test, logEntry)
 	}
 }
 
@@ -331,39 +355,46 @@ func TestLoggerPrintln(t *testing.T) {
 		})
 	}
 
-	for id, test := range tests {
-
-		logEntry := &LogMessage{}
-
-		mockLogger.logger.Println(test.msg)
-
+	var verify = func(id int, test test, logEntry *LogMessage) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
-				"#%v [LoggerMessage] Println(%s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [LoggerMessage] Println(%s) -- unmarshal error: %s",
 				id,
 				test.msg,
 				err,
 			)
+			return
 		}
 
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
-				"#%v [LoggerMessage] Println(%s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Println(%s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
 				test.wantMsg,
 				logEntry.Msg,
 			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [LoggerMessage] Println(%s) : %s",
+			"#%v -- PASSED -- [LoggerMessage] Println(%s) : %s",
 			id,
 			test.msg,
 			mockLogger.buf.String(),
 		)
 
 		mockLogger.buf.Reset()
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		mockLogger.logger.Println(test.msg)
+
+		verify(id, test, logEntry)
 	}
 }
 
@@ -386,35 +417,32 @@ func TestLoggerPrintf(t *testing.T) {
 		})
 	}
 
-	for id, test := range tests {
-
-		logEntry := &LogMessage{}
-
-		mockLogger.logger.Printf(test.format, test.v...)
-
+	var verify = func(id int, test test, logEntry *LogMessage) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
-				"#%v [LoggerMessage] Printf(%s, %s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [LoggerMessage] Printf(%s, %s) -- unmarshal error: %s",
 				id,
 				test.format,
 				test.v,
 				err,
 			)
+			return
 		}
 
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
-				"#%v [LoggerMessage] Printf(%s, %s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Printf(%s, %s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
 				test.wantMsg,
 				logEntry.Msg,
 			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [LoggerMessage] Printf(%s, %s) : %s",
+			"#%v -- PASSED -- [LoggerMessage] Printf(%s, %s) : %s",
 			id,
 			test.format,
 			test.v,
@@ -422,6 +450,16 @@ func TestLoggerPrintf(t *testing.T) {
 		)
 
 		mockLogger.buf.Reset()
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		mockLogger.logger.Printf(test.format, test.v...)
+
+		verify(id, test, logEntry)
 	}
 }
 
@@ -521,46 +559,44 @@ func TestLoggerLog(t *testing.T) {
 		}
 	}
 
-	for id, test := range tests {
-
-		logEntry := &LogMessage{}
-
-		mockLogger.logger.Log(test.level, test.msg)
-
+	var verify = func(id int, test test, logEntry *LogMessage) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
-				"#%v [LoggerMessage] Log(%s, %s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [LoggerMessage] Log(%s, %s) -- unmarshal error: %s",
 				id,
 				test.level.String(),
 				test.msg,
 				err,
 			)
+			return
 		}
 
 		if logEntry.Level != test.wantLevel {
 			t.Errorf(
-				"#%v [LoggerMessage] Log(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Log(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.level.String(),
 				test.msg,
 				test.wantLevel,
 				logEntry.Level,
 			)
+			return
 		}
 
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
-				"#%v [LoggerMessage] Log(%s, %s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Log(%s, %s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.level.String(),
 				test.msg,
 				test.wantMsg,
 				logEntry.Msg,
 			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [LoggerMessage] Log(%s, %s) : %s",
+			"#%v -- PASSED -- [LoggerMessage] Log(%s, %s) : %s",
 			id,
 			test.level.String(),
 			test.msg,
@@ -570,13 +606,29 @@ func TestLoggerLog(t *testing.T) {
 		mockLogger.buf.Reset()
 	}
 
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		if test.level.String() == "panic" {
+			defer verify(id, test, logEntry)
+		}
+
+		mockLogger.logger.Log(test.level, test.msg)
+
+		if test.level.String() != "panic" {
+			verify(id, test, logEntry)
+		}
+	}
+
 }
 
 func TestLoggerLogln(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			t.Logf(
-				"# -- TEST -- [Logger.Log()] Intended panic recovery -- %s",
+				"# -- TEST -- [Logger.Logln()] Intended panic recovery -- %s",
 				r,
 			)
 		}
@@ -668,46 +720,44 @@ func TestLoggerLogln(t *testing.T) {
 		}
 	}
 
-	for id, test := range tests {
-
-		logEntry := &LogMessage{}
-
-		mockLogger.logger.Logln(test.level, test.msg)
-
+	var verify = func(id int, test test, logEntry *LogMessage) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
-				"#%v [LoggerMessage] Log(%s, %s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [LoggerMessage] Logln(%s, %s) -- unmarshal error: %s",
 				id,
 				test.level.String(),
 				test.msg,
 				err,
 			)
+			return
 		}
 
 		if logEntry.Level != test.wantLevel {
 			t.Errorf(
-				"#%v [LoggerMessage] Log(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Logln(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.level.String(),
 				test.msg,
 				test.wantLevel,
 				logEntry.Level,
 			)
+			return
 		}
 
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
-				"#%v [LoggerMessage] Log(%s, %s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Logln(%s, %s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.level.String(),
 				test.msg,
 				test.wantMsg,
 				logEntry.Msg,
 			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [LoggerMessage] Log(%s, %s) : %s",
+			"#%v -- PASSED -- [LoggerMessage] Logln(%s, %s) : %s",
 			id,
 			test.level.String(),
 			test.msg,
@@ -716,13 +766,30 @@ func TestLoggerLogln(t *testing.T) {
 
 		mockLogger.buf.Reset()
 	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		if test.level.String() == "panic" {
+			defer verify(id, test, logEntry)
+		}
+
+		mockLogger.logger.Logln(test.level, test.msg)
+
+		if test.level.String() != "panic" {
+			verify(id, test, logEntry)
+		}
+
+	}
 }
 
 func TestLoggerLogf(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
 			t.Logf(
-				"# -- TEST -- [Logger.Log()] Intended panic recovery -- %s",
+				"# -- TEST -- [Logger.Logf()] Intended panic recovery -- %s",
 				r,
 			)
 		}
@@ -787,26 +854,22 @@ func TestLoggerLogf(t *testing.T) {
 		}
 	}
 
-	for id, test := range tests {
-
-		logEntry := &LogMessage{}
-
-		mockLogger.logger.Logf(test.level, test.format, test.v...)
-
+	var verify = func(id int, test test, logEntry *LogMessage) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
-				"#%v [LoggerMessage] Logf(%s, %s, %s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [LoggerMessage] Logf(%s, %s, %s) -- unmarshal error: %s",
 				id,
 				test.level.String(),
 				test.format,
 				test.v,
 				err,
 			)
+			return
 		}
 
 		if logEntry.Level != test.wantLevel {
 			t.Errorf(
-				"#%v [LoggerMessage] Logf(%s, %s, %s) -- log level mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Logf(%s, %s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.level.String(),
 				test.format,
@@ -814,11 +877,12 @@ func TestLoggerLogf(t *testing.T) {
 				test.wantLevel,
 				logEntry.Level,
 			)
+			return
 		}
 
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
-				"#%v [LoggerMessage] Logf(%s, %s, %s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Logf(%s, %s, %s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.level.String(),
 				test.format,
@@ -826,10 +890,11 @@ func TestLoggerLogf(t *testing.T) {
 				test.wantMsg,
 				logEntry.Msg,
 			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [LoggerMessage] Logf(%s, %s, %s) : %s",
+			"#%v -- PASSED -- [LoggerMessage] Logf(%s, %s, %s) : %s",
 			id,
 			test.level.String(),
 			test.format,
@@ -839,10 +904,116 @@ func TestLoggerLogf(t *testing.T) {
 
 		mockLogger.buf.Reset()
 	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		if test.level.String() == "panic" {
+			defer verify(id, test, logEntry)
+		}
+
+		mockLogger.logger.Logf(test.level, test.format, test.v...)
+
+		if test.level.String() != "panic" {
+			verify(id, test, logEntry)
+		}
+
+	}
 }
 
 func TestLoggerPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf(
+				"# -- TEST -- [Logger.Panic()] Intended panic recovery -- %s",
+				r,
+			)
+		}
+	}()
 
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+		panics  bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		test := test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+			panics:  true,
+		}
+
+		tests = append(tests, test)
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		test := test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+			panics:  true,
+		}
+
+		tests = append(tests, test)
+	}
+
+	var verify = func(id int, test test, logEntry *LogMessage) {
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v [LoggerMessage] Panic(%s) -- unmarshal error: %s",
+				id,
+				test.msg,
+				err,
+			)
+		}
+
+		if logEntry.Level != LLPanic.String() {
+			t.Errorf(
+				"#%v [LoggerMessage] Panic(%s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				LLPanic.String(),
+				logEntry.Level,
+			)
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v [LoggerMessage] Panic(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+		}
+
+		t.Logf(
+			"#%v -- TESTED -- [LoggerMessage] Panic(%s) : %s",
+			id,
+			test.msg,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		defer verify(id, test, logEntry)
+
+		mockLogger.logger.Panic(test.msg)
+
+	}
 }
 
 func TestLoggerPanicln(t *testing.T) {

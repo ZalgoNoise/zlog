@@ -408,13 +408,25 @@ func TestLoggerPrintf(t *testing.T) {
 
 	var tests []test
 
-	for a := 0; a < len(mockFmtMessages); a++ {
-		tests = append(tests, test{
-			format:  mockFmtMessages[a].format,
-			v:       mockFmtMessages[a].v,
-			wantMsg: fmt.Sprintf(mockFmtMessages[a].format, mockFmtMessages[a].v...),
+	for a := 0; a < len(mockMessages); a++ {
+		test := test{
+			format:  "%s",
+			v:       []interface{}{mockMessages[a]},
+			wantMsg: mockMessages[a],
 			ok:      true,
-		})
+		}
+
+		tests = append(tests, test)
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		test := test{
+			format:  mockFmtMessages[b].format,
+			v:       mockFmtMessages[b].v,
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		}
+
+		tests = append(tests, test)
 	}
 
 	var verify = func(id int, test test, logEntry *LogMessage) {
@@ -812,13 +824,31 @@ func TestLoggerLogf(t *testing.T) {
 			continue // skip LLFatal, or os.Exit(1)
 		}
 
-		for b := 0; b < len(mockFmtMessages); b++ {
+		for b := 0; b < len(mockMessages); b++ {
 			test := test{
 				level:     mockLogLevelsOK[a],
-				format:    mockFmtMessages[b].format,
-				v:         mockFmtMessages[b].v,
+				format:    "%s",
+				v:         []interface{}{mockMessages[b]},
 				wantLevel: mockLogLevelsOK[a].String(),
-				wantMsg:   fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+				wantMsg:   mockMessages[b],
+				ok:        true,
+				panics:    false,
+			}
+
+			if a == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+
+		for c := 0; c < len(mockFmtMessages); c++ {
+			test := test{
+				level:     mockLogLevelsOK[a],
+				format:    mockFmtMessages[c].format,
+				v:         mockFmtMessages[c].v,
+				wantLevel: mockLogLevelsOK[a].String(),
+				wantMsg:   fmt.Sprintf(mockFmtMessages[c].format, mockFmtMessages[c].v...),
 				ok:        true,
 				panics:    false,
 			}
@@ -830,23 +860,41 @@ func TestLoggerLogf(t *testing.T) {
 			tests = append(tests, test)
 		}
 	}
-	for c := 0; c < len(mockLogLevelsNOK); c++ {
-		if c == 5 {
+	for d := 0; d < len(mockLogLevelsNOK); d++ {
+		if d == 5 {
 			continue // skip LLFatal, or os.Exit(1)
 		}
 
-		for d := 0; d < len(mockFmtMessages); d++ {
+		for e := 0; e < len(mockMessages); e++ {
 			test := test{
-				level:     mockLogLevelsNOK[c],
-				format:    mockFmtMessages[d].format,
-				v:         mockFmtMessages[d].v,
-				wantLevel: mockLogLevelsNOK[c].String(),
-				wantMsg:   fmt.Sprintf(mockFmtMessages[d].format, mockFmtMessages[d].v...),
+				level:     mockLogLevelsNOK[d],
+				format:    "%s",
+				v:         []interface{}{mockMessages[e]},
+				wantLevel: mockLogLevelsNOK[d].String(),
+				wantMsg:   mockMessages[e],
 				ok:        true,
 				panics:    false,
 			}
 
-			if c == 9 {
+			if d == 9 {
+				test.panics = true
+			}
+
+			tests = append(tests, test)
+		}
+
+		for f := 0; f < len(mockFmtMessages); f++ {
+			test := test{
+				level:     mockLogLevelsNOK[d],
+				format:    mockFmtMessages[f].format,
+				v:         mockFmtMessages[f].v,
+				wantLevel: mockLogLevelsNOK[d].String(),
+				wantMsg:   fmt.Sprintf(mockFmtMessages[f].format, mockFmtMessages[f].v...),
+				ok:        true,
+				panics:    false,
+			}
+
+			if d == 9 {
 				test.panics = true
 			}
 
@@ -1280,6 +1328,17 @@ func TestLoggerError(t *testing.T) {
 			return
 		}
 
+		if logEntry.Level != LLError.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Error(%s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				LLPanic.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Error(%s) -- message mismatch: wanted %s ; got %s",
@@ -1343,6 +1402,17 @@ func TestLoggerErrorln(t *testing.T) {
 				id,
 				test.msg,
 				err,
+			)
+			return
+		}
+
+		if logEntry.Level != LLError.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Errorln(%s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				LLPanic.String(),
+				logEntry.Level,
 			)
 			return
 		}
@@ -1418,6 +1488,18 @@ func TestLoggerErrorf(t *testing.T) {
 				test.format,
 				test.v,
 				err,
+			)
+			return
+		}
+
+		if logEntry.Level != LLError.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Errorf(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				LLPanic.String(),
+				logEntry.Level,
 			)
 			return
 		}

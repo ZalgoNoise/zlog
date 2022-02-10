@@ -966,35 +966,38 @@ func TestLoggerPanic(t *testing.T) {
 	var verify = func(id int, test test, logEntry *LogMessage) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
-				"#%v [LoggerMessage] Panic(%s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [LoggerMessage] Panic(%s) -- unmarshal error: %s",
 				id,
 				test.msg,
 				err,
 			)
+			return
 		}
 
 		if logEntry.Level != LLPanic.String() {
 			t.Errorf(
-				"#%v [LoggerMessage] Panic(%s) -- log level mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Panic(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
 				LLPanic.String(),
 				logEntry.Level,
 			)
+			return
 		}
 
 		if logEntry.Msg != test.wantMsg {
 			t.Errorf(
-				"#%v [LoggerMessage] Panic(%s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [LoggerMessage] Panic(%s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
 				test.wantMsg,
 				logEntry.Msg,
 			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [LoggerMessage] Panic(%s) : %s",
+			"#%v -- PASSED -- [LoggerMessage] Panic(%s) : %s",
 			id,
 			test.msg,
 			mockLogger.buf.String(),
@@ -1017,23 +1020,229 @@ func TestLoggerPanic(t *testing.T) {
 }
 
 func TestLoggerPanicln(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf(
+				"# -- TEST -- [Logger.Panicln()] Intended panic recovery -- %s",
+				r,
+			)
+		}
+	}()
 
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+		panics  bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		test := test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+			panics:  true,
+		}
+
+		tests = append(tests, test)
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		test := test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+			panics:  true,
+		}
+
+		tests = append(tests, test)
+	}
+
+	var verify = func(id int, test test, logEntry *LogMessage) {
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Panicln(%s) -- unmarshal error: %s",
+				id,
+				test.msg,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Level != LLPanic.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Panicln(%s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				LLPanic.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Panicln(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [LoggerMessage] Panicln(%s) : %s",
+			id,
+			test.msg,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		defer verify(id, test, logEntry)
+
+		mockLogger.logger.Panicln(test.msg)
+
+	}
 }
 
 func TestLoggerPanicf(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf(
+				"# -- TEST -- [Logger.Panicf()] Intended panic recovery -- %s",
+				r,
+			)
+		}
+	}()
 
+	type test struct {
+		format  string
+		v       []interface{}
+		wantMsg string
+		ok      bool
+		panics  bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		test := test{
+			format:  "%s",
+			v:       []interface{}{mockMessages[a]},
+			wantMsg: mockMessages[a],
+			ok:      true,
+			panics:  true,
+		}
+
+		tests = append(tests, test)
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		test := test{
+			format:  mockFmtMessages[b].format,
+			v:       mockFmtMessages[b].v,
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+			panics:  true,
+		}
+
+		tests = append(tests, test)
+	}
+
+	var verify = func(id int, test test, logEntry *LogMessage) {
+		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Panicf(%s, %s) -- unmarshal error: %s",
+				id,
+				test.format,
+				test.v,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Level != LLPanic.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Panicf(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				LLPanic.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [LoggerMessage] Panicf(%s, %s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [LoggerMessage] Panicf(%s, %s) : %s",
+			id,
+			test.format,
+			test.v,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		logEntry := &LogMessage{}
+		mockLogger.buf.Reset()
+
+		defer verify(id, test, logEntry)
+
+		mockLogger.logger.Panicf(test.format, test.v...)
+
+	}
 }
 
 func TestLoggerFatal(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [LoggerMessage] Fatal(v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead.",
+		0,
+	)
 }
 
 func TestLoggerFatalln(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [LoggerMessage] Fatalln(v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead.",
+		0,
+	)
 }
 
 func TestLoggerFatalf(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [LoggerMessage] Fatalf(format string, v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead.",
+		0,
+	)
 }
 
 func TestLoggerError(t *testing.T) {

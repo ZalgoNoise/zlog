@@ -3822,7 +3822,7 @@ func TestErrorln(t *testing.T) {
 				"#%v -- FAILED -- [DefaultLogger] Errorln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				LLError.String(),
 				logEntry.Level,
 			)
 			return
@@ -4129,7 +4129,7 @@ func TestWarnln(t *testing.T) {
 				"#%v -- FAILED -- [DefaultLogger] Warnln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				LLWarn.String(),
 				logEntry.Level,
 			)
 			return
@@ -4743,7 +4743,7 @@ func TestDebugln(t *testing.T) {
 				"#%v -- FAILED -- [DefaultLogger] Debugln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				LLDebug.String(),
 				logEntry.Level,
 			)
 			return
@@ -4893,13 +4893,308 @@ func TestDebugf(t *testing.T) {
 }
 
 func TestTrace(t *testing.T) {
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New("log", JSONFormat, buf)
+
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		tests = append(tests, test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+		})
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		tests = append(tests, test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		})
+	}
+
+	var verify = func(id int, test test, result []byte) {
+		logEntry := &LogMessage{}
+
+		if err := json.Unmarshal(result, logEntry); err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Trace(%s) -- unmarshal error: %s",
+				id,
+				test.msg,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Trace(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+			return
+		}
+
+		if logEntry.Level != LLTrace.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Trace(%s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				LLTrace.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
+		if logEntry.Prefix != "log" { // std logger prefix
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Trace(%s) -- prefix mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				"log",
+				logEntry.Prefix,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Trace(%s) : %s",
+			id,
+			test.msg,
+			string(result),
+		)
+
+		buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		Trace(test.msg)
+
+		verify(id, test, buf.Bytes())
+
+	}
+
+	std = oldstd
 
 }
 
 func TestTraceln(t *testing.T) {
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New("log", JSONFormat, buf)
+
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		tests = append(tests, test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+		})
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		tests = append(tests, test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		})
+	}
+
+	var verify = func(id int, test test, result []byte) {
+		logEntry := &LogMessage{}
+
+		if err := json.Unmarshal(result, logEntry); err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Traceln(%s) -- unmarshal error: %s",
+				id,
+				test.msg,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Traceln(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+			return
+		}
+
+		if logEntry.Level != LLTrace.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Traceln(%s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				LLTrace.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
+		if logEntry.Prefix != "log" { // std logger prefix
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Traceln(%s) -- prefix mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				"log",
+				logEntry.Prefix,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Traceln(%s) : %s",
+			id,
+			test.msg,
+			string(result),
+		)
+
+		buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		Traceln(test.msg)
+
+		verify(id, test, buf.Bytes())
+
+	}
+
+	std = oldstd
 
 }
 
 func TestTracef(t *testing.T) {
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New("log", JSONFormat, buf)
 
+	type test struct {
+		format  string
+		v       []interface{}
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		tests = append(tests, test{
+			format:  "%s",
+			v:       []interface{}{mockMessages[a]},
+			wantMsg: mockMessages[a],
+			ok:      true,
+		})
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		tests = append(tests, test{
+			format:  mockFmtMessages[b].format,
+			v:       mockFmtMessages[b].v,
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		})
+	}
+
+	var verify = func(id int, test test, result []byte) {
+		logEntry := &LogMessage{}
+
+		if err := json.Unmarshal(result, logEntry); err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Tracef(%s, %s) -- unmarshal error: %s",
+				id,
+				test.format,
+				test.v,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Tracef(%s, %s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+			return
+		}
+
+		if logEntry.Level != LLTrace.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Tracef(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				LLTrace.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
+		if logEntry.Prefix != "log" { // std logger prefix
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Tracef(%s, %s) -- prefix mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				"log",
+				logEntry.Prefix,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Tracef(%s, %s) : %s",
+			id,
+			test.format,
+			test.v,
+			string(result),
+		)
+
+		buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		Tracef(test.format, test.v...)
+
+		verify(id, test, buf.Bytes())
+
+	}
+
+	std = oldstd
 }

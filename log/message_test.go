@@ -3638,15 +3638,30 @@ func TestPanicf(t *testing.T) {
 }
 
 func TestFatal(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [DefaultLogger] Fatal(v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
+		0,
+	)
 }
 
 func TestFatalln(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [DefaultLogger] Fatalln(v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
+		0,
+	)
 }
 
 func TestFatalf(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [DefaultLogger] Fatalf(format string, v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
+		0,
+	)
 }
 
 func TestError(t *testing.T) {

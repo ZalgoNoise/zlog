@@ -476,15 +476,6 @@ func TestLoggerPrintf(t *testing.T) {
 }
 
 func TestLoggerLog(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Logf(
-				"# -- TEST -- [Logger.Log()] Intended panic recovery -- %s",
-				r,
-			)
-		}
-	}()
-
 	type test struct {
 		level     LogLevel
 		msg       string
@@ -572,6 +563,42 @@ func TestLoggerLog(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, logEntry *LogMessage) {
+		r := recover()
+
+		if test.level == LLPanic {
+			if r == nil {
+				t.Errorf(
+					"#%v -- FAILED -- LoggerMessage] Log(%s, %s) -- panic did not occur",
+					id,
+					test.level.String(),
+					test.msg,
+				)
+				return
+			}
+
+			if r != test.wantMsg {
+				t.Errorf(
+					"#%v -- FAILED -- LoggerMessage] Log(%s, %s) -- message mismatch: wanted %s ; got %s",
+					id,
+					test.level.String(),
+					test.msg,
+					test.wantMsg,
+					r,
+				)
+				return
+			}
+			t.Logf(
+				"#%v -- PASSED -- LoggerMessage] Log(%s, %s) : %s",
+				id,
+				test.level.String(),
+				test.msg,
+				mockLogger.buf.String(),
+			)
+
+			mockLogger.buf.Reset()
+			return
+		}
+
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Log(%s, %s) -- unmarshal error: %s",
@@ -623,13 +650,13 @@ func TestLoggerLog(t *testing.T) {
 		logEntry := &LogMessage{}
 		mockLogger.buf.Reset()
 
-		if test.level.String() == "panic" {
+		if test.level == LLPanic {
 			defer verify(id, test, logEntry)
 		}
 
 		mockLogger.logger.Log(test.level, test.msg)
 
-		if test.level.String() != "panic" {
+		if test.level != LLPanic {
 			verify(id, test, logEntry)
 		}
 	}
@@ -637,15 +664,6 @@ func TestLoggerLog(t *testing.T) {
 }
 
 func TestLoggerLogln(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Logf(
-				"# -- TEST -- [Logger.Logln()] Intended panic recovery -- %s",
-				r,
-			)
-		}
-	}()
-
 	type test struct {
 		level     LogLevel
 		msg       string
@@ -733,6 +751,41 @@ func TestLoggerLogln(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, logEntry *LogMessage) {
+		r := recover()
+
+		if test.level == LLPanic {
+			if r == nil {
+				t.Errorf(
+					"#%v -- FAILED -- LoggerMessage] Logln(%s, %s) -- panic did not occur",
+					id,
+					test.level.String(),
+					test.msg,
+				)
+				return
+			}
+
+			if r != test.wantMsg+"\n" {
+				t.Errorf(
+					"#%v -- FAILED -- LoggerMessage] Logln(%s, %s) -- message mismatch: wanted %s ; got %s",
+					id,
+					test.level.String(),
+					test.msg,
+					test.wantMsg,
+					r,
+				)
+				return
+			}
+			t.Logf(
+				"#%v -- PASSED -- LoggerMessage] Logln(%s, %s) : %s",
+				id,
+				test.level.String(),
+				test.msg,
+				mockLogger.buf.String(),
+			)
+
+			mockLogger.buf.Reset()
+			return
+		}
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Logln(%s, %s) -- unmarshal error: %s",
@@ -784,13 +837,13 @@ func TestLoggerLogln(t *testing.T) {
 		logEntry := &LogMessage{}
 		mockLogger.buf.Reset()
 
-		if test.level.String() == "panic" {
+		if test.level == LLPanic {
 			defer verify(id, test, logEntry)
 		}
 
 		mockLogger.logger.Logln(test.level, test.msg)
 
-		if test.level.String() != "panic" {
+		if test.level != LLPanic {
 			verify(id, test, logEntry)
 		}
 
@@ -798,14 +851,6 @@ func TestLoggerLogln(t *testing.T) {
 }
 
 func TestLoggerLogf(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Logf(
-				"# -- TEST -- [Logger.Logf()] Intended panic recovery -- %s",
-				r,
-			)
-		}
-	}()
 
 	type test struct {
 		level     LogLevel
@@ -903,6 +948,45 @@ func TestLoggerLogf(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, logEntry *LogMessage) {
+		r := recover()
+
+		if test.level == LLPanic {
+			if r == nil {
+				t.Errorf(
+					"#%v -- FAILED -- LoggerMessage] Logf(%s, %s, %s) -- panic did not occur",
+					id,
+					test.level.String(),
+					test.format,
+					test.v,
+				)
+				return
+			}
+
+			if r != test.wantMsg {
+				t.Errorf(
+					"#%v -- FAILED -- LoggerMessage] Logf(%s, %s, %s) -- message mismatch: wanted %s ; got %s",
+					id,
+					test.level.String(),
+					test.format,
+					test.v,
+					test.wantMsg,
+					r,
+				)
+				return
+			}
+			t.Logf(
+				"#%v -- PASSED -- LoggerMessage] Logf(%s, %s, %s) : %s",
+				id,
+				test.level.String(),
+				test.format,
+				test.v,
+				mockLogger.buf.String(),
+			)
+
+			mockLogger.buf.Reset()
+			return
+		}
+
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Logf(%s, %s, %s) -- unmarshal error: %s",
@@ -958,13 +1042,13 @@ func TestLoggerLogf(t *testing.T) {
 		logEntry := &LogMessage{}
 		mockLogger.buf.Reset()
 
-		if test.level.String() == "panic" {
+		if test.level == LLPanic {
 			defer verify(id, test, logEntry)
 		}
 
 		mockLogger.logger.Logf(test.level, test.format, test.v...)
 
-		if test.level.String() != "panic" {
+		if test.level != LLPanic {
 			verify(id, test, logEntry)
 		}
 
@@ -972,15 +1056,6 @@ func TestLoggerLogf(t *testing.T) {
 }
 
 func TestLoggerPanic(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Logf(
-				"# -- TEST -- [Logger.Panic()] Intended panic recovery -- %s",
-				r,
-			)
-		}
-	}()
-
 	type test struct {
 		msg     string
 		wantMsg string
@@ -1011,56 +1086,43 @@ func TestLoggerPanic(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
-		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+	var verify = func(id int, test test) {
+		r := recover()
+
+		if r == nil {
 			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panic(%s) -- unmarshal error: %s",
+				"#%v -- FAILED -- LoggerMessage] Panic(%s) -- panic did not occur",
 				id,
 				test.msg,
-				err,
 			)
 			return
 		}
 
-		if logEntry.Level != LLPanic.String() {
+		if r != test.wantMsg {
 			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panic(%s) -- log level mismatch: wanted %s ; got %s",
-				id,
-				test.msg,
-				LLPanic.String(),
-				logEntry.Level,
-			)
-			return
-		}
-
-		if logEntry.Msg != test.wantMsg {
-			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panic(%s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- LoggerMessage] Panic(%s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
 				test.wantMsg,
-				logEntry.Msg,
+				r,
 			)
 			return
 		}
-
 		t.Logf(
-			"#%v -- PASSED -- [LoggerMessage] Panic(%s) : %s",
+			"#%v -- PASSED -- LoggerMessage] Panic(%s) : %s",
 			id,
 			test.msg,
 			mockLogger.buf.String(),
 		)
 
 		mockLogger.buf.Reset()
-
 	}
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
 		mockLogger.buf.Reset()
 
-		defer verify(id, test, logEntry)
+		defer verify(id, test)
 
 		mockLogger.logger.Panic(test.msg)
 
@@ -1068,15 +1130,6 @@ func TestLoggerPanic(t *testing.T) {
 }
 
 func TestLoggerPanicln(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Logf(
-				"# -- TEST -- [Logger.Panicln()] Intended panic recovery -- %s",
-				r,
-			)
-		}
-	}()
-
 	type test struct {
 		msg     string
 		wantMsg string
@@ -1107,41 +1160,30 @@ func TestLoggerPanicln(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
-		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+	var verify = func(id int, test test) {
+		r := recover()
+
+		if r == nil {
 			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panicln(%s) -- unmarshal error: %s",
+				"#%v -- FAILED -- LoggerMessage] Panicln(%s) -- panic did not occur",
 				id,
 				test.msg,
-				err,
 			)
 			return
 		}
 
-		if logEntry.Level != LLPanic.String() {
+		if r != test.wantMsg+"\n" {
 			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panicln(%s) -- log level mismatch: wanted %s ; got %s",
-				id,
-				test.msg,
-				LLPanic.String(),
-				logEntry.Level,
-			)
-			return
-		}
-
-		if logEntry.Msg != test.wantMsg {
-			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panicln(%s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- LoggerMessage] Panicln(%s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
 				test.wantMsg,
-				logEntry.Msg,
+				r,
 			)
 			return
 		}
-
 		t.Logf(
-			"#%v -- PASSED -- [LoggerMessage] Panicln(%s) : %s",
+			"#%v -- PASSED -- LoggerMessage] Panicln(%s) : %s",
 			id,
 			test.msg,
 			mockLogger.buf.String(),
@@ -1153,10 +1195,9 @@ func TestLoggerPanicln(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
 		mockLogger.buf.Reset()
 
-		defer verify(id, test, logEntry)
+		defer verify(id, test)
 
 		mockLogger.logger.Panicln(test.msg)
 
@@ -1164,15 +1205,6 @@ func TestLoggerPanicln(t *testing.T) {
 }
 
 func TestLoggerPanicf(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Logf(
-				"# -- TEST -- [Logger.Panicf()] Intended panic recovery -- %s",
-				r,
-			)
-		}
-	}()
-
 	type test struct {
 		format  string
 		v       []interface{}
@@ -1206,44 +1238,32 @@ func TestLoggerPanicf(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
-		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
+	var verify = func(id int, test test) {
+		r := recover()
+
+		if r == nil {
 			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panicf(%s, %s) -- unmarshal error: %s",
+				"#%v -- FAILED -- LoggerMessage] Panicf(%s, %s) -- panic did not occur",
 				id,
 				test.format,
 				test.v,
-				err,
 			)
 			return
 		}
 
-		if logEntry.Level != LLPanic.String() {
+		if r != test.wantMsg {
 			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panicf(%s, %s) -- log level mismatch: wanted %s ; got %s",
-				id,
-				test.format,
-				test.v,
-				LLPanic.String(),
-				logEntry.Level,
-			)
-			return
-		}
-
-		if logEntry.Msg != test.wantMsg {
-			t.Errorf(
-				"#%v -- FAILED -- [LoggerMessage] Panicf(%s, %s) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- LoggerMessage] Panicf(%s, %s) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
 				test.wantMsg,
-				logEntry.Msg,
+				r,
 			)
 			return
 		}
-
 		t.Logf(
-			"#%v -- PASSED -- [LoggerMessage] Panicf(%s, %s) : %s",
+			"#%v -- PASSED -- LoggerMessage] Panicf(%s, %s) : %s",
 			id,
 			test.format,
 			test.v,
@@ -1256,10 +1276,9 @@ func TestLoggerPanicf(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
 		mockLogger.buf.Reset()
 
-		defer verify(id, test, logEntry)
+		defer verify(id, test)
 
 		mockLogger.logger.Panicf(test.format, test.v...)
 
@@ -2988,17 +3007,23 @@ func TestLog(t *testing.T) {
 
 	}
 
+	defer func() { std = oldstd }()
+
 	for id, test := range tests {
 
 		buf.Reset()
 
+		if test.panics {
+			defer verify(id, test, buf.Bytes())
+		}
+
 		Log(test.level, test.msg)
 
-		verify(id, test, buf.Bytes())
+		if !test.panics {
+			verify(id, test, buf.Bytes())
+		}
 
 	}
-
-	std = oldstd
 
 }
 
@@ -3370,15 +3395,246 @@ func TestLogf(t *testing.T) {
 }
 
 func TestPanic(t *testing.T) {
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New("log", JSONFormat, buf)
 
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		test := test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+		}
+
+		tests = append(tests, test)
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		test := test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		}
+
+		tests = append(tests, test)
+	}
+
+	var verify = func(id int, test test) {
+		r := recover()
+
+		if r == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Panic(%s) -- panic did not occur",
+				id,
+				test.msg,
+			)
+			return
+		}
+
+		if r != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Panic(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				r,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Panic(%s) : %s",
+			id,
+			test.msg,
+			mockLogger.buf.String(),
+		)
+
+		buf.Reset()
+
+	}
+
+	defer func() { std = oldstd }()
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		defer verify(id, test)
+		Panic(test.msg)
+
+	}
 }
 
 func TestPanicln(t *testing.T) {
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New("log", JSONFormat, buf)
 
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		test := test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+		}
+
+		tests = append(tests, test)
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		test := test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		}
+
+		tests = append(tests, test)
+	}
+
+	var verify = func(id int, test test) {
+		r := recover()
+
+		if r == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Panicln(%s) -- panic did not occur",
+				id,
+				test.msg,
+			)
+			return
+		}
+
+		if r != test.wantMsg+"\n" {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Panicln(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				r,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Panicln(%s) : %s",
+			id,
+			test.msg,
+			mockLogger.buf.String(),
+		)
+
+		buf.Reset()
+
+	}
+
+	defer func() { std = oldstd }()
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		defer verify(id, test)
+		Panicln(test.msg)
+
+	}
 }
 
 func TestPanicf(t *testing.T) {
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New("log", JSONFormat, buf)
 
+	type test struct {
+		format  string
+		v       []interface{}
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		test := test{
+			format:  "%s",
+			v:       []interface{}{mockMessages[a]},
+			wantMsg: mockMessages[a],
+			ok:      true,
+		}
+
+		tests = append(tests, test)
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		test := test{
+			format:  mockFmtMessages[b].format,
+			v:       mockFmtMessages[b].v,
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		}
+
+		tests = append(tests, test)
+	}
+
+	var verify = func(id int, test test) {
+		r := recover()
+
+		if r == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Panicf(%s, %s) -- panic did not occur",
+				id,
+				test.format,
+				test.v,
+			)
+			return
+		}
+
+		if r != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Panicf(%s, %s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				test.wantMsg,
+				r,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Panicf(%s, %s) : %s",
+			id,
+			test.format,
+			test.v,
+			mockLogger.buf.String(),
+		)
+
+		buf.Reset()
+
+	}
+
+	defer func() { std = oldstd }()
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		defer verify(id, test)
+		Panicf(test.format, test.v...)
+
+	}
 }
 
 func TestFatal(t *testing.T) {

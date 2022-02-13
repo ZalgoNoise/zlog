@@ -11,13 +11,14 @@ const prefix string = "multilog-test"
 
 const msg string = "multilogger test message"
 
+// add 6 mock buffers
 var mockBufs = []*bytes.Buffer{
-	&bytes.Buffer{},
-	&bytes.Buffer{},
-	&bytes.Buffer{},
-	&bytes.Buffer{},
-	&bytes.Buffer{},
-	&bytes.Buffer{},
+	{},
+	{},
+	{},
+	{},
+	{},
+	{},
 }
 
 var mockLoggers = []LoggerI{

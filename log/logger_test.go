@@ -21,7 +21,9 @@ func TestTextFormatLogger(t *testing.T) {
 
 	logger := New(prefix, format, &buf)
 
-	logger.Log(LLInfo, msg)
+	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+	logger.Log(logMessage)
 
 	if !regx.MatchString(buf.String()) {
 		t.Errorf(
@@ -54,7 +56,9 @@ func TestJSONFormatLogger(t *testing.T) {
 
 	logger := New(prefix, format, buf)
 
-	logger.Log(LLInfo, msg)
+	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+	logger.Log(logMessage)
 
 	if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 		t.Errorf(
@@ -99,7 +103,9 @@ func TestNewSingleWriterLogger(t *testing.T) {
 
 	logger := New(prefix, format, &buf)
 
-	logger.Log(LLInfo, msg)
+	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+	logger.Log(logMessage)
 
 	if !regx.MatchString(buf.String()) {
 		t.Errorf(
@@ -142,7 +148,9 @@ func TestNewMultiWriterLogger(t *testing.T) {
 
 	logger := New(prefix, format, &buf1, &buf2, &buf3)
 
-	logger.Log(LLInfo, msg)
+	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+	logger.Log(logMessage)
 
 	for id, buf := range buffers {
 		if !regx.MatchString(buf.String()) {
@@ -181,7 +189,9 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 	os.Stdout = w
 
 	logger := New(prefix, format)
-	logger.Log(LLInfo, msg)
+	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+	logger.Log(logMessage)
 
 	// https://stackoverflow.com/questions/10473800
 	// copy the output in a separate goroutine so printing can't block indefinitely
@@ -257,7 +267,9 @@ func TestLoggerSetOuts(t *testing.T) {
 	for _, test := range tests {
 		logger := New(test.prefix, test.format)
 		logger.SetOuts(test.outs...)
-		logger.Log(LLInfo, msg)
+		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+		logger.Log(logMessage)
 
 		for id, buf := range test.bufs {
 			if !regx.MatchString(buf.String()) {
@@ -318,7 +330,9 @@ func TestLoggerAddOuts(t *testing.T) {
 	for _, test := range tests {
 		logger := New(test.prefix, test.format, test.outs[0])
 		logger.AddOuts(test.outs[1:]...)
-		logger.Log(LLInfo, msg)
+		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+		logger.Log(logMessage)
 
 		for id, buf := range test.bufs {
 			if !regx.MatchString(buf.String()) {
@@ -377,7 +391,9 @@ func TestLoggerSetPrefix(t *testing.T) {
 	for id, test := range tests {
 		logger := New("old", test.format, test.outs...)
 		logger.SetPrefix(test.prefix)
-		logger.Log(LLInfo, msg)
+		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+		logger.Log(logMessage)
 
 		for _, buf := range test.bufs {
 			if !regx.MatchString(buf.String()) {

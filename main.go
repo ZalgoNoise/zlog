@@ -56,20 +56,8 @@ func main() {
 		log.NewMessage().Level(log.LLTrace).Message("this is a custom level log entry").Build(),
 	)
 
-	logCh := make(chan *log.LogMessage)
-	go func() {
-		for {
-			msg, ok := <-logCh
-			if ok {
-				multi.Log(msg)
-			} else {
-				multi.Log(
-					log.NewMessage().Prefix("logger").Level(log.LLInfo).Message("channel closed").Build(),
-				)
-				break
-			}
-		}
-	}()
+	logCh, chLogger := log.NewLogCh(multi)
+	go chLogger()
 
 	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
 		map[string]interface{}{

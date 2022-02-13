@@ -185,10 +185,12 @@ func (l *Logger) Printf(format string, v ...interface{}) {
 // log methods
 
 func (l *Logger) Log(m *LogMessage) {
-	if m.Prefix == "" && l.prefix != "" {
+	// replace defaults if logger has them set
+	if m.Prefix == "log" && l.prefix != "" {
 		m.Prefix = l.prefix
 	}
 
+	// replace defaults if logger has them set
 	if m.Metadata == nil && l.meta != nil {
 		m.Metadata = l.meta
 	}

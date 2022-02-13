@@ -52,82 +52,71 @@ func main() {
 			"var":    "log.LLTrace",
 			"val":    log.LLTrace,
 		},
-	).Log(log.LLTrace, "this is a custom level log entry")
+	).Log(
+		log.NewMessage().Level(log.LLTrace).Message("this is a custom level log entry").Build(),
+	)
 
-	logCh := make(chan log.ChLogMessage)
+	logCh := make(chan *log.LogMessage)
 	go func() {
 		for {
 			msg, ok := <-logCh
 			if ok {
-				multi.SetPrefix(msg.Prefix).Fields(msg.Metadata).Log(msg.Level, msg.Msg)
+				multi.Log(msg)
 			} else {
-				multi.SetPrefix("logger").Log(log.LLInfo, "channel closed")
+				multi.Log(
+					log.NewMessage().Prefix("logger").Level(log.LLInfo).Message("channel closed").Build(),
+				)
 				break
 			}
 		}
 	}()
 
-	logCh <- log.ChLogMessage{
-		Prefix: "test-chan-log",
-		Level:  log.LLTrace,
-		Msg:    "test log message",
-		Metadata: map[string]interface{}{
+	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
+		map[string]interface{}{
 			"type":    "trace",
 			"data":    "this is a buffered logger in a goroutine",
 			"test_id": 0,
 		},
-	}
+	).Build()
 
 	time.Sleep(1 * time.Second)
 
-	logCh <- log.ChLogMessage{
-		Prefix: "test-chan-log",
-		Level:  log.LLTrace,
-		Msg:    "test log message",
-		Metadata: map[string]interface{}{
+	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
+		map[string]interface{}{
 			"type":    "trace",
 			"data":    "this is a buffered logger in a goroutine",
 			"test_id": 1,
 		},
-	}
+	).Build()
 
-	logCh <- log.ChLogMessage{
-		Prefix: "test-chan-log",
-		Level:  log.LLTrace,
-		Msg:    "test log message",
-		Metadata: map[string]interface{}{
+	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
+		map[string]interface{}{
 			"type":    "trace",
 			"data":    "this is a buffered logger in a goroutine",
 			"test_id": 2,
 		},
-	}
+	).Build()
 
 	time.Sleep(1 * time.Second)
 
-	logCh <- log.ChLogMessage{
-		Prefix: "test-chan-log",
-		Level:  log.LLWarn,
-		Msg:    "warn runime",
-		Metadata: map[string]interface{}{
+	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLWarn).Message("warn runtime").Metadata(
+		map[string]interface{}{
 			"type":    "warn",
 			"data":    "this is a buffered logger in a goroutine",
 			"test_id": 3,
 		},
-	}
+	).Build()
 
 	time.Sleep(1 * time.Second)
 
 	go func() {
-		logCh <- log.ChLogMessage{
-			Prefix: "test-chan-log",
-			Level:  log.LLPanic,
-			Msg:    "break runime",
-			Metadata: map[string]interface{}{
+		logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLPanic).Message("break runime").Metadata(
+			map[string]interface{}{
 				"type":    "panic",
 				"data":    "this is a goroutine panic into a logger in a goroutine",
 				"test_id": 4,
 			},
-		}
+		).Build()
 	}()
 	time.Sleep(1 * time.Second)
 

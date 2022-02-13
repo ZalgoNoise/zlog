@@ -7,15 +7,13 @@ import (
 )
 
 type LoggerI interface {
-	Output(level LogLevel, msg string) error
+	Output(m *LogMessage) error
 	SetOuts(outs ...io.Writer) LoggerI
 	AddOuts(outs ...io.Writer) LoggerI
 	SetPrefix(prefix string) LoggerI
 	Fields(fields map[string]interface{}) LoggerI
 
-	Log(level LogLevel, v ...interface{})
-	Logln(level LogLevel, v ...interface{})
-	Logf(level LogLevel, format string, v ...interface{})
+	Log(m *LogMessage)
 
 	Print(v ...interface{})
 	Println(v ...interface{})
@@ -61,9 +59,9 @@ func MultiLogger(loggers ...LoggerI) LoggerI {
 	return &multiLogger{allLoggers}
 }
 
-func (l *multiLogger) Output(level LogLevel, msg string) error {
+func (l *multiLogger) Output(m *LogMessage) error {
 	for _, logger := range l.loggers {
-		err := logger.Output(level, msg)
+		err := logger.Output(m)
 		if err != nil {
 			return err
 		}
@@ -130,21 +128,9 @@ func (l *multiLogger) Printf(format string, v ...interface{}) {
 
 // log methods
 
-func (l *multiLogger) Log(level LogLevel, v ...interface{}) {
+func (l *multiLogger) Log(m *LogMessage) {
 	for _, logger := range l.loggers {
-		logger.Log(level, v...)
-	}
-}
-
-func (l *multiLogger) Logln(level LogLevel, v ...interface{}) {
-	for _, logger := range l.loggers {
-		logger.Logln(level, v...)
-	}
-}
-
-func (l *multiLogger) Logf(level LogLevel, format string, v ...interface{}) {
-	for _, logger := range l.loggers {
-		logger.Logf(level, format, v...)
+		logger.Log(m)
 	}
 }
 
@@ -154,7 +140,7 @@ func (l *multiLogger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
 
 	for _, logger := range l.loggers {
-		logger.Log(9, s)
+		logger.Panic(s)
 	}
 
 	panic(s)
@@ -164,7 +150,7 @@ func (l *multiLogger) Panicln(v ...interface{}) {
 	s := fmt.Sprint(v...)
 
 	for _, logger := range l.loggers {
-		logger.Logln(9, s)
+		logger.Panicln(s)
 	}
 
 	panic(s)
@@ -174,7 +160,7 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprint(v...)
 
 	for _, logger := range l.loggers {
-		logger.Logf(9, format, s)
+		logger.Panicf(format, s)
 	}
 
 	panic(s)
@@ -184,21 +170,21 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 
 func (l *multiLogger) Fatal(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Log(5, v...)
+		logger.Fatal(v...)
 	}
 	os.Exit(1)
 }
 
 func (l *multiLogger) Fatalln(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Logln(5, v...)
+		logger.Fatalln(v...)
 	}
 	os.Exit(1)
 }
 
 func (l *multiLogger) Fatalf(format string, v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Logf(5, format, v...)
+		logger.Fatalf(format, v...)
 	}
 	os.Exit(1)
 }

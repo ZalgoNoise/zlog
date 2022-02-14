@@ -7,7 +7,6 @@ import (
 	"os"
 	"regexp"
 	"testing"
-	"time"
 )
 
 func TestTextFormatLogger(t *testing.T) {
@@ -436,81 +435,6 @@ func TestLoggerSetPrefix(t *testing.T) {
 }
 
 func TestLoggerFields(t *testing.T) {
-	var testObjects = []map[string]interface{}{
-		{
-			"testID": 0,
-			"desc":   "this is a test with custom metadata",
-			"content": map[string]interface{}{
-				"nestLevel": 1,
-				"data":      "nested object #1",
-				"content": map[string]interface{}{
-					"nestLevel": 2,
-					"data":      "nested object #2",
-				},
-			},
-			"date": time.Now().Format(time.RFC3339),
-		}, {
-			"testID": 1,
-			"desc":   "this is a test with custom metadata",
-			"content": map[string]interface{}{
-				"nestLevel": 1,
-				"data":      "nested object #1",
-				"content": map[string]interface{}{
-					"nestLevel": 2,
-					"data":      "nested object #2",
-					"content": map[string]interface{}{
-						"nestLevel": 3,
-						"data":      "nested object #3",
-					},
-				},
-			},
-			"date": time.Now().Format(time.RFC3339),
-		}, {
-			"testID": 2,
-			"desc":   "this is a test with custom metadata",
-			"content": map[string]interface{}{
-				"nestLevel": 1,
-				"data":      "nested object #1",
-				"content": map[string]interface{}{
-					"nestLevel": 2,
-					"data":      "nested object #2",
-					"content": map[string]interface{}{
-						"nestLevel": 3,
-						"data":      "nested object #3",
-						"content": map[string]interface{}{
-							"nestLevel": 4,
-							"data":      "nested object #4",
-						},
-					},
-				},
-			},
-			"date": time.Now().Format(time.RFC3339),
-		}, {
-			"testID": 3,
-			"desc":   "this is a test with custom metadata",
-			"content": map[string]interface{}{
-				"nestLevel": 1,
-				"data":      "nested object #1",
-				"content": map[string]interface{}{
-					"nestLevel": 2,
-					"data":      "nested object #2",
-					"content": map[string]interface{}{
-						"nestLevel": 3,
-						"data":      "nested object #3",
-						"content": map[string]interface{}{
-							"nestLevel": 4,
-							"data":      "nested object #4",
-							"content": map[string]interface{}{
-								"nestLevel": 5,
-								"data":      "nested object #5",
-							},
-						},
-					},
-				},
-			},
-			"date": time.Now().Format(time.RFC3339),
-		},
-	}
 
 	prefix := "test-new-logger"
 	format := JSONFormat

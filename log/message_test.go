@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 )
 
 var mockBuffer = &bytes.Buffer{}
@@ -34,6 +35,24 @@ var mockLogLevelsNOK = []LogLevel{
 	LogLevel(-1),
 	LogLevel(200),
 	LogLevel(500),
+}
+
+var mockPrefixes = []string{
+	"test-logger",
+	"test-prefix",
+	"test-log",
+	"test-service",
+	"test-module",
+	"test-logic",
+}
+
+var mockEmptyPrefixes = []string{
+	"",
+	"",
+	"",
+	"",
+	"",
+	"",
 }
 
 var mockMessages = []string{
@@ -68,6 +87,325 @@ var mockFmtMessages = []struct {
 			21,
 		},
 	},
+}
+
+var testObjects = []map[string]interface{}{
+	{
+		"testID": 0,
+		"desc":   "this is a test with custom metadata",
+		"content": map[string]interface{}{
+			"nestLevel": 1,
+			"data":      "nested object #1",
+			"content": map[string]interface{}{
+				"nestLevel": 2,
+				"data":      "nested object #2",
+			},
+		},
+		"date": time.Now().Format(time.RFC3339),
+	}, {
+		"testID": 1,
+		"desc":   "this is a test with custom metadata",
+		"content": map[string]interface{}{
+			"nestLevel": 1,
+			"data":      "nested object #1",
+			"content": map[string]interface{}{
+				"nestLevel": 2,
+				"data":      "nested object #2",
+				"content": map[string]interface{}{
+					"nestLevel": 3,
+					"data":      "nested object #3",
+				},
+			},
+		},
+		"date": time.Now().Format(time.RFC3339),
+	}, {
+		"testID": 2,
+		"desc":   "this is a test with custom metadata",
+		"content": map[string]interface{}{
+			"nestLevel": 1,
+			"data":      "nested object #1",
+			"content": map[string]interface{}{
+				"nestLevel": 2,
+				"data":      "nested object #2",
+				"content": map[string]interface{}{
+					"nestLevel": 3,
+					"data":      "nested object #3",
+					"content": map[string]interface{}{
+						"nestLevel": 4,
+						"data":      "nested object #4",
+					},
+				},
+			},
+		},
+		"date": time.Now().Format(time.RFC3339),
+	}, {
+		"testID": 3,
+		"desc":   "this is a test with custom metadata",
+		"content": map[string]interface{}{
+			"nestLevel": 1,
+			"data":      "nested object #1",
+			"content": map[string]interface{}{
+				"nestLevel": 2,
+				"data":      "nested object #2",
+				"content": map[string]interface{}{
+					"nestLevel": 3,
+					"data":      "nested object #3",
+					"content": map[string]interface{}{
+						"nestLevel": 4,
+						"data":      "nested object #4",
+						"content": map[string]interface{}{
+							"nestLevel": 5,
+							"data":      "nested object #5",
+						},
+					},
+				},
+			},
+		},
+		"date": time.Now().Format(time.RFC3339),
+	},
+}
+
+var testEmptyObjects = []map[string]interface{}{
+	nil,
+	nil,
+	nil,
+	nil,
+}
+
+func TestMessageBuilder(t *testing.T) {
+	type data struct {
+		level  LogLevel
+		prefix string
+		msg    string
+		meta   map[string]interface{}
+	}
+
+	type test struct {
+		input  data
+		wants  *LogMessage
+		panics bool
+	}
+
+	var testAllObjects []map[string]interface{}
+	testAllObjects = append(testAllObjects, testObjects...)
+	testAllObjects = append(testAllObjects, testEmptyObjects...)
+
+	var testAllMessages []string
+	testAllMessages = append(testAllMessages, mockMessages...)
+	for _, fmtMsg := range mockFmtMessages {
+		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockLogLevelsOK); a++ {
+		if a == 5 {
+			continue // skip LLFatal, or os.Exit(1)
+		}
+		for b := 0; b < len(mockPrefixes); b++ {
+
+			for c := 0; c < len(testAllMessages); c++ {
+
+				for d := 0; d < len(testAllObjects); d++ {
+					t := test{
+						input: data{
+							level:  mockLogLevelsOK[a],
+							prefix: mockPrefixes[b],
+							msg:    testAllMessages[c],
+							meta:   testAllObjects[d],
+						},
+						wants: &LogMessage{
+							Level:    mockLogLevelsOK[a].String(),
+							Prefix:   mockPrefixes[b],
+							Msg:      testAllMessages[c],
+							Metadata: testAllObjects[d],
+						},
+					}
+
+					if a == 0 {
+						t.panics = true
+					}
+
+					tests = append(tests, t)
+				}
+
+			}
+		}
+	}
+	for a := 0; a < len(mockLogLevelsNOK); a++ {
+		if a == 5 {
+			continue // skip LLFatal, or os.Exit(1)
+		}
+		for b := 0; b < len(mockEmptyPrefixes); b++ {
+
+			for c := 0; c < len(testAllMessages); c++ {
+
+				for d := 0; d < len(testAllObjects); d++ {
+					t := test{
+						input: data{
+							level:  mockLogLevelsNOK[a],
+							prefix: mockEmptyPrefixes[b],
+							msg:    testAllMessages[c],
+							meta:   testAllObjects[d],
+						},
+						wants: &LogMessage{
+							Level:    LLInfo.String(),
+							Prefix:   "log",
+							Msg:      testAllMessages[c],
+							Metadata: testAllObjects[d],
+						},
+					}
+
+					if a == 0 {
+						t.panics = true
+					}
+
+					tests = append(tests, t)
+				}
+			}
+		}
+	}
+
+	var verify = func(id int, test test, logEntry *LogMessage) {
+		r := recover()
+
+		if r != nil {
+			if test.wants.Level != LLPanic.String() {
+				t.Errorf(
+					"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- unexpected panic: %s",
+					id,
+					test.input.level.String(),
+					test.input.prefix,
+					test.input.msg,
+					test.input.meta,
+					r,
+				)
+				return
+			}
+
+			if r != test.wants.Msg {
+				t.Errorf(
+					"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- panic message doesn't match: %s with input %s",
+					id,
+					test.input.level.String(),
+					test.input.prefix,
+					test.input.msg,
+					test.input.meta,
+					r,
+					test.input.msg,
+				)
+				return
+			}
+			t.Logf(
+				"#%v -- PASSED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- %s",
+				id,
+				test.input.level.String(),
+				test.input.prefix,
+				test.input.msg,
+				test.input.meta,
+				mockLogger.buf.String(),
+			)
+			return
+		}
+
+		if logEntry.Level != test.wants.Level {
+			t.Errorf(
+				"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- log level mismatch -- wanted %s, got %s",
+				id,
+				test.input.level.String(),
+				test.input.prefix,
+				test.input.msg,
+				test.input.meta,
+				test.wants.Level,
+				test.input.level.String(),
+			)
+			return
+		}
+
+		if logEntry.Prefix != test.wants.Prefix {
+			t.Errorf(
+				"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- prefix mismatch -- wanted %s, got %s",
+				id,
+				test.input.level.String(),
+				test.input.prefix,
+				test.input.msg,
+				test.input.meta,
+				test.wants.Prefix,
+				test.input.prefix,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wants.Msg {
+			t.Errorf(
+				"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- message mismatch -- wanted %s, got %s",
+				id,
+				test.input.level.String(),
+				test.input.prefix,
+				test.input.msg,
+				test.input.meta,
+				test.wants.Msg,
+				test.input.msg,
+			)
+			return
+		}
+
+		if logEntry.Metadata != nil && len(logEntry.Metadata) > 0 && len(test.wants.Metadata) > 0 {
+			for k, v := range logEntry.Metadata {
+				if item := test.wants.Metadata[k]; item == nil {
+					t.Errorf(
+						"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- empty metadata entry -- meta[%s]: wanted %s, got %s",
+						id,
+						test.input.level.String(),
+						test.input.prefix,
+						test.input.msg,
+						test.input.meta,
+						k,
+						test.wants.Metadata[k],
+						v,
+					)
+					return
+				}
+
+			}
+			if len(logEntry.Metadata) != len(test.wants.Metadata) {
+				t.Errorf(
+					"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- metadata length mismatch -- wanted %v, got %v",
+					id,
+					test.input.level.String(),
+					test.input.prefix,
+					test.input.msg,
+					test.input.meta,
+					len(test.wants.Metadata),
+					len(logEntry.Metadata),
+				)
+				return
+			}
+		}
+
+		// test passes
+		t.Logf(
+			"#%v -- PASSED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- %s",
+			id,
+			test.input.level.String(),
+			test.input.prefix,
+			test.input.msg,
+			test.input.meta,
+			mockLogger.buf.String(),
+		)
+
+		mockLogger.buf.Reset()
+	}
+
+	for id, test := range tests {
+		mockLogger.buf.Reset()
+
+		builtMsg := NewMessage().Level(test.input.level).Prefix(test.input.prefix).Message(test.input.msg).Metadata(test.input.meta).Build()
+
+		verify(id, test, builtMsg)
+
+	}
+
 }
 
 func TestLogLevelString(t *testing.T) {

@@ -126,3 +126,123 @@ func TestNewMultiLogger(t *testing.T) {
 		verify(id, test)
 	}
 }
+
+func TestMultiLoggerOutput(t *testing.T) {
+
+}
+
+func TestMultiLoggerSetOuts(t *testing.T) {
+
+}
+
+func TestMultiLoggerAddOuts(t *testing.T) {
+
+}
+
+func TestMultiLoggerSetPrefix(t *testing.T) {
+
+}
+
+func TestMultiLoggerFields(t *testing.T) {
+
+}
+
+func TestMultiLoggerPrint(t *testing.T) {
+
+}
+
+func TestMultiLoggerPrintln(t *testing.T) {
+
+}
+
+func TestMultiLoggerPrintf(t *testing.T) {
+
+}
+
+func TestMultiLoggerLog(t *testing.T) {
+
+}
+
+func TestMultiLoggerPanic(t *testing.T) {
+
+}
+
+func TestMultiLoggerPanicln(t *testing.T) {
+
+}
+
+func TestMultiLoggerPanicf(t *testing.T) {
+
+}
+
+func TestMultiLoggerFatal(t *testing.T) {
+
+}
+
+func TestMultiLoggerFatalln(t *testing.T) {
+
+}
+
+func TestMultiLoggerFatalf(t *testing.T) {
+
+}
+
+func TestMultiLoggerError(t *testing.T) {
+
+}
+
+func TestMultiLoggerErrorln(t *testing.T) {
+
+}
+
+func TestMultiLoggerErrorf(t *testing.T) {
+
+}
+
+func TestMultiLoggerWarn(t *testing.T) {
+
+}
+
+func TestMultiLoggerWarnln(t *testing.T) {
+
+}
+
+func TestMultiLoggerWarnf(t *testing.T) {
+
+}
+
+func TestMultiLoggerInfo(t *testing.T) {
+
+}
+
+func TestMultiLoggerInfoln(t *testing.T) {
+
+}
+
+func TestMultiLoggerInfof(t *testing.T) {
+
+}
+
+func TestMultiLoggerDebug(t *testing.T) {
+
+}
+
+func TestMultiLoggerDebugln(t *testing.T) {
+
+}
+
+func TestMultiLoggerDebugf(t *testing.T) {
+
+}
+
+func TestMultiLoggerTrace(t *testing.T) {
+
+}
+
+func TestMultiLoggerTraceln(t *testing.T) {
+
+}
+
+func TestMultiLoggerTracef(t *testing.T) {
+
+}

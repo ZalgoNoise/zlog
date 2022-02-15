@@ -3,6 +3,7 @@ package log
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"testing"
 )
@@ -28,6 +29,14 @@ var mockLoggers = []LoggerI{
 	New(prefix+"-3", JSONFormat, mockBufs[3]),
 	New(prefix+"-4", JSONFormat, mockBufs[4]),
 	New(prefix+"-5", JSONFormat, mockBufs[5]),
+}
+
+var mockMultiLogger = struct {
+	log LoggerI
+	buf []*bytes.Buffer
+}{
+	log: MultiLogger(mockLoggers...),
+	buf: mockBufs,
 }
 
 func TestNewMultiLogger(t *testing.T) {
@@ -128,6 +137,165 @@ func TestNewMultiLogger(t *testing.T) {
 }
 
 func TestMultiLoggerOutput(t *testing.T) {
+
+	var msg *LogMessage
+
+	var testAllObjects []map[string]interface{}
+	testAllObjects = append(testAllObjects, testObjects...)
+	testAllObjects = append(testAllObjects, testEmptyObjects...)
+
+	var testAllMessages []string
+	testAllMessages = append(testAllMessages, mockMessages...)
+	for _, fmtMsg := range mockFmtMessages {
+		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
+	}
+
+	var tests []*LogMessage
+
+	for a := 0; a < len(mockLogLevelsOK); a++ {
+
+		for b := 0; b < len(mockPrefixes); b++ {
+
+			for c := 0; c < len(testAllMessages); c++ {
+
+				for d := 0; d < len(testAllObjects); d++ {
+					msg = NewMessage().Level(
+						mockLogLevelsOK[a],
+					).Prefix(
+						mockPrefixes[b],
+					).Message(
+						testAllMessages[c],
+					).Metadata(
+						testAllObjects[d],
+					).Build()
+
+					tests = append(tests, msg)
+				}
+			}
+		}
+	}
+
+	var verify = func(id int, test *LogMessage) {
+		for bufID, buf := range mockMultiLogger.buf {
+			logEntry := &LogMessage{}
+
+			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- unmarshal error: %s",
+					id,
+					bufID,
+					test.Msg,
+					err,
+				)
+				return
+			}
+
+			if logEntry.Msg != test.Msg {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- message mismatch: wanted %s ; got %s",
+					id,
+					bufID,
+					test.Msg,
+					test.Msg,
+					logEntry.Msg,
+				)
+				return
+			}
+
+			if logEntry.Level != test.Level {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- log level mismatch: wanted %s ; got %s",
+					id,
+					bufID,
+					test.Msg,
+					test.Level,
+					logEntry.Level,
+				)
+				return
+			}
+
+			if logEntry.Prefix != test.Prefix {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- log prefix mismatch: wanted %s ; got %s",
+					id,
+					bufID,
+					test.Msg,
+					test.Prefix,
+					logEntry.Prefix,
+				)
+				return
+			}
+
+			if logEntry.Metadata == nil && test.Metadata != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- retrieved empty metadata object: wanted %s ; got %s",
+					id,
+					bufID,
+					test.Msg,
+					test.Metadata,
+					logEntry.Metadata,
+				)
+				return
+			} else if logEntry.Metadata != nil && test.Metadata == nil {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- retrieved unexpected metadata object: wanted %s ; got %s",
+					id,
+					bufID,
+					test.Msg,
+					test.Metadata,
+					logEntry.Metadata,
+				)
+				return
+			}
+
+			if logEntry.Metadata != nil && test.Metadata != nil {
+				for k, v := range logEntry.Metadata {
+					if v != nil && test.Metadata[k] == nil {
+						t.Errorf(
+							"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
+							id,
+							bufID,
+							test.Msg,
+							k,
+							k,
+						)
+						return
+					}
+				}
+
+				if len(logEntry.Metadata) != len(test.Metadata) {
+					t.Errorf(
+						"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- metadata length mismatch -- wanted %v, got %v",
+						id,
+						bufID,
+						test.Msg,
+						len(logEntry.Metadata),
+						len(test.Metadata),
+					)
+					return
+				}
+			}
+
+			t.Logf(
+				"#%v -- PASSED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Output(%s) -- %s",
+				id,
+				bufID,
+				test.Msg,
+				buf.String(),
+			)
+		}
+
+	}
+
+	for id, msg := range tests {
+		for _, buf := range mockMultiLogger.buf {
+			buf.Reset()
+		}
+
+		mockMultiLogger.log.Output(msg)
+
+		verify(id, msg)
+	}
 
 }
 

@@ -350,19 +350,44 @@ func TestMessageBuilder(t *testing.T) {
 			return
 		}
 
-		if logEntry.Metadata != nil && len(logEntry.Metadata) > 0 && len(test.wants.Metadata) > 0 {
+		if logEntry.Metadata == nil && test.wants.Metadata != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- retrieved empty metadata object: wanted %s ; got %s",
+				id,
+				test.input.level.String(),
+				test.input.prefix,
+				test.input.msg,
+				test.input.meta,
+				test.wants.Metadata,
+				logEntry.Metadata,
+			)
+			return
+		} else if logEntry.Metadata != nil && test.wants.Metadata == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- retrieved unexpected metadata object: wanted %s ; got %s",
+				id,
+				test.input.level.String(),
+				test.input.prefix,
+				test.input.msg,
+				test.input.meta,
+				test.wants.Metadata,
+				logEntry.Metadata,
+			)
+			return
+		}
+
+		if logEntry.Metadata != nil && test.wants.Metadata != nil {
 			for k, v := range logEntry.Metadata {
-				if item := test.wants.Metadata[k]; item == nil {
+				if v != nil && test.wants.Metadata[k] == nil {
 					t.Errorf(
-						"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- empty metadata entry -- meta[%s]: wanted %s, got %s",
+						"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
 						id,
 						test.input.level.String(),
 						test.input.prefix,
 						test.input.msg,
 						test.input.meta,
 						k,
-						test.wants.Metadata[k],
-						v,
+						k,
 					)
 					return
 				}

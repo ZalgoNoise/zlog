@@ -140,27 +140,27 @@ func (l *multiLogger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
 
 	for _, logger := range l.loggers {
-		logger.Panic(s)
+		logger.Output(NewMessage().Level(LLPanic).Message(s).Build())
 	}
 
 	panic(s)
 }
 
 func (l *multiLogger) Panicln(v ...interface{}) {
-	s := fmt.Sprint(v...)
+	s := fmt.Sprintln(v...)
 
 	for _, logger := range l.loggers {
-		logger.Panicln(s)
+		logger.Output(NewMessage().Level(LLPanic).Message(s).Build())
 	}
 
 	panic(s)
 }
 
 func (l *multiLogger) Panicf(format string, v ...interface{}) {
-	s := fmt.Sprint(v...)
+	s := fmt.Sprintf(format, v...)
 
 	for _, logger := range l.loggers {
-		logger.Panicf(format, s)
+		logger.Output(NewMessage().Level(LLPanic).Message(s).Build())
 	}
 
 	panic(s)
@@ -170,21 +170,21 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 
 func (l *multiLogger) Fatal(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Fatal(v...)
+		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprint(v...)).Build())
 	}
 	os.Exit(1)
 }
 
 func (l *multiLogger) Fatalln(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Fatalln(v...)
+		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprintln(v...)).Build())
 	}
 	os.Exit(1)
 }
 
 func (l *multiLogger) Fatalf(format string, v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Fatalf(format, v...)
+		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprintf(format, v...)).Build())
 	}
 	os.Exit(1)
 }

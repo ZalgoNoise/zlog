@@ -35,9 +35,9 @@ func main() {
 	)
 
 	multi.Info("test log")
-	multi.SetPrefix("multi-logs").Debugf("%v", len(data))
+	multi.Prefix("multi-logs").Debugf("%v", len(data))
 	multi.Warn("multi warning")
-	multi.SetPrefix("prod-logs").Fields(map[string]interface{}{
+	multi.Prefix("prod-logs").Fields(map[string]interface{}{
 		"path":  "/src/srv/stack",
 		"error": 9,
 		"proc": map[string]interface{}{
@@ -45,7 +45,7 @@ func main() {
 		},
 	}).Warn("urgent error")
 
-	multi.SetPrefix("custom-level").Fields(
+	multi.Prefix("custom-level").Fields(
 		map[string]interface{}{
 			"level":  0,
 			"string": "trace",

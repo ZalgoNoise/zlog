@@ -353,7 +353,7 @@ func TestLoggerAddOuts(t *testing.T) {
 	}
 }
 
-func TestLoggerSetPrefix(t *testing.T) {
+func TestLoggerPrefix(t *testing.T) {
 	type test struct {
 		prefix string
 		format LogFormatter
@@ -389,7 +389,7 @@ func TestLoggerSetPrefix(t *testing.T) {
 
 	for id, test := range tests {
 		logger := New("old", test.format, test.outs...)
-		logger.SetPrefix(test.prefix)
+		logger.Prefix(test.prefix)
 		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
 
 		logger.Log(logMessage)
@@ -397,7 +397,7 @@ func TestLoggerSetPrefix(t *testing.T) {
 		for _, buf := range test.bufs {
 			if !regx.MatchString(buf.String()) {
 				t.Errorf(
-					"#%v [Logger] SetPrefix().Info(%s) -- message regex mismatch: %s",
+					"#%v [Logger] Prefix().Info(%s) -- message regex mismatch: %s",
 					id,
 					msg,
 					regxStr,
@@ -416,7 +416,7 @@ func TestLoggerSetPrefix(t *testing.T) {
 			}
 			if !ok {
 				t.Errorf(
-					"#%v [Logger] SetPrefix().Info(%s) -- unexpected prefix -- wanted %s",
+					"#%v [Logger] Prefix().Info(%s) -- unexpected prefix -- wanted %s",
 					id,
 					msg,
 					test.prefix,
@@ -424,7 +424,7 @@ func TestLoggerSetPrefix(t *testing.T) {
 			}
 
 			t.Logf(
-				"#%v -- TESTED -- [Logger] SetPrefix().Info(%s) -- finding prefix %s",
+				"#%v -- TESTED -- [Logger] Prefix().Info(%s) -- finding prefix %s",
 				id,
 				msg,
 				test.prefix,

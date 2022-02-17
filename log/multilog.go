@@ -47,9 +47,9 @@ func (l *multiLogger) AddOuts(outs ...io.Writer) LoggerI {
 
 // prefix setter methods
 
-func (l *multiLogger) SetPrefix(prefix string) LoggerI {
+func (l *multiLogger) Prefix(prefix string) LoggerI {
 	for _, logger := range l.loggers {
-		logger.SetPrefix(prefix)
+		logger.Prefix(prefix)
 	}
 
 	return l

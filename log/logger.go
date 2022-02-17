@@ -10,7 +10,7 @@ type LoggerI interface {
 	Output(m *LogMessage) error
 	SetOuts(outs ...io.Writer) LoggerI
 	AddOuts(outs ...io.Writer) LoggerI
-	SetPrefix(prefix string) LoggerI
+	Prefix(prefix string) LoggerI
 	Fields(fields map[string]interface{}) LoggerI
 
 	Log(m *LogMessage)
@@ -100,7 +100,7 @@ func (l *Logger) AddOuts(outs ...io.Writer) LoggerI {
 
 // prefix setter methods
 
-func (l *Logger) SetPrefix(prefix string) LoggerI {
+func (l *Logger) Prefix(prefix string) LoggerI {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 

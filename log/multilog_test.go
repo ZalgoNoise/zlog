@@ -764,7 +764,7 @@ func TestMultiLoggerAddOuts(t *testing.T) {
 	}
 }
 
-func TestMultiLoggerSetPrefix(t *testing.T) {
+func TestMultiLoggerPrefix(t *testing.T) {
 
 	type ml struct {
 		log LoggerI
@@ -778,7 +778,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 	}
 
 	var newPrefixes = []string{
-		"SetPrefix()",
+		"Prefix()",
 		"new prefix",
 		"awesome service",
 		"alert!!",
@@ -842,7 +842,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- unmarshal error: %s",
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- unmarshal error: %s",
 					id,
 					bufID,
 					test.prefix,
@@ -853,7 +853,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 
 			if logEntry.Prefix != test.prefix {
 				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- prefix mismatch: wanted %s ; got %s",
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- prefix mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.prefix,
@@ -865,7 +865,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 
 			if logEntry.Level != LLInfo.String() {
 				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- log level mismatch: wanted %s ; got %s",
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.prefix,
@@ -877,7 +877,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 
 			if logEntry.Msg != test.msg.Msg {
 				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- message mismatch: wanted %s ; got %s",
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- message mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.prefix,
@@ -889,7 +889,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 
 			if logEntry.Metadata == nil && test.msg.Metadata != nil {
 				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- retrieved empty metadata object: wanted %s ; got %s",
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- retrieved empty metadata object: wanted %s ; got %s",
 					id,
 					bufID,
 					test.prefix,
@@ -899,7 +899,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 				return
 			} else if logEntry.Metadata != nil && test.msg.Metadata == nil {
 				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- retrieved unexpected metadata object: wanted %s ; got %s",
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- retrieved unexpected metadata object: wanted %s ; got %s",
 					id,
 					bufID,
 					test.prefix,
@@ -913,7 +913,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 				for k, v := range logEntry.Metadata {
 					if v != nil && test.msg.Metadata[k] == nil {
 						t.Errorf(
-							"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
+							"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
 							id,
 							bufID,
 							test.prefix,
@@ -926,7 +926,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 
 				if len(logEntry.Metadata) != len(test.msg.Metadata) {
 					t.Errorf(
-						"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- metadata length mismatch -- wanted %v, got %v",
+						"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- metadata length mismatch -- wanted %v, got %v",
 						id,
 						bufID,
 						test.prefix,
@@ -938,7 +938,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 			}
 
 			t.Logf(
-				"#%v -- PASSED -- [MultiLogger] MultiLogger(...LoggerI[%v]).SetPrefix(%s) -- %s",
+				"#%v -- PASSED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Prefix(%s) -- %s",
 				id,
 				bufID,
 				test.prefix,
@@ -952,7 +952,7 @@ func TestMultiLoggerSetPrefix(t *testing.T) {
 		for _, b := range test.ml.buf {
 			b.Reset()
 		}
-		test.ml.log.SetPrefix(test.prefix).Fields(test.msg.Metadata)
+		test.ml.log.Prefix(test.prefix).Fields(test.msg.Metadata)
 		test.ml.log.Info(test.msg.Msg)
 
 		verify(id, test)
@@ -973,7 +973,7 @@ func TestMultiLoggerFields(t *testing.T) {
 	}
 
 	var newPrefixes = []string{
-		"SetPrefix()",
+		"Prefix()",
 		"new prefix",
 		"awesome service",
 		"alert!!",
@@ -1138,7 +1138,7 @@ func TestMultiLoggerFields(t *testing.T) {
 		for _, b := range test.ml.buf {
 			b.Reset()
 		}
-		test.ml.log.SetPrefix(test.prefix).Fields(test.msg.Metadata)
+		test.ml.log.Prefix(test.prefix).Fields(test.msg.Metadata)
 		test.ml.log.Info(test.msg.Msg)
 
 		verify(id, test)
@@ -1325,7 +1325,7 @@ func TestMultiLoggerPrint(t *testing.T) {
 			b.Reset()
 		}
 
-		test.ml.log.SetPrefix(test.msg.Prefix).Fields(test.msg.Metadata)
+		test.ml.log.Prefix(test.msg.Prefix).Fields(test.msg.Metadata)
 		test.ml.log.Print(test.msg.Msg)
 
 		verify(id, test)
@@ -1512,7 +1512,7 @@ func TestMultiLoggerPrintln(t *testing.T) {
 			b.Reset()
 		}
 
-		test.ml.log.SetPrefix(test.msg.Prefix).Fields(test.msg.Metadata)
+		test.ml.log.Prefix(test.msg.Prefix).Fields(test.msg.Metadata)
 		test.ml.log.Println(test.msg.Msg)
 
 		verify(id, test)
@@ -1735,7 +1735,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 			b.Reset()
 		}
 
-		test.ml.log.SetPrefix(test.msg.Prefix).Fields(test.msg.Metadata)
+		test.ml.log.Prefix(test.msg.Prefix).Fields(test.msg.Metadata)
 		test.ml.log.Printf(test.format, test.v...)
 
 		verify(id, test)
@@ -2201,7 +2201,7 @@ func TestMultiLoggerPanic(t *testing.T) {
 			b.Reset()
 		}
 
-		test.ml.log.SetPrefix(test.msg.Prefix).Fields(test.msg.Metadata)
+		test.ml.log.Prefix(test.msg.Prefix).Fields(test.msg.Metadata)
 
 		defer verify(id, test)
 		test.ml.log.Panic(test.msg.Msg)
@@ -2409,7 +2409,7 @@ func TestMultiLoggerPanicln(t *testing.T) {
 			b.Reset()
 		}
 
-		test.ml.log.SetPrefix(test.msg.Prefix).Fields(test.msg.Metadata)
+		test.ml.log.Prefix(test.msg.Prefix).Fields(test.msg.Metadata)
 
 		defer verify(id, test)
 		test.ml.log.Panicln(test.msg.Msg)
@@ -2654,7 +2654,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 			b.Reset()
 		}
 
-		test.ml.log.SetPrefix(test.msg.Prefix).Fields(test.msg.Metadata)
+		test.ml.log.Prefix(test.msg.Prefix).Fields(test.msg.Metadata)
 
 		defer verify(id, test)
 		test.ml.log.Panicf(test.format, test.v...)

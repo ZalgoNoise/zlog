@@ -131,7 +131,15 @@ func (l *Logger) Output(m *LogMessage) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	// use logger prefix if default
+	if m.Prefix == "log" && l.prefix != m.Prefix {
+		m.Prefix = l.prefix
+	}
+
 	// clear metadata
+	if m.Metadata == nil && l.meta != nil {
+		m.Metadata = l.meta
+	}
 	l.meta = nil
 
 	// format message

@@ -140,7 +140,12 @@ func (l *multiLogger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(NewMessage().Level(LLPanic).Message(s).Build())
+		logger.Output(
+			NewMessage().
+				Level(LLPanic).
+				Message(s).
+				Build(),
+		)
 	}
 
 	panic(s)

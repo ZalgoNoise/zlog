@@ -6,6 +6,48 @@ import (
 	"sync"
 )
 
+type LoggerI interface {
+	Output(m *LogMessage) error
+	SetOuts(outs ...io.Writer) LoggerI
+	AddOuts(outs ...io.Writer) LoggerI
+	SetPrefix(prefix string) LoggerI
+	Fields(fields map[string]interface{}) LoggerI
+
+	Log(m *LogMessage)
+
+	Print(v ...interface{})
+	Println(v ...interface{})
+	Printf(format string, v ...interface{})
+
+	Panic(v ...interface{})
+	Panicln(v ...interface{})
+	Panicf(format string, v ...interface{})
+
+	Fatal(v ...interface{})
+	Fatalln(v ...interface{})
+	Fatalf(format string, v ...interface{})
+
+	Error(v ...interface{})
+	Errorln(v ...interface{})
+	Errorf(format string, v ...interface{})
+
+	Warn(v ...interface{})
+	Warnln(v ...interface{})
+	Warnf(format string, v ...interface{})
+
+	Info(v ...interface{})
+	Infoln(v ...interface{})
+	Infof(format string, v ...interface{})
+
+	Debug(v ...interface{})
+	Debugln(v ...interface{})
+	Debugf(format string, v ...interface{})
+
+	Trace(v ...interface{})
+	Traceln(v ...interface{})
+	Tracef(format string, v ...interface{})
+}
+
 var std = New("log", TextFormat, os.Stdout)
 
 type Logger struct {

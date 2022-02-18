@@ -2663,15 +2663,30 @@ func TestMultiLoggerPanicf(t *testing.T) {
 }
 
 func TestMultiLoggerFatal(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [MultiLogger] MultiLogger(...LoggerI).Fatal(v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
+		0,
+	)
 }
 
 func TestMultiLoggerFatalln(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [MultiLogger] MultiLogger(...LoggerI).Fatalln(v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
+		0,
+	)
 }
 
 func TestMultiLoggerFatalf(t *testing.T) {
+	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
 
+	t.Logf(
+		"#%v -- SKIPPED -- [MultiLogger] MultiLogger(...LoggerI).Fatalf(format string, v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
+		0,
+	)
 }
 
 func TestMultiLoggerError(t *testing.T) {

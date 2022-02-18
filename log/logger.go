@@ -59,7 +59,7 @@ type Logger struct {
 	meta   map[string]interface{}
 }
 
-func New(prefix string, format LogFormatter, outs ...io.Writer) *Logger {
+func New(prefix string, format LogFormatter, outs ...io.Writer) LoggerI {
 	var out io.Writer
 
 	if len(outs) == 0 {

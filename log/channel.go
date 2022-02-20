@@ -32,7 +32,7 @@ func NewLogCh(logger LoggerI) (logCh ChanneledLogger) {
 		done:  done,
 	}
 
-	var chLogger = func(done chan struct{}) {
+	go func(done chan struct{}) {
 		for {
 			select {
 			case msg, ok := <-msgCh:
@@ -52,9 +52,8 @@ func NewLogCh(logger LoggerI) (logCh ChanneledLogger) {
 			}
 
 		}
-	}
+	}(done)
 
-	go chLogger(done)
 	return
 }
 

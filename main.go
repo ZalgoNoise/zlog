@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/ZalgoNoise/zlog/log"
 )
@@ -56,8 +55,10 @@ func main() {
 		log.NewMessage().Level(log.LLTrace).Message("this is a custom level log entry").Build(),
 	)
 
-	logCh, chLogger := log.NewLogCh(multi)
-	go chLogger()
+	chlogger := log.NewLogCh(multi)
+	defer chlogger.Close()
+
+	logCh, _ := chlogger.Channels()
 
 	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
 		map[string]interface{}{
@@ -67,35 +68,30 @@ func main() {
 		},
 	).Build()
 
-	time.Sleep(1 * time.Second)
-
-	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
+	chlogger.Log(log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
 		map[string]interface{}{
 			"type":    "trace",
 			"data":    "this is a buffered logger in a goroutine",
 			"test_id": 1,
 		},
-	).Build()
+	).Build())
 
-	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
-		map[string]interface{}{
-			"type":    "trace",
-			"data":    "this is a buffered logger in a goroutine",
-			"test_id": 2,
-		},
-	).Build()
-
-	time.Sleep(1 * time.Second)
-
-	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLWarn).Message("warn runtime").Metadata(
-		map[string]interface{}{
-			"type":    "warn",
-			"data":    "this is a buffered logger in a goroutine",
-			"test_id": 3,
-		},
-	).Build()
-
-	time.Sleep(1 * time.Second)
+	chlogger.Log(
+		log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
+			map[string]interface{}{
+				"type":    "trace",
+				"data":    "this is a buffered logger in a goroutine",
+				"test_id": 2,
+			},
+		).Build(),
+		log.NewMessage().Prefix("test-chan-log").Level(log.LLWarn).Message("warn runtime").Metadata(
+			map[string]interface{}{
+				"type":    "warn",
+				"data":    "this is a buffered logger in a goroutine",
+				"test_id": 3,
+			},
+		).Build(),
+	)
 
 	go func() {
 		logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLPanic).Message("break runime").Metadata(
@@ -106,6 +102,5 @@ func main() {
 			},
 		).Build()
 	}()
-	time.Sleep(1 * time.Second)
 
 }

@@ -8,26 +8,77 @@ package log
 //
 //
 //     logger := log.New("logger", TextFormat)
-//     logCh, chLogger := NewLogCh(logger)
+//     logCh := NewLogCh(logger)
 //
-//     go chLogger()
+//	   // then, either the "classic" channeled message approach:
+//	   ch, done := logCh.Channels()
 //
-//     logCh <- log.NewMessage().Level(log.LLTrace).Message("test message").Build()
+//     ch <- log.NewMessage().Level(log.LLTrace).Message("test message").Build()
 //
-func NewLogCh(logger LoggerI) (logCh chan *LogMessage, chLogger func()) {
-	logCh = make(chan *LogMessage)
-	chLogger = func() {
+//     // or using the embeded method
+//     logCh.Send(log.NewMessage().Message("this works too").Build())
+//
+//     // and finally stop the goroutine (if needed)
+//     logCh.Close()
+//     // or
+//     done <- struct{}{}
+func NewLogCh(logger LoggerI) (logCh ChanneledLogger) {
+
+	msgCh := make(chan *LogMessage)
+	done := make(chan struct{})
+
+	logCh = &LogChannel{
+		logCh: msgCh,
+		done:  done,
+	}
+
+	var chLogger = func(done chan struct{}) {
 		for {
-			msg, ok := <-logCh
-			if ok {
-				logger.Log(msg)
-			} else {
+			select {
+			case msg, ok := <-msgCh:
+				if ok {
+					logger.Log(msg)
+				} else {
+					logger.Log(
+						NewMessage().Prefix("logger").Level(LLInfo).Message("channel closed").Build(),
+					)
+					return
+				}
+			case <-done:
 				logger.Log(
-					NewMessage().Prefix("logger").Level(LLInfo).Message("channel closed").Build(),
+					NewMessage().Prefix("logger").Level(LLInfo).Message("received done signal").Build(),
 				)
-				break
+				return
 			}
+
 		}
 	}
+
+	go chLogger(done)
 	return
+}
+
+type ChanneledLogger interface {
+	Log(msg ...*LogMessage)
+	Close()
+	Channels() (logCh chan *LogMessage, done chan struct{})
+}
+
+type LogChannel struct {
+	logCh chan *LogMessage
+	done  chan struct{}
+}
+
+func (c LogChannel) Log(msg ...*LogMessage) {
+	for _, m := range msg {
+		c.logCh <- m
+	}
+}
+
+func (c LogChannel) Close() {
+	c.done <- struct{}{}
+}
+
+func (c LogChannel) Channels() (logCh chan *LogMessage, done chan struct{}) {
+	return c.logCh, c.done
 }

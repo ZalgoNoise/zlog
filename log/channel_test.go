@@ -194,13 +194,11 @@ func TestNewLogCh(t *testing.T) {
 	}
 
 	for id, test := range tests {
-		logCh, chLogger := NewLogCh(test.log.logger)
+		logCh := NewLogCh(test.log.logger)
 
 		defer verify(id, test)
 
-		go chLogger()
-
-		logCh <- test.msg
+		logCh.Log(test.msg)
 
 	}
 }
@@ -398,13 +396,11 @@ func TestNewLogChMultiLogger(t *testing.T) {
 	}
 
 	for id, test := range tests {
-		logCh, chLogger := NewLogCh(test.log.logger)
+		logCh := NewLogCh(test.log.logger)
 
 		defer verify(id, test)
 
-		go chLogger()
-
-		logCh <- test.msg
+		logCh.Log(test.msg)
 
 	}
 }
@@ -435,7 +431,8 @@ func TestNewLogChMultiEntry(t *testing.T) {
 		"test log #10",
 	}
 
-	regxStr := `^\[.*\]\s*\[info\]\s*\[multientry-test\]\s*test log #`
+	regxStr := `\[.*\]\s*\[info\]\s*\[multientry-test\]\s*test log #`
+	regxCloser := `\[.*\]\s*\[info\]\s*\[logger\]\s*received done signal`
 
 	var regxList = []string{
 		regxStr + `0`,
@@ -486,6 +483,8 @@ func TestNewLogChMultiEntry(t *testing.T) {
 			msgObj = append(msgObj, obj)
 			rxList = append(rxList, regxList[d])
 		}
+		// parse the log info from the closure signal
+		rxList = append(rxList, regxCloser)
 
 		obj := test{
 			log: log{
@@ -493,7 +492,7 @@ func TestNewLogChMultiEntry(t *testing.T) {
 				buf:    bufs,
 			},
 			msg: msgObj,
-			rgx: regxList,
+			rgx: rxList,
 		}
 
 		tests = append(tests, obj)
@@ -550,13 +549,10 @@ func TestNewLogChMultiEntry(t *testing.T) {
 			}
 		}()
 
-		logCh, chLogger := NewLogCh(test.log.logger)
+		logCh := NewLogCh(test.log.logger)
 
-		go chLogger()
-
-		for _, msg := range test.msg {
-			logCh <- msg
-		}
+		logCh.Log(test.msg...)
+		logCh.Close()
 
 		verify(id, test)
 

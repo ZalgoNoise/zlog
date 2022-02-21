@@ -45,9 +45,9 @@ func NewLogCh(logger LoggerI) (logCh ChanneledLogger) {
 					return
 				}
 			case <-done:
-				logger.Log(
-					NewMessage().Prefix("logger").Level(LLInfo).Message("received done signal").Build(),
-				)
+				// logger.Log(
+				// 	NewMessage().Prefix("logger").Level(LLInfo).Message("received done signal").Build(),
+				// )
 				return
 			}
 

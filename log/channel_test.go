@@ -33,44 +33,42 @@ func TestNewLogCh(t *testing.T) {
 
 	var tests []test
 
-	for a := 1; a <= maxBufs; a++ {
-		for b := 0; b < len(mockPrefixes); b++ {
-			for c := 0; c < len(testAllMessages); c++ {
-				for d := 0; d < len(testAllObjects); d++ {
-					for e := 0; e < len(mockLogLevelsOK); e++ {
+	for b := 0; b < len(mockPrefixes); b++ {
+		for c := 0; c < len(testAllMessages); c++ {
+			for d := 0; d < len(testAllObjects); d++ {
+				for e := 0; e < len(mockLogLevelsOK); e++ {
 
-						// skip LLFatal -- os.Exit(1)
-						if mockLogLevelsOK[e] == LLFatal || mockLogLevelsOK[e] == LLPanic {
-							continue
-						}
-
-						var bufs []*bytes.Buffer
-						var w []io.Writer
-
-						for f := 1; f <= a; f++ {
-							bufs = append(bufs, &bytes.Buffer{})
-							w = append(w, bufs[f-1])
-						}
-
-						l := New(mockEmptyPrefixes[0], JSONFormat, w...)
-
-						obj := test{
-							log: log{
-								logger: l,
-								buf:    bufs,
-							},
-							msg: NewMessage().
-								Prefix(mockPrefixes[b]).
-								Message(testAllMessages[c]).
-								Metadata(testAllObjects[d]).
-								Level(mockLogLevelsOK[e]).
-								Build(),
-						}
-
-						tests = append(tests, obj)
+					// skip LLFatal -- os.Exit(1)
+					if mockLogLevelsOK[e] == LLFatal || mockLogLevelsOK[e] == LLPanic {
+						continue
 					}
 
+					var bufs []*bytes.Buffer
+					var w []io.Writer
+
+					for f := 0; f < maxBufs; f++ {
+						bufs = append(bufs, &bytes.Buffer{})
+						w = append(w, bufs[f])
+					}
+
+					l := New(mockEmptyPrefixes[0], JSONFormat, w...)
+
+					obj := test{
+						log: log{
+							logger: l,
+							buf:    bufs,
+						},
+						msg: NewMessage().
+							Prefix(mockPrefixes[b]).
+							Message(testAllMessages[c]).
+							Metadata(testAllObjects[d]).
+							Level(mockLogLevelsOK[e]).
+							Build(),
+					}
+
+					tests = append(tests, obj)
 				}
+
 			}
 		}
 	}
@@ -196,10 +194,9 @@ func TestNewLogCh(t *testing.T) {
 	for id, test := range tests {
 		logCh := NewLogCh(test.log.logger)
 
-		defer verify(id, test)
-
 		logCh.Log(test.msg)
-
+		logCh.Close()
+		verify(id, test)
 	}
 }
 
@@ -398,10 +395,10 @@ func TestNewLogChMultiLogger(t *testing.T) {
 	for id, test := range tests {
 		logCh := NewLogCh(test.log.logger)
 
-		defer verify(id, test)
-
 		logCh.Log(test.msg)
+		logCh.Close()
 
+		verify(id, test)
 	}
 }
 
@@ -432,7 +429,6 @@ func TestNewLogChMultiEntry(t *testing.T) {
 	}
 
 	regxStr := `\[.*\]\s*\[info\]\s*\[multientry-test\]\s*test log #`
-	regxCloser := `\[.*\]\s*\[info\]\s*\[logger\]\s*received done signal`
 
 	var regxList = []string{
 		regxStr + `0`,
@@ -483,8 +479,6 @@ func TestNewLogChMultiEntry(t *testing.T) {
 			msgObj = append(msgObj, obj)
 			rxList = append(rxList, regxList[d])
 		}
-		// parse the log info from the closure signal
-		rxList = append(rxList, regxCloser)
 
 		obj := test{
 			log: log{

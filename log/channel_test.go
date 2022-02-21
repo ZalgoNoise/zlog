@@ -191,11 +191,23 @@ func TestNewLogCh(t *testing.T) {
 
 	}
 
+	// test ChanneledLogger methods
 	for id, test := range tests {
 		logCh := NewLogCh(test.log.logger)
 
 		logCh.Log(test.msg)
 		logCh.Close()
+		verify(id, test)
+	}
+
+	// test classic channel interaction
+	for id, test := range tests {
+		chlogger := NewLogCh(test.log.logger)
+		logCh, done := chlogger.Channels()
+
+		logCh <- test.msg
+		done <- struct{}{}
+
 		verify(id, test)
 	}
 }
@@ -392,11 +404,23 @@ func TestNewLogChMultiLogger(t *testing.T) {
 
 	}
 
+	// test ChanneledLogger methods
 	for id, test := range tests {
 		logCh := NewLogCh(test.log.logger)
 
 		logCh.Log(test.msg)
 		logCh.Close()
+
+		verify(id, test)
+	}
+
+	// test classic channel interaction
+	for id, test := range tests {
+		chlogger := NewLogCh(test.log.logger)
+		logCh, done := chlogger.Channels()
+
+		logCh <- test.msg
+		done <- struct{}{}
 
 		verify(id, test)
 	}
@@ -494,6 +518,11 @@ func TestNewLogChMultiEntry(t *testing.T) {
 	}
 
 	var verify = func(id int, test test) {
+		defer func() {
+			for _, b := range test.log.buf {
+				b.Reset()
+			}
+		}()
 
 		for bufID, buf := range test.log.buf {
 			if buf.Len() == 0 {
@@ -511,7 +540,20 @@ func TestNewLogChMultiEntry(t *testing.T) {
 				line = []byte{}
 			}
 
+			if len(lines) > len(test.rgx) {
+				t.Errorf(
+					"#%v -- FAILED -- [ChLogger] [MultiEntry] [Buffer #%v] Log() x%v -- line size mismatch: %v lines for %v regexp",
+					id,
+					bufID,
+					len(lines),
+					len(lines),
+					len(test.rgx),
+				)
+				return
+			}
+
 			for idx, line := range lines {
+
 				rgx := regexp.MustCompile(test.rgx[idx])
 
 				if !rgx.MatchString(string(line)) {
@@ -536,6 +578,7 @@ func TestNewLogChMultiEntry(t *testing.T) {
 		}
 	}
 
+	// test ChanneledLogger methods
 	for id, test := range tests {
 		defer func() {
 			for _, b := range test.log.buf {
@@ -550,5 +593,20 @@ func TestNewLogChMultiEntry(t *testing.T) {
 
 		verify(id, test)
 
+	}
+
+	// test classic channel interaction
+	for id, test := range tests {
+
+		chlogger := NewLogCh(test.log.logger)
+		logCh, done := chlogger.Channels()
+
+		for _, m := range test.msg {
+			logCh <- m
+		}
+
+		done <- struct{}{}
+
+		verify(id, test)
 	}
 }

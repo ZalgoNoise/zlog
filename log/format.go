@@ -38,19 +38,35 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 }
 
 func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
-	if len(data) == 0 {
+	size := len(data)
+	count := 0
+
+	if size == 0 {
 		return ""
 	}
+
 	var meta string = "[ "
 
 	for k, v := range data {
 		switch value := v.(type) {
 		case map[string]interface{}:
-			meta += f.fmtMetadata(value)
+			meta += k + " = " + f.fmtMetadata(value)
+			count++
+			if count < size {
+				meta += "; "
+			}
 		case string:
-			meta += fmt.Sprintf("%s = \"%s\" ; ", k, v)
+			meta += fmt.Sprintf("%s = \"%s\" ", k, v)
+			count++
+			if count < size {
+				meta += "; "
+			}
 		default:
-			meta += fmt.Sprintf("%s = %v ; ", k, v)
+			meta += fmt.Sprintf("%s = %v ", k, v)
+			count++
+			if count < size {
+				meta += "; "
+			}
 		}
 	}
 

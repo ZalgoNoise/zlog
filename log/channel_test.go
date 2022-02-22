@@ -9,6 +9,15 @@ import (
 	"testing"
 )
 
+var mockChBufs = [][]*bytes.Buffer{
+	{{}, {}, {}, {}, {}, {}},
+	{{}, {}, {}, {}, {}, {}},
+	{{}, {}, {}, {}, {}, {}},
+	{{}, {}, {}, {}, {}, {}},
+	{{}, {}, {}, {}, {}, {}},
+	{{}, {}, {}, {}, {}, {}},
+}
+
 func TestNewLogCh(t *testing.T) {
 	type log struct {
 		logger LoggerI
@@ -29,8 +38,6 @@ func TestNewLogCh(t *testing.T) {
 		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
 	}
 
-	var maxBufs = 6
-
 	var tests []test
 
 	for b := 0; b < len(mockPrefixes); b++ {
@@ -46,9 +53,9 @@ func TestNewLogCh(t *testing.T) {
 					var bufs []*bytes.Buffer
 					var w []io.Writer
 
-					for f := 0; f < maxBufs; f++ {
-						bufs = append(bufs, &bytes.Buffer{})
-						w = append(w, bufs[f])
+					for f := 0; f < len(mockChBufs[0]); f++ {
+						bufs = append(bufs, mockChBufs[0][f])
+						w = append(w, mockChBufs[0][f])
 					}
 
 					l := New(mockEmptyPrefixes[0], JSONFormat, w...)
@@ -232,11 +239,11 @@ func TestNewLogChMultiLogger(t *testing.T) {
 		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
 	}
 
-	var maxBufs = 6
+	// var maxBufs = 6
 
 	var tests []test
 
-	for a := 1; a <= maxBufs; a++ {
+	for a := 0; a < len(mockChBufs[0]); a++ {
 		for b := 0; b < len(mockPrefixes); b++ {
 			for c := 0; c < len(testAllMessages); c++ {
 				for d := 0; d < len(testAllObjects); d++ {
@@ -250,13 +257,13 @@ func TestNewLogChMultiLogger(t *testing.T) {
 						var bufs []*bytes.Buffer
 						var logs []LoggerI
 
-						for f := 1; f <= a; f++ {
+						for f := 0; f < a; f++ {
 
 							var w []io.Writer
-							for g := 1; g <= a; g++ {
-								newBuf := &bytes.Buffer{}
-								bufs = append(bufs, newBuf)
-								w = append(w, newBuf)
+							for g := 0; g < a; g++ {
+
+								bufs = append(bufs, mockChBufs[f][g])
+								w = append(w, mockChBufs[f][g])
 							}
 
 							l := New(mockEmptyPrefixes[0], JSONFormat, w...)
@@ -467,24 +474,23 @@ func TestNewLogChMultiEntry(t *testing.T) {
 		regxStr + `9`,
 		regxStr + `10`,
 	}
-	var maxBufs = 6
+	// var maxBufs = 6
 
 	var tests []test
 
-	for a := 1; a <= maxBufs; a++ {
+	for a := 0; a < len(mockChBufs[0]); a++ {
 
 		var bufs []*bytes.Buffer
 		var logs []LoggerI
 		var msgObj []*LogMessage
 		var rxList []string
 
-		for b := 1; b <= a; b++ {
+		for b := 0; b < a; b++ {
 
 			var w = []io.Writer{}
-			for c := 1; c <= a; c++ {
-				newBuf := &bytes.Buffer{}
-				bufs = append(bufs, newBuf)
-				w = append(w, newBuf)
+			for c := 0; c < a; c++ {
+				bufs = append(bufs, mockChBufs[b][c])
+				w = append(w, mockChBufs[b][c])
 			}
 
 			l := New(prefix, TextFormat, w...)

@@ -239,8 +239,6 @@ func TestNewLogChMultiLogger(t *testing.T) {
 		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
 	}
 
-	// var maxBufs = 6
-
 	var tests []test
 
 	for a := 0; a < len(mockChBufs[0]); a++ {
@@ -474,7 +472,6 @@ func TestNewLogChMultiEntry(t *testing.T) {
 		regxStr + `9`,
 		regxStr + `10`,
 	}
-	// var maxBufs = 6
 
 	var tests []test
 

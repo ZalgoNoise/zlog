@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -37,10 +38,10 @@ func TestTextFmtFormat(t *testing.T) {
 						Message(testAllMessages[c]).
 						Build(),
 					rgx: regexp.MustCompile(fmt.Sprintf(
-						`^\[.*\]\s*\[%s\]\s*\[%s\]\s*%s\s*$`,
+						`^\[.*\]\s*\[%s\]\s*\[%s\]\s*%s`,
 						mockLogLevelsOK[a].String(),
 						mockPrefixes[b],
-						testAllMessages[c],
+						strings.Replace(strings.Replace(testAllMessages[c], "[", `\[`, -1), "]", `\]`, -1),
 					)),
 				}
 
@@ -66,6 +67,7 @@ func TestTextFmtFormat(t *testing.T) {
 				test.rgx,
 				string(b),
 			)
+			return
 		}
 
 		t.Logf(
@@ -92,7 +94,78 @@ func TestTextFmtFormat(t *testing.T) {
 
 }
 
-func TestTextFmtFmtMetadata(t *testing.T) {}
+func TestTextFmtFmtMetadata(t *testing.T) {
+	type test struct {
+		obj map[string]interface{}
+		rgx *regexp.Regexp
+	}
+
+	// [ simple-test = 0 ; passing = true ; tool = "zlog" ]
+	// [ simpler-test = "yes" ]
+	// [ cascaded-test = true ; metadata = [ nest-level = 1 ; data = "this is inner-level content" ] ]
+	var testSimpleObjects = []map[string]interface{}{
+		{
+			"simple-test": 0,
+			"passing":     true,
+			"tool":        "zlog",
+		},
+		{
+			"simpler-test": "yes",
+		},
+		{
+			"cascaded-test": true,
+			"metadata": map[string]interface{}{
+				"nest-level": 1,
+				"data":       "this is inner-level content",
+			},
+		},
+	}
+
+	var rgxSimpleObjects = []*regexp.Regexp{
+		regexp.MustCompile(`\[ simple-test = 0 ; passing = true ; tool = "zlog" \]`),
+		regexp.MustCompile(`\[ simpler-test = "yes" \]`),
+		regexp.MustCompile(`\[ cascaded-test = true ; metadata = \[ nest-level = 1 ; data = "this is inner-level content" \] \]`),
+	}
+
+	var tests []test
+
+	for a := 0; a < len(testSimpleObjects); a++ {
+		obj := test{
+			obj: testSimpleObjects[a],
+			rgx: rgxSimpleObjects[a],
+		}
+		tests = append(tests, obj)
+	}
+
+	var verify = func(id int, test test, result string) {
+		if !test.rgx.MatchString(result) {
+			t.Errorf(
+				"#%v -- FAILED -- [TextFormat] fmtMetadata(map[string]interface{}) -- log message mismatch, expected output to match regex %s -- %s",
+				id,
+				test.rgx,
+				result,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [TextFormat] fmtMetadata(map[string]interface{}) -- %s",
+			id,
+			result,
+		)
+
+	}
+
+	for id, test := range tests {
+		txt := &TextFmt{}
+
+		result := txt.fmtMetadata(test.obj)
+
+		verify(id, test, result)
+
+	}
+
+}
 
 func TestJSONFmtFormat(t *testing.T) {
 	type test struct {

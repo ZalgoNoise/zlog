@@ -72,13 +72,23 @@ func TestNewLogFile(t *testing.T) {
 	var mockInvalidPaths = []string{
 		"//test",
 		"/var/log/private/logfile",
+		"/var/log/private/",
 	}
 
 	targetDir := mockLogfileOps["init"].(func() string)()
 	defer func() { os.RemoveAll(targetDir) }()
 
+	f, err := os.Create(targetDir + "/no-permissions")
+	if err != nil {
+		panic(err)
+	}
+	f.Close()
+	if err := os.Chmod(targetDir+"/no-permissions", 0100); err != nil {
+		panic(err)
+	}
+
 	fileMap := mockLogfileOps["createFiles"].(func(path string) []string)(targetDir)
-	err := mockLogfileOps["createOversize"].(func(string) error)(targetDir + "/oversize")
+	err = mockLogfileOps["createOversize"].(func(string) error)(targetDir + "/oversize")
 	if err != nil {
 		panic(err)
 	}
@@ -109,6 +119,10 @@ func TestNewLogFile(t *testing.T) {
 			ok:   false,
 		})
 	}
+	tests = append(tests, test{
+		path: targetDir + "/no-permissions",
+		ok:   false,
+	})
 
 	var verify = func(id int, test test) {
 		_, err := NewLogfile(test.path)

@@ -8,6 +8,21 @@ import (
 	"testing"
 )
 
+var underweightIters = []int{
+	20000,
+	50000,
+	100000,
+	300000,
+	500000,
+	800000,
+}
+
+var overweightIters = []int{
+	850000,
+	1000000,
+	900000,
+}
+
 var mockLogfileOps = map[string]interface{}{
 	"init": func() string {
 		path, err := os.MkdirTemp("/tmp/", "zlog-test-*")
@@ -29,7 +44,7 @@ var mockLogfileOps = map[string]interface{}{
 		}
 		return files
 	},
-	"createOversize": func(path string) error {
+	"createOversize": func(path string, size int) error {
 		b := []byte("this base string will be 64 characters in length as multiplier!\n")
 
 		f, err := os.Create(path)
@@ -40,7 +55,7 @@ var mockLogfileOps = map[string]interface{}{
 		buf := &bytes.Buffer{}
 
 		// go for >50mb
-		for i := 0; i < 850000; i++ {
+		for i := 0; i < size; i++ {
 			n, err := buf.Write(b)
 			if err != nil {
 				return err
@@ -88,7 +103,7 @@ func TestNewLogFile(t *testing.T) {
 	}
 
 	fileMap := mockLogfileOps["createFiles"].(func(path string) []string)(targetDir)
-	err = mockLogfileOps["createOversize"].(func(string) error)(targetDir + "/oversize")
+	err = mockLogfileOps["createOversize"].(func(string, int) error)(targetDir+"/oversize", overweightIters[0])
 	if err != nil {
 		panic(err)
 	}
@@ -148,7 +163,100 @@ func TestNewLogFile(t *testing.T) {
 
 }
 
-func TestLogfileMaxSize(t *testing.T) {}
+func TestLogfileMaxSize(t *testing.T) {
+	type test struct {
+		path string
+		iter int
+		size int
+	}
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	// defer func() { os.RemoveAll(targetDir) }()
+
+	var tests []test
+
+	for a := 0; a < len(underweightIters); a++ {
+		newfile := fmt.Sprintf("%s%s-%v", targetDir, "/undersize", a)
+		err := mockLogfileOps["createOversize"].(func(string, int) error)(newfile, underweightIters[a])
+		if err != nil {
+			panic(err)
+		}
+
+		obj := test{
+			path: newfile,
+			iter: underweightIters[a],
+			size: 1,
+		}
+
+		tests = append(tests, obj)
+	}
+
+	// for a := 0; a < len(overweightIters); a++ {
+	// 	newfile := fmt.Sprintf("%s%s-%v", targetDir, "/oversize", a)
+	// 	err := mockLogfileOps["createOversize"].(func(string, int) error)(newfile, overweightIters[a])
+	// 	if err != nil {
+
+	// 		return
+	// 	}
+	// 	obj := test{
+	// 		path:    newfile,
+	// 		iter:    overweightIters[a],
+	// 		size:    25,
+	// 		rotates: true,
+	// 	}
+
+	// 	tests = append(tests, obj)
+	// }
+
+	var verify = func(id int, test test, logf *Logfile) {
+		isHeavyBefore := logf.IsTooHeavy()
+
+		if isHeavyBefore {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.MaxSize(%v) -- item cannot be declared as too heavy prior to setting a new size",
+				id,
+				test.size,
+			)
+			return
+		}
+
+		logf.MaxSize(test.size)
+
+		isHeavyAfter := logf.IsTooHeavy()
+
+		if !isHeavyAfter {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.MaxSize(%v) -- item should be heavier than limit after the change",
+				id,
+				test.size,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.MaxSize(%v)",
+			id,
+			test.size,
+		)
+
+	}
+
+	for id, test := range tests {
+		t.Logf(
+			"#%v -- [Logfile] Logfile.MaxSize(%v) on %s",
+			id,
+			test.size,
+			test.path,
+		)
+		logfile, err := NewLogfile(test.path)
+		if err != nil {
+			panic(err)
+		}
+		verify(id, test, logfile)
+
+	}
+
+}
 
 func TestLogfileNew(t *testing.T) {}
 

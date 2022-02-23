@@ -122,9 +122,9 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 	}
 
 	var rgxSimpleObjects = []*regexp.Regexp{
-		regexp.MustCompile(`\[ simple-test = 0 ; passing = true ; tool = "zlog" \]`),
+		regexp.MustCompile(`\[ ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) \]`),
 		regexp.MustCompile(`\[ simpler-test = "yes" \]`),
-		regexp.MustCompile(`\[ cascaded-test = true ; metadata = \[ nest-level = 1 ; data = "this is inner-level content" \] \]`),
+		regexp.MustCompile(`\[ ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) ; ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) \]`),
 	}
 
 	var tests []test

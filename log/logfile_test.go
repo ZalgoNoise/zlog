@@ -44,6 +44,19 @@ var mockLogfileOps = map[string]interface{}{
 		}
 		return files
 	},
+	"createLogfiles": func(path string) []string {
+		var files []string
+
+		for i := 0; i < 5; i++ {
+			new := fmt.Sprintf("%s/%s-%v.log", path, "buffer", i)
+			_, err := os.Create(new)
+			if err != nil {
+				panic(err)
+			}
+			files = append(files, new)
+		}
+		return files
+	},
 	"createOversize": func(path string, size int) error {
 		b := []byte("this base string will be 64 characters in length as multiplier!\n")
 
@@ -240,7 +253,91 @@ func TestLogfileMaxSize(t *testing.T) {
 
 }
 
-func TestLogfileNew(t *testing.T) {}
+func TestLogfileNew(t *testing.T) {
+	type test struct {
+		path string
+		ext  bool
+	}
+
+	var tests []test
+
+	var newLogfiles = []string{
+		"/new-logfile.log",
+		"/logfile.log",
+		"/test-logfile.log",
+		"/service.log",
+		"/new.log",
+	}
+
+	var newExtlessFiles = []string{
+		"/extensionless-new-logfile",
+		"/extensionless-logfile",
+		"/extensionless-test-logfile",
+		"/extensionless-service",
+		"/extensionless-new",
+	}
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	for a := 0; a < len(newLogfiles); a++ {
+		tests = append(tests, test{
+			path: targetDir + newLogfiles[a],
+			ext:  true,
+		})
+	}
+
+	for a := 0; a < len(newExtlessFiles); a++ {
+		tests = append(tests, test{
+			path: targetDir + newExtlessFiles[a],
+			ext:  false,
+		})
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+
+		lf, err := f.new(test.path)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.new() -- failed to create logfile with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		lf.file.Close()
+
+		var statErr error
+
+		if !test.ext {
+			_, statErr = os.Stat(test.path + ".log")
+		} else {
+			_, statErr = os.Stat(test.path)
+		}
+
+		if statErr != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.new() -- failed to stat logfile with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.new()",
+			id,
+		)
+	}
+
+	for id, test := range tests {
+		verify(id, test)
+
+	}
+
+}
 
 func TestLogfileLoad(t *testing.T) {}
 

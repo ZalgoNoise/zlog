@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"regexp"
 	"testing"
 )
 
@@ -411,7 +413,7 @@ func TestLogfileLoad(t *testing.T) {
 			t.Errorf(
 				"#%v -- FAILED -- [Logfile] Logfile.load() -- failed to load logfile with an error: %s",
 				id,
-				err,
+				loadErr,
 			)
 			return
 		}
@@ -450,7 +452,111 @@ func TestLogfileLoad(t *testing.T) {
 	}
 }
 
-func TestLogfileMove(t *testing.T) {}
+func TestLogfileMove(t *testing.T) {
+	type test struct {
+		path string
+		rgx  *regexp.Regexp
+	}
+
+	var tests []test
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	for a := 0; a < len(newLogfiles); a++ {
+		tests = append(tests, test{
+			path: targetDir + newLogfiles[a],
+			rgx:  regexp.MustCompile(`^(.*)_\d{4}(-\d{2}){5}.log$`),
+		})
+	}
+
+	for a := 0; a < len(newExtlessFiles); a++ {
+		tests = append(tests, test{
+			path: targetDir + newExtlessFiles[a] + ".log",
+			rgx:  regexp.MustCompile(`^(.*)_\d{4}(-\d{2}){5}.log$`),
+		})
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+
+		lf, err := f.new(test.path)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.new() -- failed to create logfile with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		lf.file.Close()
+
+		_, err = os.Stat(test.path)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.new() -- failed to stat logfile with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		err = lf.move(test.path)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.move() -- failed to move logfile with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		files, err := ioutil.ReadDir(targetDir)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.move() -- failed to list files in test dir with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		var passed bool = false
+
+		for _, f := range files {
+			if test.rgx.MatchString(f.Name()) {
+				match := test.rgx.FindStringSubmatch(f.Name())[1]
+
+				if targetDir+"/"+match+".log" == test.path {
+					passed = true
+					break
+				}
+
+			}
+		}
+
+		if !passed {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.move() -- failed to find renamed logfile in test dir",
+				id,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.move()",
+			id,
+		)
+	}
+
+	for id, test := range tests {
+		verify(id, test)
+
+	}
+}
 
 func TestLogfileHasExt(t *testing.T) {}
 

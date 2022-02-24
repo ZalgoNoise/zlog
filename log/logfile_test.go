@@ -23,6 +23,22 @@ var overweightIters = []int{
 	900000,
 }
 
+var newLogfiles = []string{
+	"/new-logfile.log",
+	"/logfile.log",
+	"/test-logfile.log",
+	"/service.log",
+	"/new.log",
+}
+
+var newExtlessFiles = []string{
+	"/extensionless-new-logfile",
+	"/extensionless-logfile",
+	"/extensionless-test-logfile",
+	"/extensionless-service",
+	"/extensionless-new",
+}
+
 var mockLogfileOps = map[string]interface{}{
 	"init": func() string {
 		path, err := os.MkdirTemp("/tmp/", "zlog-test-*")
@@ -261,22 +277,6 @@ func TestLogfileNew(t *testing.T) {
 
 	var tests []test
 
-	var newLogfiles = []string{
-		"/new-logfile.log",
-		"/logfile.log",
-		"/test-logfile.log",
-		"/service.log",
-		"/new.log",
-	}
-
-	var newExtlessFiles = []string{
-		"/extensionless-new-logfile",
-		"/extensionless-logfile",
-		"/extensionless-test-logfile",
-		"/extensionless-service",
-		"/extensionless-new",
-	}
-
 	targetDir := mockLogfileOps["init"].(func() string)()
 	defer func() { os.RemoveAll(targetDir) }()
 
@@ -339,7 +339,116 @@ func TestLogfileNew(t *testing.T) {
 
 }
 
-func TestLogfileLoad(t *testing.T) {}
+func TestLogfileLoad(t *testing.T) {
+
+	type test struct {
+		path string
+		ext  bool
+	}
+
+	var tests []test
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	for a := 0; a < len(newLogfiles); a++ {
+		tests = append(tests, test{
+			path: targetDir + newLogfiles[a],
+			ext:  true,
+		})
+	}
+
+	for a := 0; a < len(newExtlessFiles); a++ {
+		tests = append(tests, test{
+			path: targetDir + newExtlessFiles[a],
+			ext:  false,
+		})
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+
+		lf, err := f.new(test.path)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.new() -- failed to create logfile with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		lf.file.Close()
+
+		var statErr error
+
+		if !test.ext {
+			_, statErr = os.Stat(test.path + ".log")
+		} else {
+			_, statErr = os.Stat(test.path)
+		}
+
+		if statErr != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.new() -- failed to stat logfile with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		nf := &Logfile{rotate: 50}
+
+		var loadErr error
+
+		if !test.ext {
+			loadErr = nf.load(test.path + ".log")
+		} else {
+			loadErr = nf.load(test.path)
+		}
+
+		if loadErr != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.load() -- failed to load logfile with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		if !test.ext {
+			if nf.path != test.path+".log" {
+				t.Errorf(
+					"#%v -- FAILED -- [Logfile] Logfile.load() -- file path mismatch: wanted %s ; got %s",
+					id,
+					nf.path,
+					test.path+".log",
+				)
+				return
+			}
+		} else {
+			if nf.path != test.path {
+				t.Errorf(
+					"#%v -- FAILED -- [Logfile] Logfile.load() -- file path mismatch: wanted %s ; got %s",
+					id,
+					nf.path,
+					test.path,
+				)
+				return
+			}
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.load()",
+			id,
+		)
+	}
+
+	for id, test := range tests {
+		verify(id, test)
+
+	}
+}
 
 func TestLogfileMove(t *testing.T) {}
 

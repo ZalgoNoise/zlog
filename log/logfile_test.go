@@ -54,7 +54,6 @@ var mockLogfileOps = map[string]interface{}{
 
 		buf := &bytes.Buffer{}
 
-		// go for >50mb
 		for i := 0; i < size; i++ {
 			n, err := buf.Write(b)
 			if err != nil {
@@ -171,7 +170,7 @@ func TestLogfileMaxSize(t *testing.T) {
 	}
 
 	targetDir := mockLogfileOps["init"].(func() string)()
-	// defer func() { os.RemoveAll(targetDir) }()
+	defer func() { os.RemoveAll(targetDir) }()
 
 	var tests []test
 
@@ -190,23 +189,6 @@ func TestLogfileMaxSize(t *testing.T) {
 
 		tests = append(tests, obj)
 	}
-
-	// for a := 0; a < len(overweightIters); a++ {
-	// 	newfile := fmt.Sprintf("%s%s-%v", targetDir, "/oversize", a)
-	// 	err := mockLogfileOps["createOversize"].(func(string, int) error)(newfile, overweightIters[a])
-	// 	if err != nil {
-
-	// 		return
-	// 	}
-	// 	obj := test{
-	// 		path:    newfile,
-	// 		iter:    overweightIters[a],
-	// 		size:    25,
-	// 		rotates: true,
-	// 	}
-
-	// 	tests = append(tests, obj)
-	// }
 
 	var verify = func(id int, test test, logf *Logfile) {
 		isHeavyBefore := logf.IsTooHeavy()

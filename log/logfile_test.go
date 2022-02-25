@@ -75,6 +75,19 @@ var mockLogfileOps = map[string]interface{}{
 		}
 		return files
 	},
+	"createNamedFiles": func(path string, files ...string) []string {
+		var fileList []string
+
+		for _, k := range files {
+			new := fmt.Sprintf("%s/%s", path, k)
+			_, err := os.Create(new)
+			if err != nil {
+				panic(err)
+			}
+			fileList = append(fileList, new)
+		}
+		return fileList
+	},
 	"createOversize": func(path string, size int) error {
 		b := []byte("this base string will be 64 characters in length as multiplier!\n")
 
@@ -558,7 +571,59 @@ func TestLogfileMove(t *testing.T) {
 	}
 }
 
-func TestLogfileHasExt(t *testing.T) {}
+func TestLogfileHasExt(t *testing.T) {
+	type test struct {
+		path   string
+		hasExt bool
+	}
+
+	var tests []test
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	mockLogfiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newLogfiles...)
+	mockExtlessLogfiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newExtlessFiles...)
+
+	for a := 0; a < len(mockLogfiles); a++ {
+		tests = append(tests, test{
+			path:   mockLogfiles[a],
+			hasExt: true,
+		})
+	}
+
+	for a := 0; a < len(mockExtlessLogfiles); a++ {
+		tests = append(tests, test{
+			path:   mockExtlessLogfiles[a],
+			hasExt: false,
+		})
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+
+		ok := f.hasExt(test.path)
+		if ok != test.hasExt {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.hasExt() -- expected results mismatch: wanted %v ; got %v",
+				id,
+				test.hasExt,
+				ok,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.hasExt()",
+			id,
+		)
+	}
+
+	for id, test := range tests {
+		verify(id, test)
+
+	}
+}
 
 func TestLogfileAddExt(t *testing.T) {}
 

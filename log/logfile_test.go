@@ -79,7 +79,7 @@ var mockLogfileOps = map[string]interface{}{
 		var fileList []string
 
 		for _, k := range files {
-			new := fmt.Sprintf("%s/%s", path, k)
+			new := fmt.Sprintf("%s%s", path, k)
 			_, err := os.Create(new)
 			if err != nil {
 				panic(err)
@@ -671,7 +671,59 @@ func TestLogfileAddExt(t *testing.T) {
 	}
 }
 
-func TestLogfileCutExt(t *testing.T) {}
+func TestLogfileCutExt(t *testing.T) {
+	type test struct {
+		path  string
+		wants string
+	}
+
+	var tests []test
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	mockLogfiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newLogfiles...)
+
+	var expectedLogfiles = []string{
+		targetDir + "/new-logfile",
+		targetDir + "/logfile",
+		targetDir + "/test-logfile",
+		targetDir + "/service",
+		targetDir + "/new",
+	}
+
+	for a := 0; a < len(mockLogfiles); a++ {
+		tests = append(tests, test{
+			path:  mockLogfiles[a],
+			wants: expectedLogfiles[a],
+		})
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+
+		newPath := f.cutExt(test.path)
+		if newPath != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.addExt() -- expected results mismatch: wanted %v ; got %v",
+				id,
+				test.wants,
+				newPath,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.addExt()",
+			id,
+		)
+	}
+
+	for id, test := range tests {
+		verify(id, test)
+
+	}
+}
 
 func TestLogfileSize(t *testing.T) {}
 

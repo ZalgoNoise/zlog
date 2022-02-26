@@ -625,7 +625,51 @@ func TestLogfileHasExt(t *testing.T) {
 	}
 }
 
-func TestLogfileAddExt(t *testing.T) {}
+func TestLogfileAddExt(t *testing.T) {
+	type test struct {
+		path  string
+		wants string
+	}
+
+	var tests []test
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	mockExtlessLogfiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newExtlessFiles...)
+
+	for a := 0; a < len(mockExtlessLogfiles); a++ {
+		tests = append(tests, test{
+			path:  mockExtlessLogfiles[a],
+			wants: mockExtlessLogfiles[a] + ".log",
+		})
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+
+		newPath := f.addExt(test.path)
+		if newPath != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.addExt() -- expected results mismatch: wanted %v ; got %v",
+				id,
+				test.wants,
+				newPath,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.addExt()",
+			id,
+		)
+	}
+
+	for id, test := range tests {
+		verify(id, test)
+
+	}
+}
 
 func TestLogfileCutExt(t *testing.T) {}
 

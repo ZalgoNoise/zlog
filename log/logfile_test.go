@@ -725,7 +725,97 @@ func TestLogfileCutExt(t *testing.T) {
 	}
 }
 
-func TestLogfileSize(t *testing.T) {}
+func TestLogfileSize(t *testing.T) {
+	type test struct {
+		path string
+		ok   bool
+	}
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	var tests []test
+
+	for a := 0; a < len(underweightIters); a++ {
+		newfile := fmt.Sprintf("%s%s-%v", targetDir, "/with-data", a)
+		err := mockLogfileOps["createOversize"].(func(string, int) error)(newfile, underweightIters[a])
+		if err != nil {
+			panic(err)
+		}
+
+		obj := test{
+			path: newfile,
+			ok:   true,
+		}
+
+		tests = append(tests, obj)
+	}
+
+	blankFiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newLogfiles...)
+
+	for a := 0; a < len(blankFiles); a++ {
+		obj := test{
+			path: blankFiles[a],
+			ok:   false,
+		}
+
+		tests = append(tests, obj)
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+		err := f.load(test.path)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.load(%s) -- failed to load test logfile with an error: %s",
+				id,
+				test.path,
+				err,
+			)
+			return
+		}
+
+		n, err := f.Size()
+		if err != nil {
+			if err == os.ErrNotExist {
+				t.Errorf(
+					"#%v -- FAILED -- [Logfile] Logfile.Size() -- failed to get the size from the logfile, since it doesn't exist: %s",
+					id,
+					err,
+				)
+				return
+			}
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.Size() -- failed to get the size from the logfile with an error: %s",
+				id,
+				err,
+			)
+
+			return
+		}
+
+		if n < 1 && test.ok {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.Size() -- unexpectedly empty file, has %v bytes in size",
+				id,
+				n,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.Size()",
+			id,
+		)
+
+	}
+
+	for id, test := range tests {
+
+		verify(id, test)
+
+	}
+}
 
 func TestLogfileIsTooHeavy(t *testing.T) {}
 

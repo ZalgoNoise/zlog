@@ -10,6 +10,10 @@ import (
 	"testing"
 )
 
+var mockByteChunk64 = []byte(
+	"this base string will be 64 characters in length as multiplier!\n",
+)
+
 var underweightIters = []int{
 	20000,
 	50000,
@@ -89,7 +93,7 @@ var mockLogfileOps = map[string]interface{}{
 		return fileList
 	},
 	"createOversize": func(path string, size int) error {
-		b := []byte("this base string will be 64 characters in length as multiplier!\n")
+		b := mockByteChunk64
 
 		f, err := os.Create(path)
 		if err != nil {
@@ -981,4 +985,98 @@ func TestLogfileRotate(t *testing.T) {
 	}
 }
 
-func TestLogfileWrite(t *testing.T) {}
+func TestLogfileWrite(t *testing.T) {
+	type test struct {
+		path string
+		iter int
+	}
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	var tests []test
+
+	blankFiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newLogfiles...)
+
+	for a := 0; a < len(blankFiles); a++ {
+		obj := test{
+			path: blankFiles[a],
+			iter: a + 1,
+		}
+
+		tests = append(tests, obj)
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+		err := f.load(test.path)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.load(%s) -- failed to load test logfile with an error: %s",
+				id,
+				test.path,
+				err,
+			)
+			return
+		}
+
+		buf := &bytes.Buffer{}
+
+		for i := 0; i < test.iter; i++ {
+			n, err := buf.Write(mockByteChunk64)
+			if err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [Logfile] bytes.Buffer.Write() -- writting to test buffer failed with an error: %s",
+					id,
+					err,
+				)
+				return
+			}
+
+			if n != len(mockByteChunk64) {
+				t.Errorf(
+					"#%v -- FAILED -- [Logfile] bytes.Buffer.Write() -- expected to write %v bytes, wrote %v bytes instead",
+					id,
+					len(mockByteChunk64),
+					n,
+				)
+				return
+			}
+		}
+
+		n, err := f.Write(buf.Bytes())
+
+		if err != nil {
+			if err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [Logfile] Logfile.Write() -- writting to Logfile failed with an error: %s",
+					id,
+					err,
+				)
+				return
+			}
+
+			if n != buf.Len() {
+				t.Errorf(
+					"#%v -- FAILED -- [Logfile] Logfile.Write() -- expected to write %v bytes, wrote %v bytes instead",
+					id,
+					buf.Len(),
+					n,
+				)
+				return
+			}
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.Write()",
+			id,
+		)
+
+	}
+
+	for id, test := range tests {
+
+		verify(id, test)
+
+	}
+}

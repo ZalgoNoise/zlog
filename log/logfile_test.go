@@ -902,6 +902,83 @@ func TestLogfileIsTooHeavy(t *testing.T) {
 	}
 }
 
-func TestLogfileRotate(t *testing.T) {}
+func TestLogfileRotate(t *testing.T) {
+	type test struct {
+		path    string
+		isHeavy bool
+	}
+
+	targetDir := mockLogfileOps["init"].(func() string)()
+	defer func() { os.RemoveAll(targetDir) }()
+
+	var tests []test
+
+	for a := 0; a < len(underweightIters); a++ {
+		newfile := fmt.Sprintf("%s%s-%v", targetDir, "/underweight", a)
+		err := mockLogfileOps["createOversize"].(func(string, int) error)(newfile, underweightIters[a])
+		if err != nil {
+			panic(err)
+		}
+
+		obj := test{
+			path:    newfile,
+			isHeavy: false,
+		}
+
+		tests = append(tests, obj)
+	}
+	for a := 0; a < len(overweightIters); a++ {
+		newfile := fmt.Sprintf("%s%s-%v", targetDir, "/overweight", a)
+		err := mockLogfileOps["createOversize"].(func(string, int) error)(newfile, overweightIters[a])
+		if err != nil {
+			panic(err)
+		}
+
+		obj := test{
+			path:    newfile,
+			isHeavy: true,
+		}
+
+		tests = append(tests, obj)
+	}
+
+	var verify = func(id int, test test) {
+		f := &Logfile{rotate: 50}
+		err := f.load(test.path)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.load(%s) -- failed to load test logfile with an error: %s",
+				id,
+				test.path,
+				err,
+			)
+			return
+		}
+
+		// Logfile.move() and Logfile.new() are already tested individually
+		rotateErr := f.Rotate()
+
+		if rotateErr != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [Logfile] Logfile.Rotate() -- operation failed with an error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Logfile] Logfile.Rotate()",
+			id,
+		)
+
+	}
+
+	for id, test := range tests {
+
+		verify(id, test)
+
+	}
+}
 
 func TestLogfileWrite(t *testing.T) {}

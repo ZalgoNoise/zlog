@@ -97,35 +97,6 @@ func (b *MessageBuilder) Build() *LogMessage {
 	}
 }
 
-// func (l *Logger) Output(level LogLevel, msg string) error {
-
-// 	l.mu.Lock()
-// 	defer l.mu.Unlock()
-
-// 	// build message
-// 	log := NewMessage().Level(level).Prefix(l.prefix).Message(msg).Metadata(l.meta).Build()
-
-// 	// clear metadata
-// 	l.meta = nil
-
-// 	// format message
-// 	buf, err := l.fmt.Format(log)
-
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	l.buf = buf
-
-// 	// write message to outs
-// 	_, err = l.out.Write(l.buf)
-
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
 func (l *Logger) Output(m *LogMessage) error {
 
 	l.mu.Lock()

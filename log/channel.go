@@ -35,19 +35,9 @@ func NewLogCh(logger LoggerI) (logCh ChanneledLogger) {
 	go func(done chan struct{}) {
 		for {
 			select {
-			case msg, ok := <-msgCh:
-				if ok {
-					logger.Log(msg)
-				} else {
-					logger.Log(
-						NewMessage().Prefix("logger").Level(LLInfo).Message("channel closed").Build(),
-					)
-					return
-				}
+			case msg := <-msgCh:
+				logger.Log(msg)
 			case <-done:
-				// logger.Log(
-				// 	NewMessage().Prefix("logger").Level(LLInfo).Message("received done signal").Build(),
-				// )
 				return
 			}
 

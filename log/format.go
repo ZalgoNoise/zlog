@@ -83,7 +83,7 @@ func (f *JSONFmt) Format(log *LogMessage) (buf []byte, err error) {
 
 	data, err := json.Marshal(log)
 	if err != nil {
-		return
+		return nil, err
 	}
 	buf = data
 	return

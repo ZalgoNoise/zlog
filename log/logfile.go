@@ -93,7 +93,7 @@ func (f *Logfile) move(path string) error {
 func (f *Logfile) hasExt(path string) (ok bool) {
 	ok = false
 	// fast check - check last 4 chars for ".log"
-	sub := path[:4]
+	sub := path[len(path)-4:]
 	if sub == ".log" {
 		ok = true
 		return
@@ -101,7 +101,8 @@ func (f *Logfile) hasExt(path string) (ok bool) {
 
 	// slow check - split ".", check last slice
 	subslice := strings.Split(path, ".")
-	if subslice[len(subslice)-1] == "log" {
+	ext := subslice[len(subslice)-1]
+	if ext[len(ext)-3:] == "log" {
 		ok = true
 		return
 	}

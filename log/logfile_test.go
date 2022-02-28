@@ -37,6 +37,14 @@ var newLogfiles = []string{
 	"/new.log",
 }
 
+var newValidExts = []string{
+	"/new-logfile.textlog",
+	"/logfile.jsonlog",
+	"/test-logfile.tmplog",
+	"/service.srvlog",
+	"/new.svclog",
+}
+
 var newExtlessFiles = []string{
 	"/extensionless-new-logfile",
 	"/extensionless-logfile",
@@ -587,11 +595,19 @@ func TestLogfileHasExt(t *testing.T) {
 	defer func() { os.RemoveAll(targetDir) }()
 
 	mockLogfiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newLogfiles...)
+	mockValidExtFiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newValidExts...)
 	mockExtlessLogfiles := mockLogfileOps["createNamedFiles"].(func(string, ...string) []string)(targetDir, newExtlessFiles...)
 
 	for a := 0; a < len(mockLogfiles); a++ {
 		tests = append(tests, test{
 			path:   mockLogfiles[a],
+			hasExt: true,
+		})
+	}
+
+	for a := 0; a < len(mockValidExtFiles); a++ {
+		tests = append(tests, test{
+			path:   mockValidExtFiles[a],
 			hasExt: true,
 		})
 	}

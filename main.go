@@ -30,8 +30,16 @@ func main() {
 
 	multi := log.MultiLogger(
 
-		log.New("alpha-log", &log.TextFmt{}),
-		log.New("beta-log", &log.JSONFmt{}, logFile1, logFile2, customLog),
+		log.New(
+			log.WithPrefix("alpha-log"),
+			log.TextCfg,
+		),
+		log.New(
+			log.WithPrefix("beta-log"),
+			log.JSONCfg,
+			log.WithOut(
+				logFile1, logFile2, customLog,
+			)),
 	)
 
 	multi.Info("test log")
@@ -106,7 +114,7 @@ func main() {
 
 	var newBuf = &bytes.Buffer{}
 
-	newLogger := log.NewLogger(
+	newLogger := log.New(
 		log.WithPrefix("multi-conf"),
 		log.WithOut(os.Stdout, newBuf),
 		log.TextCfg,

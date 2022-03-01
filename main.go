@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
@@ -93,14 +94,24 @@ func main() {
 		).Build(),
 	)
 
-	go func() {
-		logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLPanic).Message("break runime").Metadata(
-			map[string]interface{}{
-				"type":    "panic",
-				"data":    "this is a goroutine panic into a logger in a goroutine",
-				"test_id": 4,
-			},
-		).Build()
-	}()
+	// go func() {
+	// 	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLPanic).Message("break runime").Metadata(
+	// 		map[string]interface{}{
+	// 			"type":    "panic",
+	// 			"data":    "this is a goroutine panic into a logger in a goroutine",
+	// 			"test_id": 4,
+	// 		},
+	// 	).Build()
+	// }()
+
+	var newBuf = &bytes.Buffer{}
+
+	newLogger := log.NewLogger(
+		log.WithPrefix("multi-conf"),
+		log.WithOut(os.Stdout, newBuf),
+		log.TextCfg,
+	)
+
+	newLogger.Log(log.NewMessage().Message("hello universe!").Build())
 
 }

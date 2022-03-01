@@ -60,11 +60,23 @@ func NewLogger(confs ...LoggerConfig) LoggerI {
 	builder := &LoggerBuilder{}
 
 	if len(confs) == 0 {
-		DefaultConfig.Apply(builder)
+		DefaultCfg.Apply(builder)
 	} else {
 		for _, conf := range confs {
 			conf.Apply(builder)
 		}
+	}
+
+	if builder.out == nil {
+		StdOutCfg.Apply(builder)
+	}
+
+	if builder.fmt == nil {
+		TextCfg.Apply(builder)
+	}
+
+	if builder.prefix == "" {
+		DefPrefixCfg.Apply(builder)
 	}
 
 	return &Logger{

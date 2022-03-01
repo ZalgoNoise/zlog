@@ -2,7 +2,6 @@ package log
 
 import (
 	"io"
-	"os"
 	"sync"
 )
 
@@ -48,7 +47,7 @@ type LoggerI interface {
 	Tracef(format string, v ...interface{})
 }
 
-var std = New("log", TextFormat, os.Stdout)
+var std = New(defaultConfig)
 
 type LoggerBuilder struct {
 	out    io.Writer
@@ -56,16 +55,10 @@ type LoggerBuilder struct {
 	fmt    LogFormatter
 }
 
-func NewLogger(confs ...LoggerConfig) LoggerI {
+func New(confs ...LoggerConfig) LoggerI {
 	builder := &LoggerBuilder{}
 
-	if len(confs) == 0 {
-		DefaultCfg.Apply(builder)
-	} else {
-		for _, conf := range confs {
-			conf.Apply(builder)
-		}
-	}
+	MultiConf(confs...).Apply(builder)
 
 	if builder.out == nil {
 		StdOutCfg.Apply(builder)
@@ -93,23 +86,6 @@ type Logger struct {
 	prefix string
 	fmt    LogFormatter
 	meta   map[string]interface{}
-}
-
-func New(prefix string, format LogFormatter, outs ...io.Writer) LoggerI {
-	var out io.Writer
-
-	if len(outs) == 0 {
-		out = os.Stdout
-	} else if len(outs) > 0 {
-		out = io.MultiWriter(outs...)
-	}
-
-	return &Logger{
-		out:    out,
-		buf:    []byte{},
-		prefix: prefix,
-		fmt:    format,
-	}
 }
 
 // output setter methods

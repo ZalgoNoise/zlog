@@ -58,7 +58,11 @@ func TestNewLogCh(t *testing.T) {
 						w = append(w, mockChBufs[0][f])
 					}
 
-					l := New(mockEmptyPrefixes[0], JSONFormat, w...)
+					l := New(
+						WithPrefix(mockEmptyPrefixes[0]),
+						JSONCfg,
+						WithOut(w...),
+					)
 
 					obj := test{
 						log: log{
@@ -264,7 +268,11 @@ func TestNewLogChMultiLogger(t *testing.T) {
 								w = append(w, mockChBufs[f][g])
 							}
 
-							l := New(mockEmptyPrefixes[0], JSONFormat, w...)
+							l := New(
+								WithPrefix(mockEmptyPrefixes[0]),
+								JSONCfg,
+								WithOut(w...),
+							)
 							logs = append(logs, l)
 						}
 
@@ -490,7 +498,11 @@ func TestNewLogChMultiEntry(t *testing.T) {
 				w = append(w, mockChBufs[b][c])
 			}
 
-			l := New(prefix, TextFormat, w...)
+			l := New(
+				WithPrefix(prefix),
+				TextCfg,
+				WithOut(w...),
+			)
 			logs = append(logs, l)
 		}
 

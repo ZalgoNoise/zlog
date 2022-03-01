@@ -56,28 +56,21 @@ type LoggerBuilder struct {
 	fmt    LogFormatter
 }
 
-func NewLogger() *LoggerBuilder {
-	return &LoggerBuilder{}
-}
+func NewLogger(confs ...LoggerConfig) LoggerI {
+	builder := &LoggerBuilder{}
 
-func (lb *LoggerBuilder) Configure(confs ...LoggerConfig) *LoggerBuilder {
 	if len(confs) == 0 {
-		DefaultConfig.Apply(lb)
-		return lb
+		DefaultConfig.Apply(builder)
+	} else {
+		for _, conf := range confs {
+			conf.Apply(builder)
+		}
 	}
-
-	for _, conf := range confs {
-		conf.Apply(lb)
-	}
-	return lb
-}
-
-func (lb *LoggerBuilder) Build() LoggerI {
 
 	return &Logger{
-		out:    lb.out,
-		prefix: lb.prefix,
-		fmt:    lb.fmt,
+		out:    builder.out,
+		prefix: builder.prefix,
+		fmt:    builder.fmt,
 	}
 }
 

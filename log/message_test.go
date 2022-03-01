@@ -13,8 +13,12 @@ var mockLogger = struct {
 	logger LoggerI
 	buf    *bytes.Buffer
 }{
-	logger: New("test-message", JSONFormat, mockBuffer),
-	buf:    mockBuffer,
+	logger: New(
+		WithPrefix("test-message"),
+		JSONCfg,
+		WithOut(mockBuffer),
+	),
+	buf: mockBuffer,
 }
 
 var mockLogLevelsOK = []LogLevel{
@@ -2526,7 +2530,11 @@ func TestPrint(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -2626,7 +2634,11 @@ func TestPrintln(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -2726,7 +2738,11 @@ func TestPrintf(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		format  string
@@ -2833,7 +2849,11 @@ func TestLog(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -3018,7 +3038,11 @@ func TestPanic(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -3097,7 +3121,11 @@ func TestPanicln(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -3176,7 +3204,11 @@ func TestPanicf(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		format  string
@@ -3288,7 +3320,11 @@ func TestError(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -3388,7 +3424,11 @@ func TestErrorln(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -3488,7 +3528,11 @@ func TestErrorf(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		format  string
@@ -3595,7 +3639,11 @@ func TestWarn(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -3695,7 +3743,11 @@ func TestWarnln(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -3795,7 +3847,11 @@ func TestWarnf(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		format  string
@@ -3902,7 +3958,11 @@ func TestInfo(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -4002,7 +4062,11 @@ func TestInfoln(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -4102,7 +4166,11 @@ func TestInfof(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		format  string
@@ -4209,7 +4277,11 @@ func TestDebug(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -4309,7 +4381,11 @@ func TestDebugln(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -4409,7 +4485,11 @@ func TestDebugf(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		format  string
@@ -4516,7 +4596,11 @@ func TestTrace(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -4616,7 +4700,11 @@ func TestTraceln(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		msg     string
@@ -4716,7 +4804,11 @@ func TestTracef(t *testing.T) {
 	// std logger override
 	oldstd := std
 	buf := &bytes.Buffer{}
-	std = New("log", JSONFormat, buf)
+	std = New(
+		WithPrefix("log"),
+		JSONCfg,
+		WithOut(buf),
+	)
 
 	type test struct {
 		format  string

@@ -50,6 +50,37 @@ type LoggerI interface {
 
 var std = New("log", TextFormat, os.Stdout)
 
+type LoggerBuilder struct {
+	out    io.Writer
+	prefix string
+	fmt    LogFormatter
+}
+
+func NewLogger() *LoggerBuilder {
+	return &LoggerBuilder{}
+}
+
+func (lb *LoggerBuilder) Configure(confs ...LoggerConfig) *LoggerBuilder {
+	if len(confs) == 0 {
+		DefaultConfig.Apply(lb)
+		return lb
+	}
+
+	for _, conf := range confs {
+		conf.Apply(lb)
+	}
+	return lb
+}
+
+func (lb *LoggerBuilder) Build() LoggerI {
+
+	return &Logger{
+		out:    lb.out,
+		prefix: lb.prefix,
+		fmt:    lb.fmt,
+	}
+}
+
 type Logger struct {
 	mu     sync.Mutex
 	out    io.Writer

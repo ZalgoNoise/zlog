@@ -28,18 +28,18 @@ func (m multiconf) Apply(lb *LoggerBuilder) {
 
 var defaultConfig LoggerConfig = &multiconf{
 	confs: []LoggerConfig{
-		LCTextFormat{},
-		LCStdOut{},
-		LCDefaultPrefix{},
+		TextFormat,
+		WithOut(),
+		WithPrefix("log"),
 	},
 }
 
 var LoggerConfigs = map[int]LoggerConfig{
 	0: defaultConfig,
-	5: LCTextFormat{},
-	6: LCJSONFormat{},
-	7: LCStdOut{},
-	8: LCDefaultPrefix{},
+	5: TextFormat,
+	6: JSONFormat,
+	7: WithOut(os.Stdout),
+	8: WithPrefix("log"),
 }
 
 var (
@@ -49,30 +49,6 @@ var (
 	StdOutCfg    LoggerConfig = LoggerConfigs[7]
 	DefPrefixCfg LoggerConfig = LoggerConfigs[8]
 )
-
-type LCTextFormat struct{}
-
-func (c LCTextFormat) Apply(lb *LoggerBuilder) {
-	lb.fmt = TextFormat
-}
-
-type LCJSONFormat struct{}
-
-func (c LCJSONFormat) Apply(lb *LoggerBuilder) {
-	lb.fmt = JSONFormat
-}
-
-type LCStdOut struct{}
-
-func (c LCStdOut) Apply(lb *LoggerBuilder) {
-	lb.out = os.Stdout
-}
-
-type LCDefaultPrefix struct{}
-
-func (c LCDefaultPrefix) Apply(lb *LoggerBuilder) {
-	lb.prefix = "log"
-}
 
 type LCPrefix struct {
 	p string

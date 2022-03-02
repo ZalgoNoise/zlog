@@ -191,44 +191,54 @@ func TestNewMultiWriterLogger(t *testing.T) {
 }
 
 func TestNewDefaultWriterLogger(t *testing.T) {
-	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
+	regxStr := `^\[.*\]\s*\[info\]\s*\[log\]\s*test content\s*$`
 	regx := regexp.MustCompile(regxStr)
 
-	prefix := "test-new-logger"
-	format := TextCfg
 	msg := "test content"
 
 	out := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	logger := New(
-		WithPrefix(prefix),
-		format,
-	)
-	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+	// forcing this override of os.Stdout so that we can read from it
+	logger := New(WithOut(os.Stdout))
 
-	logger.Log(logMessage)
+	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
 
 	// https://stackoverflow.com/questions/10473800
 	// copy the output in a separate goroutine so printing can't block indefinitely
 	outCh := make(chan string)
 	go func() {
 		var buf bytes.Buffer
-		io.Copy(&buf, r)
+		n, err := io.Copy(&buf, r)
+		if err != nil {
+			t.Errorf(
+				"#%v [Logger] [default-writer] New().Info(%s) -- error when copying piped buffer's data: %s",
+				0,
+				msg,
+				err,
+			)
+		}
+
+		if n == 0 {
+			t.Errorf(
+				"#%v [Logger] [default-writer] New().Info(%s) -- piped buffer's data is zero bytes in length",
+				0,
+				msg,
+			)
+		}
 		outCh <- buf.String()
 	}()
+	logger.Log(logMessage)
 
 	w.Close()
-	os.Stdout = out
 	result := <-outCh
+	os.Stdout = out
 
 	if !regx.MatchString(result) {
 		t.Errorf(
-			"#%v [Logger] [default-writer] New(%s,%s).Info(%s) = %s ; expected %s",
+			"#%v [Logger] [default-writer] New().Info(%s) = %s ; expected %s",
 			0,
-			prefix,
-			"TextFormat",
 			msg,
 			result,
 			regxStr,
@@ -236,10 +246,8 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 	}
 
 	t.Logf(
-		"#%v -- TESTED -- [Logger] [multi-writer] New(%s,%s).Info(%s) = %s",
+		"#%v -- TESTED -- [Logger] [multi-writer] New().Info(%s) = %s",
 		0,
-		prefix,
-		"TextFormat",
 		msg,
 		result,
 	)

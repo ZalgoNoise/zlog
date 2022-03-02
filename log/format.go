@@ -7,6 +7,7 @@ import (
 
 type LogFormatter interface {
 	Format(log *LogMessage) (buf []byte, err error)
+	Apply(lb *LoggerBuilder)
 }
 
 var LogFormatters = map[int]LogFormatter{
@@ -75,6 +76,10 @@ func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
 	return meta
 }
 
+func (f *TextFmt) Apply(lb *LoggerBuilder) {
+	lb.fmt = &TextFmt{}
+}
+
 func (f *JSONFmt) Format(log *LogMessage) (buf []byte, err error) {
 	// remove trailing newline on JSON format
 	if log.Msg[len(log.Msg)-1] == 10 {
@@ -87,4 +92,8 @@ func (f *JSONFmt) Format(log *LogMessage) (buf []byte, err error) {
 	}
 	buf = data
 	return
+}
+
+func (f *JSONFmt) Apply(lb *LoggerBuilder) {
+	lb.fmt = &JSONFmt{}
 }

@@ -14,7 +14,7 @@ func TestTextFormatLogger(t *testing.T) {
 	regx := regexp.MustCompile(regxStr)
 
 	prefix := "test-new-logger"
-	format := TextCfg
+	format := TextFormat
 	msg := "test content"
 	var buf bytes.Buffer
 
@@ -52,7 +52,7 @@ func TestTextFormatLogger(t *testing.T) {
 
 func TestJSONFormatLogger(t *testing.T) {
 	prefix := "test-new-logger"
-	format := JSONCfg
+	format := JSONFormat
 	msg := "test content"
 	buf := &bytes.Buffer{}
 	logEntry := &LogMessage{}
@@ -104,7 +104,7 @@ func TestNewSingleWriterLogger(t *testing.T) {
 	regx := regexp.MustCompile(regxStr)
 
 	prefix := "test-new-logger"
-	format := TextCfg
+	format := TextFormat
 	msg := "test content"
 	var buf bytes.Buffer
 
@@ -145,7 +145,7 @@ func TestNewMultiWriterLogger(t *testing.T) {
 	regx := regexp.MustCompile(regxStr)
 
 	prefix := "test-new-logger"
-	format := TextCfg
+	format := TextFormat
 	msg := "test content"
 
 	var buf1 bytes.Buffer
@@ -268,7 +268,7 @@ func TestLoggerSetOuts(t *testing.T) {
 	regx := regexp.MustCompile(regxStr)
 
 	prefix := "test-new-logger"
-	format := TextCfg
+	format := TextFormat
 	msg := "test content"
 
 	for i := 0; i < 5; i++ {
@@ -334,7 +334,7 @@ func TestLoggerAddOuts(t *testing.T) {
 	regx := regexp.MustCompile(regxStr)
 
 	prefix := "test-new-logger"
-	format := TextCfg
+	format := TextFormat
 	msg := "test content"
 
 	for i := 1; i < 5; i++ {
@@ -407,7 +407,7 @@ func TestLoggerPrefix(t *testing.T) {
 	regxStr := `^\[.*\]\s*\[info\]\s*\[(.*)\]\s*test content\s*$`
 	regx := regexp.MustCompile(regxStr)
 
-	format := TextCfg
+	format := TextFormat
 	msg := "test content"
 
 	for _, p := range testPrefixes {
@@ -474,7 +474,7 @@ func TestLoggerPrefix(t *testing.T) {
 func TestLoggerFields(t *testing.T) {
 
 	prefix := "test-new-logger"
-	format := JSONCfg
+	format := JSONFormat
 	msg := "test content"
 
 	for id, obj := range testObjects {

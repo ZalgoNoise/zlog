@@ -103,15 +103,23 @@ func (l *Logger) Output(m *LogMessage) error {
 	defer l.mu.Unlock()
 
 	// use logger prefix if default
+	// do not clear Logger.prefix
 	if m.Prefix == "log" && l.prefix != m.Prefix {
 		m.Prefix = l.prefix
 	}
 
-	// clear metadata
+	// push logger metadata to message
 	if m.Metadata == nil && l.meta != nil {
 		m.Metadata = l.meta
+	} else if m.Metadata != nil && l.meta != nil {
+		// add Logger metadata to existing metadata
+		for k, v := range l.meta {
+			m.Metadata[k] = v
+		}
 	}
-	l.meta = nil
+
+	// do not clear Logger's metadata
+	// l.meta = nil
 
 	// format message
 	buf, err := l.fmt.Format(m)

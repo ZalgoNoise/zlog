@@ -15,7 +15,7 @@ var mockLogger = struct {
 }{
 	logger: New(
 		WithPrefix("test-message"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(mockBuffer),
 	),
 	buf: mockBuffer,
@@ -2532,7 +2532,7 @@ func TestPrint(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -2636,7 +2636,7 @@ func TestPrintln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -2740,7 +2740,7 @@ func TestPrintf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -2851,7 +2851,7 @@ func TestLog(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3040,7 +3040,7 @@ func TestPanic(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3123,7 +3123,7 @@ func TestPanicln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3206,7 +3206,7 @@ func TestPanicf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3322,7 +3322,7 @@ func TestError(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3426,7 +3426,7 @@ func TestErrorln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3530,7 +3530,7 @@ func TestErrorf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3641,7 +3641,7 @@ func TestWarn(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3745,7 +3745,7 @@ func TestWarnln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3849,7 +3849,7 @@ func TestWarnf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -3960,7 +3960,7 @@ func TestInfo(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -4064,7 +4064,7 @@ func TestInfoln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -4168,7 +4168,7 @@ func TestInfof(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -4279,7 +4279,7 @@ func TestDebug(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -4383,7 +4383,7 @@ func TestDebugln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -4487,7 +4487,7 @@ func TestDebugf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -4598,7 +4598,7 @@ func TestTrace(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -4702,7 +4702,7 @@ func TestTraceln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 
@@ -4806,7 +4806,7 @@ func TestTracef(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONCfg,
+		JSONFormat,
 		WithOut(buf),
 	)
 

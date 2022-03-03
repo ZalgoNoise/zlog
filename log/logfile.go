@@ -13,12 +13,19 @@ const (
 	megabytes
 )
 
+// Logfile struct defines the elements of a Logfile: a pointer to an os.File, as well as its
+// path in a string format and an indicator on when to rotate this file (size in megabytes)
 type Logfile struct {
 	path   string
 	file   *os.File
 	rotate int
 }
 
+// NewLogFile function use the target file as a Logfile, as indicated in the path string;
+// returning a pointer to a Logfile and an error.
+//
+// If this file does not exist, then it will be created. If the file already exists, then it
+// will be loaded -- and rotated if its too heavy.
 func NewLogfile(path string) (*Logfile, error) {
 	f := &Logfile{rotate: 50}
 
@@ -46,6 +53,8 @@ func NewLogfile(path string) (*Logfile, error) {
 
 }
 
+// MaxSize method will define the rotation indicator for the Logfile, or, the target size
+// when should the logfile be rotated
 func (f *Logfile) MaxSize(mb int) *Logfile {
 	f.rotate = mb
 	return f
@@ -117,6 +126,7 @@ func (f *Logfile) cutExt(path string) string {
 	return path[:len(path)-4]
 }
 
+// Size method is a wrapper for an os.File.Stat() followed by os.File.Stat()
 func (f *Logfile) Size() (int64, error) {
 	s, err := f.file.Stat()
 	if err != nil {
@@ -125,6 +135,8 @@ func (f *Logfile) Size() (int64, error) {
 	return s.Size(), nil
 }
 
+// IsTooHeavy method will verify the file's size and rotate it if exceeding the set
+// maximum weight (in the Logfile's rotate element)
 func (f *Logfile) IsTooHeavy() bool {
 	s, err := f.Size()
 
@@ -139,6 +151,8 @@ func (f *Logfile) IsTooHeavy() bool {
 	return false
 }
 
+// Rotate method will rename the existing (overweight) logfile to append a timestamp, and create
+// a new Logfile based on the original filename. The new file will be the target of subsequent writes.
 func (f *Logfile) Rotate() error {
 	if f.IsTooHeavy() {
 		err := f.move(f.path)
@@ -154,6 +168,8 @@ func (f *Logfile) Rotate() error {
 	return nil
 }
 
+// Write method is defined to implement the io.Writer interface, for Logfile to be compatible with LoggerI
+// as an output to be used
 func (f *Logfile) Write(b []byte) (n int, err error) {
 	return f.file.Write(b)
 }

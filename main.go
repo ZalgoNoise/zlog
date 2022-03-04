@@ -117,9 +117,9 @@ func main() {
 	newLogger := log.New(
 		log.WithPrefix("multi-conf"),
 		log.WithOut(os.Stdout, newBuf),
-		log.TextCfg,
+		log.NewTextFormat().Time(log.LTRubyDate).LevelFirst().DoubleSpace().Color().Upper().Build(),
 	)
 
-	newLogger.Log(log.NewMessage().Message("hello universe!").Build())
+	newLogger.Log(log.NewMessage().Level(log.LLWarn).Message("hello universe!").Build())
 
 }

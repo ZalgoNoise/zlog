@@ -45,7 +45,7 @@ var logTypeVals = map[LogLevel]string{
 // LogMessage struct describes a Log Message's elements, already in a format that can be
 // parsed by a valid formatter.
 type LogMessage struct {
-	Time     string                 `json:"timestamp,omitempty"`
+	Time     time.Time              `json:"timestamp,omitempty"`
 	Prefix   string                 `json:"service,omitempty"`
 	Level    string                 `json:"level,omitempty"`
 	Msg      string                 `json:"message,omitempty"`
@@ -56,7 +56,7 @@ type LogMessage struct {
 // be the target of different changes until its `Build()` method is called -- returning
 // then a pointer to a LogMessage object
 type MessageBuilder struct {
-	time     string
+	time     time.Time
 	prefix   string
 	level    string
 	msg      string
@@ -100,9 +100,8 @@ func (b *MessageBuilder) Metadata(m map[string]interface{}) *MessageBuilder {
 // Build method will create a new timestamp, review all elements in the `MessageBuilder`,
 // apply any defaults to non-defined elements, and return a pointer to a LogMessage
 func (b *MessageBuilder) Build() *LogMessage {
-	now := time.Now()
-
-	b.time = now.Format(time.RFC3339Nano)
+	// b.time = now.Format(time.RFC3339Nano)
+	b.time = time.Now()
 
 	if b.prefix == "" {
 		b.prefix = "log"

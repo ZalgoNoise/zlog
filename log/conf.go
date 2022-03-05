@@ -51,6 +51,7 @@ var defaultConfig LoggerConfig = &multiconf{
 // and not a list for manual ordering, spacing and manipulation of preset entries
 var LoggerConfigs = map[int]LoggerConfig{
 	0: defaultConfig,
+	1: LCSkipExit{},
 	5: TextFormat,
 	6: JSONFormat,
 	7: WithOut(os.Stdout),
@@ -59,6 +60,7 @@ var LoggerConfigs = map[int]LoggerConfig{
 
 var (
 	DefaultCfg   LoggerConfig = LoggerConfigs[0] // placeholder for an initialized default LoggerConfig
+	SkipExitCfg  LoggerConfig = LoggerConfigs[1] // placeholder for an initialized skip-exits LoggerConfig
 	TextCfg      LoggerConfig = LoggerConfigs[5] // placeholder for an initialized Text-LogFormatter LoggerConfig
 	JSONCfg      LoggerConfig = LoggerConfigs[6] // placeholder for an initialized JSON-LogFormatter LoggerConfig
 	StdOutCfg    LoggerConfig = LoggerConfigs[7] // placeholder for an initialized os.Stdout LoggerConfig
@@ -116,4 +118,10 @@ func WithOut(out ...io.Writer) LoggerConfig {
 // Apply method will set the configured output io.Writer to the input pointer to a LoggerBuilder
 func (c *LCOut) Apply(lb *LoggerBuilder) {
 	lb.out = c.out
+}
+
+type LCSkipExit struct{}
+
+func (c LCSkipExit) Apply(lb *LoggerBuilder) {
+	lb.skipExit = true
 }

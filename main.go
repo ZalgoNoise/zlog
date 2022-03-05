@@ -118,8 +118,9 @@ func main() {
 		log.WithPrefix("multi-conf"),
 		log.WithOut(os.Stdout, newBuf),
 		log.NewTextFormat().Time(log.LTRubyDate).LevelFirst().DoubleSpace().Color().Upper().Build(),
+		log.SkipExitCfg,
 	)
 
-	newLogger.Log(log.NewMessage().Level(log.LLWarn).Message("hello universe!").Build())
+	newLogger.Log(log.NewMessage().Level(log.LLPanic).Message("hello universe!").Build())
 
 }

@@ -90,6 +90,16 @@ func (l *multiLogger) Fields(fields map[string]interface{}) LoggerI {
 	return l
 }
 
+func (l *multiLogger) IsSkipExit() bool {
+	for _, logger := range l.loggers {
+		ok := logger.IsSkipExit()
+		if ok {
+			return ok // true
+		}
+	}
+	return false
+}
+
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern
 // across all configured Loggers
 //
@@ -148,7 +158,9 @@ func (l *multiLogger) Panic(v ...interface{}) {
 		)
 	}
 
-	panic(s)
+	if !l.IsSkipExit() {
+		panic(s)
+	}
 }
 
 // Panicln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern
@@ -162,7 +174,9 @@ func (l *multiLogger) Panicln(v ...interface{}) {
 		logger.Output(NewMessage().Level(LLPanic).Message(s).Build())
 	}
 
-	panic(s)
+	if !l.IsSkipExit() {
+		panic(s)
+	}
 }
 
 // Panicf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern
@@ -176,7 +190,9 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 		logger.Output(NewMessage().Level(LLPanic).Message(s).Build())
 	}
 
-	panic(s)
+	if !l.IsSkipExit() {
+		panic(s)
+	}
 }
 
 // Fatal method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern
@@ -187,7 +203,10 @@ func (l *multiLogger) Fatal(v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprint(v...)).Build())
 	}
-	os.Exit(1)
+
+	if !l.IsSkipExit() {
+		os.Exit(1)
+	}
 }
 
 // Fatalln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern
@@ -198,7 +217,10 @@ func (l *multiLogger) Fatalln(v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprintln(v...)).Build())
 	}
-	os.Exit(1)
+
+	if !l.IsSkipExit() {
+		os.Exit(1)
+	}
 }
 
 // Fatalf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern
@@ -209,7 +231,10 @@ func (l *multiLogger) Fatalf(format string, v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprintf(format, v...)).Build())
 	}
-	os.Exit(1)
+
+	if !l.IsSkipExit() {
+		os.Exit(1)
+	}
 }
 
 // Error method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern

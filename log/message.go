@@ -226,9 +226,9 @@ func (l *Logger) Log(m *LogMessage) {
 	s := m.Msg
 	l.Output(m)
 
-	if m.Level == LLPanic.String() {
+	if !l.IsSkipExit() && m.Level == LLPanic.String() {
 		panic(s)
-	} else if m.Level == LLFatal.String() {
+	} else if !l.IsSkipExit() && m.Level == LLFatal.String() {
 		os.Exit(1)
 	}
 }
@@ -245,7 +245,9 @@ func (l *Logger) Panic(v ...interface{}) {
 
 	l.Output(log)
 
-	panic(log.Msg)
+	if !l.IsSkipExit() {
+		panic(log.Msg)
+	}
 }
 
 // Panicln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
@@ -260,7 +262,9 @@ func (l *Logger) Panicln(v ...interface{}) {
 
 	l.Output(log)
 
-	panic(log.Msg)
+	if !l.IsSkipExit() {
+		panic(log.Msg)
+	}
 
 }
 
@@ -276,7 +280,9 @@ func (l *Logger) Panicf(format string, v ...interface{}) {
 
 	l.Output(log)
 
-	panic(log.Msg)
+	if !l.IsSkipExit() {
+		panic(log.Msg)
+	}
 
 }
 
@@ -292,7 +298,9 @@ func (l *Logger) Fatal(v ...interface{}) {
 
 	l.Output(log)
 
-	os.Exit(1)
+	if !l.IsSkipExit() {
+		os.Exit(1)
+	}
 }
 
 // Fatalln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
@@ -307,7 +315,9 @@ func (l *Logger) Fatalln(v ...interface{}) {
 
 	l.Output(log)
 
-	os.Exit(1)
+	if !l.IsSkipExit() {
+		os.Exit(1)
+	}
 }
 
 // Fatalf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
@@ -322,7 +332,9 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 
 	l.Output(log)
 
-	os.Exit(1)
+	if !l.IsSkipExit() {
+		os.Exit(1)
+	}
 }
 
 // Error method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while

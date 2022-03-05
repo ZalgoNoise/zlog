@@ -17,6 +17,7 @@ type LoggerI interface {
 	AddOuts(outs ...io.Writer) LoggerI
 	Prefix(prefix string) LoggerI
 	Fields(fields map[string]interface{}) LoggerI
+	IsSkipExit() bool
 
 	Log(m *LogMessage)
 
@@ -62,9 +63,10 @@ var std = New(defaultConfig)
 // all elements are set (with defaults or otherwise) it
 // is converted / copied into a Logger
 type LoggerBuilder struct {
-	out    io.Writer
-	prefix string
-	fmt    LogFormatter
+	out      io.Writer
+	prefix   string
+	fmt      LogFormatter
+	skipExit bool
 }
 
 // New function allows creating a basic Logger (implementing the LoggerI
@@ -94,21 +96,23 @@ func New(confs ...LoggerConfig) LoggerI {
 	}
 
 	return &Logger{
-		out:    builder.out,
-		prefix: builder.prefix,
-		fmt:    builder.fmt,
+		out:      builder.out,
+		prefix:   builder.prefix,
+		fmt:      builder.fmt,
+		skipExit: builder.skipExit,
 	}
 }
 
 // Logger struct describes a basic Logger, which is used to print timestamped messages
 // to an io.Writer
 type Logger struct {
-	mu     sync.Mutex
-	out    io.Writer
-	buf    []byte
-	prefix string
-	fmt    LogFormatter
-	meta   map[string]interface{}
+	mu       sync.Mutex
+	out      io.Writer
+	buf      []byte
+	prefix   string
+	fmt      LogFormatter
+	meta     map[string]interface{}
+	skipExit bool
 }
 
 // SetOuts method will set (replace) the defined io.Writer in the Logger with the list of
@@ -171,4 +175,8 @@ func (l *Logger) Fields(fields map[string]interface{}) LoggerI {
 	l.meta = fields
 
 	return l
+}
+
+func (l *Logger) IsSkipExit() bool {
+	return l.skipExit
 }

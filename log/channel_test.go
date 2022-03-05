@@ -207,6 +207,10 @@ func TestNewLogCh(t *testing.T) {
 		logCh := NewLogCh(test.log.logger)
 
 		logCh.Log(test.msg)
+
+		// test empty Log() method call
+		logCh.Log()
+
 		logCh.Close()
 		verify(id, test)
 	}

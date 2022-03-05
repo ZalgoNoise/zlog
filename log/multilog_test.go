@@ -1772,16 +1772,16 @@ func TestMultiLoggerLog(t *testing.T) {
 				for d := 0; d < len(mockLogLevelsOK); d++ {
 
 					// skip LLFatal -- os.Exit(1)
-					if mockLogLevelsOK[d] == LLFatal {
-						continue
-					}
+					// if mockLogLevelsOK[d] == LLFatal {
+					// 	continue
+					// }
 
 					var bufs []*bytes.Buffer
 					var logs []LoggerI
 					for e := 0; e < len(mockMultiPrefixes); e++ {
 						buf := &bytes.Buffer{}
 						bufs = append(bufs, buf)
-						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf), SkipExitCfg))
 					}
 					mlogger := MultiLogger(logs...)
 
@@ -1814,7 +1814,7 @@ func TestMultiLoggerLog(t *testing.T) {
 					for e := 0; e < len(mockMultiPrefixes); e++ {
 						buf := &bytes.Buffer{}
 						bufs = append(bufs, buf)
-						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf), SkipExitCfg))
 					}
 					mlogger := MultiLogger(logs...)
 
@@ -1843,38 +1843,6 @@ func TestMultiLoggerLog(t *testing.T) {
 				b.Reset()
 			}
 		}()
-
-		r := recover()
-		if r != nil {
-			if test.msg.Level != LLPanic.String() {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI).Log(%s) -- unexpected panic: %s",
-					id,
-					test.msg.Msg,
-					r,
-				)
-				return
-			}
-
-			if r != test.msg.Msg {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI).Log(%s) -- invalid panic message: wanted %s ; got %s",
-					id,
-					test.msg.Msg,
-					test.msg.Msg,
-					r,
-				)
-				return
-			}
-
-			t.Logf(
-				"#%v -- PASSED -- [MultiLogger] MultiLogger(...LoggerI).Log(%s) [panic] -- %s",
-				id,
-				test.msg.Msg,
-				r,
-			)
-			return
-		}
 
 		for bufID, buf := range test.ml.buf {
 			logEntry := &LogMessage{}
@@ -1992,16 +1960,9 @@ func TestMultiLoggerLog(t *testing.T) {
 			b.Reset()
 		}
 
-		if test.msg.Level == LLPanic.String() {
-			defer verify(id, test)
-		}
-
 		test.ml.log.Log(test.msg)
 
-		if test.msg.Level != LLPanic.String() {
-			verify(id, test)
-		}
-
+		verify(id, test)
 	}
 }
 

@@ -91,12 +91,6 @@ type LCOut struct {
 
 // WithOut function will allow creating a LoggerConfig that applies a (number of) io.Writer to a Logger
 func WithOut(out ...io.Writer) LoggerConfig {
-	if len(out) == 0 {
-		return &LCOut{
-			out: os.Stdout,
-		}
-	}
-
 	if len(out) == 1 {
 		return &LCOut{
 			out: out[0],

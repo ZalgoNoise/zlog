@@ -3547,30 +3547,325 @@ func TestPanicf(t *testing.T) {
 }
 
 func TestFatal(t *testing.T) {
-	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
-
-	t.Logf(
-		"#%v -- SKIPPED -- [DefaultLogger] Fatal(v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
-		0,
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New(
+		WithPrefix("log"),
+		JSONFormat,
+		WithOut(buf),
+		SkipExitCfg,
 	)
+
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		tests = append(tests, test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+		})
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		tests = append(tests, test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		})
+	}
+
+	var verify = func(id int, test test, result []byte) {
+		logEntry := &LogMessage{}
+
+		if err := json.Unmarshal(result, logEntry); err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatal(%s) -- unmarshal error: %s",
+				id,
+				test.msg,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatal(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+			return
+		}
+
+		if logEntry.Level != LLFatal.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatal(%s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				LLFatal.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
+		if logEntry.Prefix != "log" { // std logger prefix
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatal(%s) -- prefix mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				"log",
+				logEntry.Prefix,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Fatal(%s) : %s",
+			id,
+			test.msg,
+			string(result),
+		)
+
+		buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		Fatal(test.msg)
+
+		verify(id, test, buf.Bytes())
+
+	}
+
+	std = oldstd
+
 }
 
 func TestFatalln(t *testing.T) {
-	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
-
-	t.Logf(
-		"#%v -- SKIPPED -- [DefaultLogger] Fatalln(v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
-		0,
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New(
+		WithPrefix("log"),
+		JSONFormat,
+		WithOut(buf),
+		SkipExitCfg,
 	)
+
+	type test struct {
+		msg     string
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		tests = append(tests, test{
+			msg:     mockMessages[a],
+			wantMsg: mockMessages[a],
+			ok:      true,
+		})
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		tests = append(tests, test{
+			msg:     fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		})
+	}
+
+	var verify = func(id int, test test, result []byte) {
+		logEntry := &LogMessage{}
+
+		if err := json.Unmarshal(result, logEntry); err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatalln(%s) -- unmarshal error: %s",
+				id,
+				test.msg,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatalln(%s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+			return
+		}
+
+		if logEntry.Level != LLFatal.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatalln(%s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				LLFatal.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
+		if logEntry.Prefix != "log" { // std logger prefix
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatalln(%s) -- prefix mismatch: wanted %s ; got %s",
+				id,
+				test.msg,
+				"log",
+				logEntry.Prefix,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Fatalln(%s) : %s",
+			id,
+			test.msg,
+			string(result),
+		)
+
+		buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		Fatalln(test.msg)
+
+		verify(id, test, buf.Bytes())
+
+	}
+
+	std = oldstd
+
 }
 
 func TestFatalf(t *testing.T) {
-	// testing LLFatal with Logger.Output, since otherwise it will cause program to exit
-
-	t.Logf(
-		"#%v -- SKIPPED -- [DefaultLogger] Fatalf(format string, v ...interface{}) -- testing LLFatal will cause program to exit (code 1). To test Fatal errors, its logic and execution is explored in Logger.Output() instead. Default logger is tested in other functions, as well, including Panic().",
-		0,
+	// std logger override
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New(
+		WithPrefix("log"),
+		JSONFormat,
+		WithOut(buf),
+		SkipExitCfg,
 	)
+
+	type test struct {
+		format  string
+		v       []interface{}
+		wantMsg string
+		ok      bool
+	}
+
+	var tests []test
+
+	for a := 0; a < len(mockMessages); a++ {
+		tests = append(tests, test{
+			format:  "%s",
+			v:       []interface{}{mockMessages[a]},
+			wantMsg: mockMessages[a],
+			ok:      true,
+		})
+	}
+	for b := 0; b < len(mockFmtMessages); b++ {
+		tests = append(tests, test{
+			format:  mockFmtMessages[b].format,
+			v:       mockFmtMessages[b].v,
+			wantMsg: fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...),
+			ok:      true,
+		})
+	}
+
+	var verify = func(id int, test test, result []byte) {
+		logEntry := &LogMessage{}
+
+		if err := json.Unmarshal(result, logEntry); err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatalf(%s, %s) -- unmarshal error: %s",
+				id,
+				test.format,
+				test.v,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatalf(%s, %s) -- message mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				test.wantMsg,
+				logEntry.Msg,
+			)
+			return
+		}
+
+		if logEntry.Level != LLFatal.String() {
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatalf(%s, %s) -- log level mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				LLFatal.String(),
+				logEntry.Level,
+			)
+			return
+		}
+
+		if logEntry.Prefix != "log" { // std logger prefix
+			t.Errorf(
+				"#%v -- FAILED -- [DefaultLogger] Fatalf(%s, %s) -- prefix mismatch: wanted %s ; got %s",
+				id,
+				test.format,
+				test.v,
+				"log",
+				logEntry.Prefix,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [DefaultLogger] Fatalf(%s, %s) : %s",
+			id,
+			test.format,
+			test.v,
+			string(result),
+		)
+
+		buf.Reset()
+
+	}
+
+	for id, test := range tests {
+
+		buf.Reset()
+
+		Fatalf(test.format, test.v...)
+
+		verify(id, test, buf.Bytes())
+
+	}
+
+	std = oldstd
 }
 
 func TestError(t *testing.T) {

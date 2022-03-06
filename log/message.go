@@ -1,6 +1,8 @@
 package log
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"os"
 	"time"
@@ -42,6 +44,8 @@ var logTypeVals = map[LogLevel]string{
 	9: "panic",
 }
 
+type Field map[string]interface{}
+
 // LogMessage struct describes a Log Message's elements, already in a format that can be
 // parsed by a valid formatter.
 type LogMessage struct {
@@ -50,6 +54,22 @@ type LogMessage struct {
 	Level    string                 `json:"level,omitempty"`
 	Msg      string                 `json:"message,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+func (m *LogMessage) encode() ([]byte, error) {
+	buf := &bytes.Buffer{}
+	gob.Register(Field{})
+	enc := gob.NewEncoder(buf)
+
+	err := enc.Encode(m)
+
+	return buf.Bytes(), err
+}
+
+func (m *LogMessage) Bytes() []byte {
+	// skip error checking
+	buf, _ := m.encode()
+	return buf
 }
 
 // MessageBuilder struct describes the elements in a LogMessage's builder, which will
@@ -120,18 +140,7 @@ func (b *MessageBuilder) Build() *LogMessage {
 	}
 }
 
-// Output method will take in a pointer to a LogMessage, apply defaults to any unset elements
-// (or add its metadata to the message), format it -- and lastly to write it in the output io.Writer
-//
-// The `Output()` method is the the placeholder action to write a generic message to the logger's io.Writer
-//
-// All printing messages are either applying a `Logger.Log()` action or a `Logger.Output` one; while the former
-// is simply calling the latter.
-func (l *Logger) Output(m *LogMessage) error {
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
+func (l *Logger) checkDefaults(m *LogMessage) {
 	// use logger prefix if default
 	// do not clear Logger.prefix
 	if m.Prefix == "log" && l.prefix != m.Prefix {
@@ -147,26 +156,38 @@ func (l *Logger) Output(m *LogMessage) error {
 			m.Metadata[k] = v
 		}
 	}
+}
 
-	// do not clear Logger's metadata
-	// l.meta = nil
+// Output method will take in a pointer to a LogMessage, apply defaults to any unset elements
+// (or add its metadata to the message), format it -- and lastly to write it in the output io.Writer
+//
+// The `Output()` method is the the placeholder action to write a generic message to the logger's io.Writer
+//
+// All printing messages are either applying a `Logger.Log()` action or a `Logger.Output` one; while the former
+// is simply calling the latter.
+func (l *Logger) Output(m *LogMessage) (n int, err error) {
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.checkDefaults(m)
 
 	// format message
 	buf, err := l.fmt.Format(m)
 
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	l.buf = buf
 
 	// write message to outs
-	_, err = l.out.Write(l.buf)
+	n, err = l.out.Write(l.buf)
 
 	if err != nil {
-		return err
+		return n, err
 	}
-	return nil
+	return n, err
 }
 
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern

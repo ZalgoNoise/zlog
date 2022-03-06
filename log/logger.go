@@ -1,6 +1,8 @@
 package log
 
 import (
+	"bytes"
+	"encoding/gob"
 	"io"
 	"sync"
 )
@@ -12,13 +14,18 @@ import (
 // methods to enhance its behavior and application (such as `Prefix()`
 // and `Fields()`; and `SetOuts()` or `AddOuts()`)
 type LoggerI interface {
-	Output(m *LogMessage) error
+	io.Writer
+	Printer
+
 	SetOuts(outs ...io.Writer) LoggerI
 	AddOuts(outs ...io.Writer) LoggerI
 	Prefix(prefix string) LoggerI
 	Fields(fields map[string]interface{}) LoggerI
 	IsSkipExit() bool
+}
 
+type Printer interface {
+	Output(m *LogMessage) (n int, err error)
 	Log(m *LogMessage)
 
 	Print(v ...interface{})
@@ -179,4 +186,23 @@ func (l *Logger) Fields(fields map[string]interface{}) LoggerI {
 
 func (l *Logger) IsSkipExit() bool {
 	return l.skipExit
+}
+
+func (l *Logger) Write(p []byte) (n int, err error) {
+	// check if it's gob-encoded
+	m := &LogMessage{}
+
+	buf := bytes.NewBuffer(p)
+	dec := gob.NewDecoder(buf)
+
+	err = dec.Decode(m)
+
+	if err != nil {
+		// default to printing message
+		return l.Output(NewMessage().Message(string(p)).Build())
+	}
+
+	// print gob-encoded message
+	return l.Output(m)
+
 }

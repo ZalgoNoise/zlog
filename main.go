@@ -123,4 +123,21 @@ func main() {
 
 	newLogger.Log(log.NewMessage().Level(log.LLPanic).Message("hello universe!").Build())
 
+	n, err := newLogger.Write(log.NewMessage().
+		Message("gob-encoded tester").
+		Level(log.LLFatal).
+		Prefix("binary").
+		Metadata(log.Field{
+			"test-data":     "with content",
+			"another-field": "also with content",
+			"obj": log.Field{
+				"nested": true,
+			},
+			"last-one": true,
+		}).
+		Build().
+		Bytes(),
+	)
+
+	fmt.Println(n, err)
 }

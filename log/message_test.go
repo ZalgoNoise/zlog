@@ -626,7 +626,7 @@ func TestLoggerOutput(t *testing.T) {
 
 		logMessage := NewMessage().Level(test.level).Message(test.msg).Build()
 
-		err := mockLogger.logger.Output(logMessage)
+		_, err := mockLogger.logger.Output(logMessage)
 		if err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Output(%s, %s) -- Output func error: %s",

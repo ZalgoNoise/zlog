@@ -1,6 +1,7 @@
 package log
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -27,14 +28,14 @@ func MultiLogger(loggers ...LoggerI) LoggerI {
 // Output method is similar to a Logger.Output() method, however the multiLogger will
 // range through all of its configured loggers and execute the same Output() method call
 // on each of them
-func (l *multiLogger) Output(m *LogMessage) error {
+func (l *multiLogger) Output(m *LogMessage) (n int, err error) {
 	for _, logger := range l.loggers {
-		err := logger.Output(m)
+		n, err := logger.Output(m)
 		if err != nil {
-			return err
+			return n, err
 		}
 	}
-	return nil
+	return n, err
 }
 
 // SetOuts method is similar to a Logger.SetOuts() method, however the multiLogger will
@@ -98,6 +99,36 @@ func (l *multiLogger) IsSkipExit() bool {
 		}
 	}
 	return false
+}
+
+func (l *multiLogger) Write(p []byte) (n int, err error) {
+
+	var errs []error
+	var ns []int
+
+	for idx, logger := range l.loggers {
+		n, err := logger.Write(p)
+
+		if err != nil {
+			errs = append(errs, err)
+		}
+		ns = append(ns, n)
+
+		if idx > 0 && ns[idx-1] != n {
+			errs = append(errs, errors.New(fmt.Sprintf("byte mismatch error -- writer #%v wrote %v bytes, while writer #%v wrote %v bytes",
+				idx,
+				n,
+				idx-1,
+				ns[idx-1],
+			)))
+		}
+	}
+
+	if len(errs) > 0 {
+		return -1, errors.New(fmt.Sprint("failed to write with errors: ", errs))
+	}
+
+	return ns[len(ns)-1], nil
 }
 
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern

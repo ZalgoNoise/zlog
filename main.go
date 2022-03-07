@@ -192,4 +192,19 @@ func main() {
 			}).
 			Build(),
 	)
+
+	filteredLogger := log.New(
+		log.WithPrefix("filtered-logger"),
+		log.WithOut(os.Stdout),
+		log.NewTextFormat().LevelFirst().Color().Upper().Build(),
+		log.SkipExitCfg,
+		log.WithFilter(log.LLError),
+	)
+
+	filteredLogger.Log(log.NewMessage().Level(log.LLTrace).Message("trace").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLWarn).Message("warn").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLError).Message("error").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLFatal).Message("fatal").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLPanic).Message("panic").Build())
+
 }

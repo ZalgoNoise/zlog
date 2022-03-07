@@ -1,6 +1,8 @@
 package log
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"runtime"
@@ -65,6 +67,7 @@ type LogFormatter interface {
 var LogFormatters = map[int]LogFormatter{
 	0:  NewTextFormat().Build(),
 	1:  &JSONFmt{},
+	2:  &CSVFmt{},
 	5:  NewTextFormat().Time(LTRFC3339).Build(),
 	6:  NewTextFormat().Time(LTRFC822Z).Build(),
 	7:  NewTextFormat().Time(LTRubyDate).Build(),
@@ -79,6 +82,7 @@ var LogFormatters = map[int]LogFormatter{
 var (
 	TextFormat                LogFormatter = LogFormatters[0] // placeholder for an initialized Text LogFormatter
 	JSONFormat                LogFormatter = LogFormatters[1] // placeholder for an initialized JSON LogFormatter
+	CSVFormat                 LogFormatter = LogFormatters[2]
 	TextLongDate              LogFormatter = LogFormatters[5] // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
 	TextShortDate             LogFormatter = LogFormatters[6] // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
 	TextRubyDate              LogFormatter = LogFormatters[7] // placeholder for an initialized Text LogFormatter, with a RubyDate date format
@@ -151,10 +155,6 @@ func (b *TextFmtBuilder) Build() *TextFmt {
 		upper:       b.upper,
 	}
 }
-
-// JSONFmt struct describes the different manipulations and processing that a JSON LogFormatter
-// can apply to a LogMessage
-type JSONFmt struct{}
 
 // Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
 //
@@ -260,6 +260,10 @@ func (f *TextFmt) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }
 
+// JSONFmt struct describes the different manipulations and processing that a JSON LogFormatter
+// can apply to a LogMessage
+type JSONFmt struct{}
+
 // Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
 //
 // This method will process the input LogMessage and marshal it according to this LogFormatter
@@ -280,5 +284,41 @@ func (f *JSONFmt) Format(log *LogMessage) (buf []byte, err error) {
 // Apply method implements the LoggerConfig interface, allowing a JSONFmt object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a JSON LogFormatter
 func (f *JSONFmt) Apply(lb *LoggerBuilder) {
+	lb.fmt = f
+}
+
+type CSVFmt struct{}
+
+func (f *CSVFmt) Format(log *LogMessage) (buf []byte, err error) {
+	b := bytes.NewBuffer(buf)
+	w := csv.NewWriter(b)
+
+	// use TextFmt to marshal the metadata
+	t := &TextFmt{}
+
+	// default format for:
+	// "timestamp","level","prefix","message","metadata"
+	record := []string{
+		log.Time.Format(LTRFC3339Nano.String()),
+		log.Level,
+		log.Prefix,
+		log.Msg,
+		t.fmtMetadata(log.Metadata),
+	}
+
+	if err = w.Write(record); err != nil {
+		return nil, err
+	}
+
+	w.Flush()
+
+	if err = w.Error(); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+
+}
+
+func (f *CSVFmt) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }

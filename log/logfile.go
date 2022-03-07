@@ -18,6 +18,7 @@ const (
 type Logfile struct {
 	path   string
 	file   *os.File
+	size   int64
 	rotate int
 }
 
@@ -70,6 +71,7 @@ func (f *Logfile) new(path string) (*Logfile, error) {
 	}
 	f.path = path
 	f.file = file
+	f.size = 0
 	return f, nil
 }
 
@@ -81,12 +83,20 @@ func (f *Logfile) load(path string) error {
 	f.file = file
 	f.path = path
 
+	_, err = f.Size()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (f *Logfile) move(path string) error {
 	now := time.Now().Format("2006-01-02-15-04-05")
 	var p string
+
+	f.file.Close()
+
 	if f.hasExt(path) {
 		p = f.cutExt(path)
 		p += "_" + now
@@ -132,23 +142,14 @@ func (f *Logfile) Size() (int64, error) {
 	if err != nil {
 		return -1, err
 	}
-	return s.Size(), nil
+	f.size = s.Size()
+	return f.size, nil
 }
 
 // IsTooHeavy method will verify the file's size and rotate it if exceeding the set
 // maximum weight (in the Logfile's rotate element)
 func (f *Logfile) IsTooHeavy() bool {
-	s, err := f.Size()
-
-	if err != nil {
-		// errored; will rotate
-		return true
-	}
-
-	if s > int64(f.rotate)*megabytes {
-		return true
-	}
-	return false
+	return f.size > int64(f.rotate)*megabytes
 }
 
 // Rotate method will rename the existing (overweight) logfile to append a timestamp, and create
@@ -171,5 +172,21 @@ func (f *Logfile) Rotate() error {
 // Write method is defined to implement the io.Writer interface, for Logfile to be compatible with LoggerI
 // as an output to be used
 func (f *Logfile) Write(b []byte) (n int, err error) {
-	return f.file.Write(b)
+	// write first
+	n, err = f.file.Write(b)
+
+	// add written byte count
+	f.size = f.size + int64(n)
+
+	// handle any write errors now
+	if err != nil {
+		return
+	}
+
+	// only if no errors it will try to rotate,
+	// since it will overwrite the err variable
+	err = f.Rotate()
+
+	return
+
 }

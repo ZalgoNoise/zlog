@@ -12,9 +12,11 @@ import (
 )
 
 const (
-	baseTextFormat     string = "[%s]\t[%s]\t[%s]\t%s\t%s\n"
-	extendedTextFormat string = "[%s]\t\t[%s]\t\t[%s]\t\t%s\t\t%s\n"
-	colorReset         string = "\033[0m"
+	baseTextFormat            string = "[%s]\t[%s]\t[%s]\t%s\t%s\n"
+	extendedTextFormat        string = "[%s]\t\t[%s]\t\t[%s]\t\t%s\t\t%s\n"
+	baseTextWithSubPrefix     string = "[%s]\t"
+	extendedTextWithSubPrefix string = "[%s]\t\t"
+	colorReset                string = "\033[0m"
 )
 
 const (
@@ -165,31 +167,62 @@ func (b *TextFmtBuilder) Build() *TextFmt {
 func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 	var message string
 	var format string
+	var subPrefix string
 
 	if f.doubleSpace {
 		format = extendedTextFormat
+		subPrefix = extendedTextWithSubPrefix
 	} else {
 		format = baseTextFormat
+		subPrefix = baseTextWithSubPrefix
 	}
 
 	if f.levelFirst {
-		message = fmt.Sprintf(
-			format,
-			f.colorize(log.Level),
-			log.Time.Format(f.timeFormat),
-			f.capitalize(log.Prefix),
-			log.Msg,
-			f.fmtMetadata(log.Metadata),
-		)
+		if log.Sub == "" {
+			message = fmt.Sprintf(
+				format,
+				f.colorize(log.Level),
+				log.Time.Format(f.timeFormat),
+				f.capitalize(log.Prefix),
+				log.Msg,
+				f.fmtMetadata(log.Metadata),
+			)
+		} else {
+			subFormat := subPrefix + format
+			message = fmt.Sprintf(
+				subFormat,
+				f.colorize(log.Level),
+				log.Time.Format(f.timeFormat),
+				f.capitalize(log.Prefix),
+				f.capitalize(log.Sub),
+				log.Msg,
+				f.fmtMetadata(log.Metadata),
+			)
+
+		}
 	} else {
-		message = fmt.Sprintf(
-			format,
-			log.Time.Format(f.timeFormat),
-			f.colorize(log.Level),
-			f.capitalize(log.Prefix),
-			log.Msg,
-			f.fmtMetadata(log.Metadata),
-		)
+		if log.Sub == "" {
+			message = fmt.Sprintf(
+				format,
+				log.Time.Format(f.timeFormat),
+				f.colorize(log.Level),
+				f.capitalize(log.Prefix),
+				log.Msg,
+				f.fmtMetadata(log.Metadata),
+			)
+		} else {
+			subFormat := subPrefix + format
+			message = fmt.Sprintf(
+				subFormat,
+				log.Time.Format(f.timeFormat),
+				f.colorize(log.Level),
+				f.capitalize(log.Prefix),
+				f.capitalize(log.Sub),
+				log.Msg,
+				f.fmtMetadata(log.Metadata),
+			)
+
+		}
 	}
 
 	buf = []byte(message)

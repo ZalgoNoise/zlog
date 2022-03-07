@@ -327,14 +327,29 @@ func (f *CSVFmt) Format(log *LogMessage) (buf []byte, err error) {
 	// use TextFmt to marshal the metadata
 	t := &TextFmt{}
 
-	// default format for:
-	// "timestamp","level","prefix","message","metadata"
-	record := []string{
-		log.Time.Format(LTRFC3339Nano.String()),
-		log.Level,
-		log.Prefix,
-		log.Msg,
-		t.fmtMetadata(log.Metadata),
+	var record []string
+
+	if log.Sub != "" {
+		// default format for:
+		// "timestamp","level","prefix","sub","message","metadata"
+		record = []string{
+			log.Time.Format(LTRFC3339Nano.String()),
+			log.Level,
+			log.Prefix,
+			log.Sub,
+			log.Msg,
+			t.fmtMetadata(log.Metadata),
+		}
+	} else {
+		// default format for:
+		// "timestamp","level","prefix","message","metadata"
+		record = []string{
+			log.Time.Format(LTRFC3339Nano.String()),
+			log.Level,
+			log.Prefix,
+			log.Msg,
+			t.fmtMetadata(log.Metadata),
+		}
 	}
 
 	if err = w.Write(record); err != nil {

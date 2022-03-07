@@ -148,12 +148,13 @@ func main() {
 		log.SkipExitCfg,
 	)
 
-	csvLogger.Log(log.NewMessage().Message("hello from CSV!").Build())
-	csvLogger.Log(log.NewMessage().Prefix("csv-test").Message("hello from CSV with custom prefix").Build())
-	csvLogger.Log(log.NewMessage().Level(log.LLPanic).Message("hello from CSV with custom level").Build())
+	csvLogger.Log(log.NewMessage().Sub("CSV").Message("hello from CSV!").Build())
+	csvLogger.Log(log.NewMessage().Prefix("csv-test").Sub("CSV").Message("hello from CSV with custom prefix").Build())
+	csvLogger.Log(log.NewMessage().Level(log.LLPanic).Sub("CSV").Message("hello from CSV with custom level").Build())
 	csvLogger.Log(
 		log.NewMessage().
 			Prefix("test-all").
+			Sub("CSV").
 			Level(log.LLWarn).
 			Message("hello from CSV with all of it").
 			Metadata(log.Field{
@@ -174,12 +175,13 @@ func main() {
 		log.SkipExitCfg,
 	)
 
-	xmlLogger.Log(log.NewMessage().Message("hello from XML!").Build())
-	xmlLogger.Log(log.NewMessage().Prefix("xml-test").Message("hello from XML with custom prefix").Build())
-	xmlLogger.Log(log.NewMessage().Level(log.LLPanic).Message("hello from XML with custom level").Build())
+	xmlLogger.Log(log.NewMessage().Sub("XML").Message("hello from XML!").Build())
+	xmlLogger.Log(log.NewMessage().Prefix("xml-test").Sub("XML").Message("hello from XML with custom prefix").Build())
+	xmlLogger.Log(log.NewMessage().Level(log.LLPanic).Sub("XML").Message("hello from XML with custom level").Build())
 	xmlLogger.Log(
 		log.NewMessage().
 			Prefix("test-all").
+			Sub("XML").
 			Level(log.LLWarn).
 			Message("hello from XML with all of it").
 			Metadata(log.Field{

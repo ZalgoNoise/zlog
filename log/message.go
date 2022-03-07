@@ -46,6 +46,10 @@ var logTypeVals = map[LogLevel]string{
 
 type Field map[string]interface{}
 
+func (f Field) ToMap() map[string]interface{} {
+	return f
+}
+
 // LogMessage struct describes a Log Message's elements, already in a format that can be
 // parsed by a valid formatter.
 type LogMessage struct {

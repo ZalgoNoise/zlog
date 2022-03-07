@@ -226,6 +226,14 @@ func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
 			if count < size {
 				meta += "; "
 			}
+		case Field:
+			metadata := value.ToMap()
+			meta += k + " = " + f.fmtMetadata(metadata)
+			count++
+			if count < size {
+				meta += "; "
+			}
+
 		case string:
 			meta += fmt.Sprintf("%s = \"%s\" ", k, v)
 			count++

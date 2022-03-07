@@ -140,4 +140,30 @@ func main() {
 	)
 
 	fmt.Println(n, err)
+
+	csvLogger := log.New(
+		log.WithPrefix("csv-logger"),
+		log.WithOut(os.Stdout),
+		log.CSVFormat,
+		log.SkipExitCfg,
+	)
+
+	csvLogger.Log(log.NewMessage().Message("hello from CSV!").Build())
+	csvLogger.Log(log.NewMessage().Prefix("csv-test").Message("hello from CSV with custom prefix").Build())
+	csvLogger.Log(log.NewMessage().Level(log.LLPanic).Message("hello from CSV with custom level").Build())
+	csvLogger.Log(
+		log.NewMessage().
+			Prefix("test-all").
+			Level(log.LLWarn).
+			Message("hello from CSV with all of it").
+			Metadata(log.Field{
+				"content":   true,
+				"test-data": "this is test data",
+				"inner-field": log.Field{
+					"custom":  true,
+					"content": "yes",
+				},
+			}).
+			Build(),
+	)
 }

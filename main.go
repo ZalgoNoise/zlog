@@ -166,4 +166,30 @@ func main() {
 			}).
 			Build(),
 	)
+
+	xmlLogger := log.New(
+		log.WithPrefix("xml-logger"),
+		log.WithOut(os.Stdout),
+		log.XMLFormat,
+		log.SkipExitCfg,
+	)
+
+	xmlLogger.Log(log.NewMessage().Message("hello from XML!").Build())
+	xmlLogger.Log(log.NewMessage().Prefix("xml-test").Message("hello from XML with custom prefix").Build())
+	xmlLogger.Log(log.NewMessage().Level(log.LLPanic).Message("hello from XML with custom level").Build())
+	xmlLogger.Log(
+		log.NewMessage().
+			Prefix("test-all").
+			Level(log.LLWarn).
+			Message("hello from XML with all of it").
+			Metadata(log.Field{
+				"content":   true,
+				"test-data": "this is test data",
+				"inner-field": log.Field{
+					"custom":  true,
+					"content": "yes",
+				},
+			}).
+			Build(),
+	)
 }

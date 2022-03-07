@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ZalgoNoise/zlog/log"
+	"github.com/zalgonoise/zlog/log"
 )
 
 func main() {

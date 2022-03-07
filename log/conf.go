@@ -50,12 +50,15 @@ var defaultConfig LoggerConfig = &multiconf{
 // LoggerConfigs is a map of LoggerConfig indexed by an int value. This is done in a map
 // and not a list for manual ordering, spacing and manipulation of preset entries
 var LoggerConfigs = map[int]LoggerConfig{
-	0: defaultConfig,
-	1: LCSkipExit{},
-	5: TextFormat,
-	6: JSONFormat,
-	7: WithOut(os.Stdout),
-	8: WithPrefix("log"),
+	0:  defaultConfig,
+	1:  LCSkipExit{},
+	5:  TextFormat,
+	6:  JSONFormat,
+	7:  WithOut(os.Stdout),
+	8:  WithPrefix("log"),
+	9:  WithFilter(LLInfo),
+	10: WithFilter(LLWarn),
+	11: WithFilter(LLError),
 }
 
 var (
@@ -65,6 +68,9 @@ var (
 	JSONCfg      LoggerConfig = LoggerConfigs[6] // placeholder for an initialized JSON-LogFormatter LoggerConfig
 	StdOutCfg    LoggerConfig = LoggerConfigs[7] // placeholder for an initialized os.Stdout LoggerConfig
 	DefPrefixCfg LoggerConfig = LoggerConfigs[8] // placeholder for an initialized default-prefix LoggerConfig
+	InfoFilter   LoggerConfig = LoggerConfigs[9]
+	WarnFilter   LoggerConfig = LoggerConfigs[10]
+	ErrorFilter  LoggerConfig = LoggerConfigs[11]
 )
 
 // LCPrefix struct is a custom LoggerConfig to define prefixes to new Loggers
@@ -118,4 +124,18 @@ type LCSkipExit struct{}
 
 func (c LCSkipExit) Apply(lb *LoggerBuilder) {
 	lb.skipExit = true
+}
+
+type LCFilter struct {
+	l LogLevel
+}
+
+func WithFilter(level LogLevel) LoggerConfig {
+	return &LCFilter{
+		l: level,
+	}
+}
+
+func (c LCFilter) Apply(lb *LoggerBuilder) {
+	lb.levelFilter = c.l.Int()
 }

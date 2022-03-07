@@ -91,6 +91,13 @@ func (l *multiLogger) Fields(fields map[string]interface{}) LoggerI {
 	return l
 }
 
+func (l *multiLogger) Sub(sub string) LoggerI {
+	for _, logger := range l.loggers {
+		logger.Sub(sub)
+	}
+	return l
+}
+
 func (l *multiLogger) IsSkipExit() bool {
 	for _, logger := range l.loggers {
 		ok := logger.IsSkipExit()

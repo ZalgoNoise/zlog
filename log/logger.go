@@ -20,6 +20,7 @@ type LoggerI interface {
 	SetOuts(outs ...io.Writer) LoggerI
 	AddOuts(outs ...io.Writer) LoggerI
 	Prefix(prefix string) LoggerI
+	Sub(sub string) LoggerI
 	Fields(fields map[string]interface{}) LoggerI
 	IsSkipExit() bool
 }
@@ -72,6 +73,7 @@ var std = New(defaultConfig)
 type LoggerBuilder struct {
 	out         io.Writer
 	prefix      string
+	sub         string
 	fmt         LogFormatter
 	skipExit    bool
 	levelFilter int
@@ -106,6 +108,7 @@ func New(confs ...LoggerConfig) LoggerI {
 	return &Logger{
 		out:         builder.out,
 		prefix:      builder.prefix,
+		sub:         builder.sub,
 		fmt:         builder.fmt,
 		skipExit:    builder.skipExit,
 		levelFilter: builder.levelFilter,
@@ -119,6 +122,7 @@ type Logger struct {
 	out         io.Writer
 	buf         []byte
 	prefix      string
+	sub         string
 	fmt         LogFormatter
 	meta        map[string]interface{}
 	skipExit    bool
@@ -167,6 +171,15 @@ func (l *Logger) Prefix(prefix string) LoggerI {
 	defer l.mu.Unlock()
 
 	l.prefix = prefix
+
+	return l
+}
+
+func (l *Logger) Sub(sub string) LoggerI {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.sub = sub
 
 	return l
 }

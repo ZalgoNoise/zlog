@@ -53,11 +53,11 @@ func (f Field) ToMap() map[string]interface{} {
 // LogMessage struct describes a Log Message's elements, already in a format that can be
 // parsed by a valid formatter.
 type LogMessage struct {
-	Time     time.Time              `json:"timestamp,omitempty"`
-	Prefix   string                 `json:"service,omitempty"`
-	Level    string                 `json:"level,omitempty"`
-	Msg      string                 `json:"message,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Time     time.Time              `json:"timestamp,omitempty" xml:"timestamp"`
+	Prefix   string                 `json:"service,omitempty" xml:"service"`
+	Level    string                 `json:"level,omitempty" xml:"level"`
+	Msg      string                 `json:"message,omitempty" xml:"message"`
+	Metadata map[string]interface{} `json:"metadata,omitempty" xml:"-"`
 }
 
 func (m *LogMessage) encode() ([]byte, error) {

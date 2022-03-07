@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"runtime"
 	"strings"
@@ -68,6 +69,7 @@ var LogFormatters = map[int]LogFormatter{
 	0:  NewTextFormat().Build(),
 	1:  &JSONFmt{},
 	2:  &CSVFmt{},
+	3:  &XMLFmt{},
 	5:  NewTextFormat().Time(LTRFC3339).Build(),
 	6:  NewTextFormat().Time(LTRFC822Z).Build(),
 	7:  NewTextFormat().Time(LTRubyDate).Build(),
@@ -83,6 +85,7 @@ var (
 	TextFormat                LogFormatter = LogFormatters[0] // placeholder for an initialized Text LogFormatter
 	JSONFormat                LogFormatter = LogFormatters[1] // placeholder for an initialized JSON LogFormatter
 	CSVFormat                 LogFormatter = LogFormatters[2]
+	XMLFormat                 LogFormatter = LogFormatters[3]
 	TextLongDate              LogFormatter = LogFormatters[5] // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
 	TextShortDate             LogFormatter = LogFormatters[6] // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
 	TextRubyDate              LogFormatter = LogFormatters[7] // placeholder for an initialized Text LogFormatter, with a RubyDate date format
@@ -273,12 +276,7 @@ func (f *JSONFmt) Format(log *LogMessage) (buf []byte, err error) {
 		log.Msg = log.Msg[:len(log.Msg)-1]
 	}
 
-	data, err := json.Marshal(log)
-	if err != nil {
-		return nil, err
-	}
-	buf = data
-	return
+	return json.Marshal(log)
 }
 
 // Apply method implements the LoggerConfig interface, allowing a JSONFmt object to be passed on as an
@@ -320,5 +318,21 @@ func (f *CSVFmt) Format(log *LogMessage) (buf []byte, err error) {
 }
 
 func (f *CSVFmt) Apply(lb *LoggerBuilder) {
+	lb.fmt = f
+}
+
+type XMLFmt struct{}
+
+func (f *XMLFmt) Format(log *LogMessage) (buf []byte, err error) {
+	// remove trailing newline on XML format
+	if log.Msg[len(log.Msg)-1] == 10 {
+		log.Msg = log.Msg[:len(log.Msg)-1]
+	}
+
+	return xml.Marshal(log)
+
+}
+
+func (f *XMLFmt) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }

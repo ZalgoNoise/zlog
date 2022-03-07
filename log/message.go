@@ -69,6 +69,7 @@ func (f Field) ToMap() map[string]interface{} {
 type LogMessage struct {
 	Time     time.Time              `json:"timestamp,omitempty" xml:"timestamp"`
 	Prefix   string                 `json:"service,omitempty" xml:"service"`
+	Sub      string                 `json:"module,omitemtpy" xml:"module"`
 	Level    string                 `json:"level,omitempty" xml:"level"`
 	Msg      string                 `json:"message,omitempty" xml:"message"`
 	Metadata map[string]interface{} `json:"metadata,omitempty" xml:"-"`
@@ -96,6 +97,7 @@ func (m *LogMessage) Bytes() []byte {
 type MessageBuilder struct {
 	time     time.Time
 	prefix   string
+	sub      string
 	level    string
 	msg      string
 	metadata map[string]interface{}
@@ -111,6 +113,11 @@ func NewMessage() *MessageBuilder {
 // return the builder
 func (b *MessageBuilder) Prefix(p string) *MessageBuilder {
 	b.prefix = p
+	return b
+}
+
+func (b *MessageBuilder) Sub(s string) *MessageBuilder {
+	b.sub = s
 	return b
 }
 
@@ -152,6 +159,7 @@ func (b *MessageBuilder) Build() *LogMessage {
 	return &LogMessage{
 		Time:     b.time,
 		Prefix:   b.prefix,
+		Sub:      b.sub,
 		Level:    b.level,
 		Msg:      b.msg,
 		Metadata: b.metadata,

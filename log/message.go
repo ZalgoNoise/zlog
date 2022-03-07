@@ -34,6 +34,10 @@ func (ll LogLevel) String() string {
 	return logTypeVals[ll]
 }
 
+func (ll LogLevel) Int() int {
+	return int(ll)
+}
+
 var logTypeVals = map[LogLevel]string{
 	0: "trace",
 	1: "debug",
@@ -42,6 +46,16 @@ var logTypeVals = map[LogLevel]string{
 	4: "error",
 	5: "fatal",
 	9: "panic",
+}
+
+var logTypeKeys = map[string]int{
+	"trace": 0,
+	"debug": 1,
+	"info":  2,
+	"warn":  3,
+	"error": 4,
+	"fatal": 5,
+	"panic": 9,
 }
 
 type Field map[string]interface{}
@@ -170,6 +184,10 @@ func (l *Logger) checkDefaults(m *LogMessage) {
 // All printing messages are either applying a `Logger.Log()` action or a `Logger.Output` one; while the former
 // is simply calling the latter.
 func (l *Logger) Output(m *LogMessage) (n int, err error) {
+
+	if l.levelFilter > logTypeKeys[m.Level] {
+		return 0, nil
+	}
 
 	l.mu.Lock()
 	defer l.mu.Unlock()

@@ -121,7 +121,7 @@ func main() {
 		log.SkipExitCfg,
 	)
 
-	newLogger.Log(log.NewMessage().Level(log.LLPanic).Message("hello universe!").Build())
+	newLogger.Log(log.NewMessage().Level(log.LLPanic).Prefix("color").Sub("logger-service").Message("hello universe!").Build())
 
 	n, err := newLogger.Write(log.NewMessage().
 		Message("gob-encoded tester").
@@ -201,10 +201,10 @@ func main() {
 		log.WithFilter(log.LLError),
 	)
 
-	filteredLogger.Log(log.NewMessage().Level(log.LLTrace).Message("trace").Build())
-	filteredLogger.Log(log.NewMessage().Level(log.LLWarn).Message("warn").Build())
-	filteredLogger.Log(log.NewMessage().Level(log.LLError).Message("error").Build())
-	filteredLogger.Log(log.NewMessage().Level(log.LLFatal).Message("fatal").Build())
-	filteredLogger.Log(log.NewMessage().Level(log.LLPanic).Message("panic").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLTrace).Prefix("filter").Sub("logger-service").Message("trace").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("filter").Sub("logger-service").Message("warn").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLError).Prefix("filter").Sub("logger-service").Message("error").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("filter").Sub("logger-service").Message("fatal").Build())
+	filteredLogger.Log(log.NewMessage().Level(log.LLPanic).Prefix("filter").Sub("logger-service").Message("panic").Build())
 
 }

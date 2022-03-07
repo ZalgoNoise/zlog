@@ -115,12 +115,12 @@ func (l *multiLogger) Write(p []byte) (n int, err error) {
 		ns = append(ns, n)
 
 		if idx > 0 && ns[idx-1] != n {
-			errs = append(errs, errors.New(fmt.Sprintf("byte mismatch error -- writer #%v wrote %v bytes, while writer #%v wrote %v bytes",
+			errs = append(errs, fmt.Errorf("byte mismatch error -- writer #%v wrote %v bytes, while writer #%v wrote %v bytes",
 				idx,
 				n,
 				idx-1,
 				ns[idx-1],
-			)))
+			))
 		}
 	}
 

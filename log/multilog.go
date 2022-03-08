@@ -91,6 +91,9 @@ func (l *multiLogger) Fields(fields map[string]interface{}) LoggerI {
 	return l
 }
 
+// Sub method is similar to a Logger.Sub() method, however the multiLogger will
+// range through all of its configured loggers and execute the same Sub() method call
+// on each of them -- applying the input sub-prefix string as each Logger's sub-prefix.
 func (l *multiLogger) Sub(sub string) LoggerI {
 	for _, logger := range l.loggers {
 		logger.Sub(sub)
@@ -98,6 +101,10 @@ func (l *multiLogger) Sub(sub string) LoggerI {
 	return l
 }
 
+// IsSkipExit method is similar to a Logger.IsSkipExit() method, however the multiLogger will
+// range through all of its configured loggers and execute the same IsSkipExit() method call
+// on each of them -- the first (if any) Logger which lists having this option set to true
+// will cause an immediate return of this value, otherwise it will return as false
 func (l *multiLogger) IsSkipExit() bool {
 	for _, logger := range l.loggers {
 		ok := logger.IsSkipExit()
@@ -108,34 +115,44 @@ func (l *multiLogger) IsSkipExit() bool {
 	return false
 }
 
+// IsSkipExit method is similar to a Logger.IsSkipExit() method, however the multiLogger will
+// range through all of its configured loggers and execute the same IsSkipExit() method call
+// on each of them -- ensuring that no errors are found through all writes.
+//
+// If errors are found, they are concatenated and returned as a single error. The reasoning for
+// this decision is because the io.Writer interface returns a single error. However, blocking
+// the whole operation if one writer fails seems less approachable
 func (l *multiLogger) Write(p []byte) (n int, err error) {
 
 	var errs []error
-	var ns []int
+	// var ns []int
 
-	for idx, logger := range l.loggers {
-		n, err := logger.Write(p)
+	for _, logger := range l.loggers {
+		n, err = logger.Write(p)
 
 		if err != nil {
 			errs = append(errs, err)
 		}
-		ns = append(ns, n)
 
-		if idx > 0 && ns[idx-1] != n {
-			errs = append(errs, fmt.Errorf("byte mismatch error -- writer #%v wrote %v bytes, while writer #%v wrote %v bytes",
-				idx,
-				n,
-				idx-1,
-				ns[idx-1],
-			))
-		}
+		// if multiple loggers have different formatters, it will definitely result
+		// in a different byte count. Commenting this out until tests are written
+		//
+		// ns = append(ns, n)
+		// if idx > 0 && ns[idx-1] != n {
+		// 	errs = append(errs, fmt.Errorf("byte mismatch error -- writer #%v wrote %v bytes, while writer #%v wrote %v bytes",
+		// 		idx,
+		// 		n,
+		// 		idx-1,
+		// 		ns[idx-1],
+		// 	))
+		// }
 	}
 
 	if len(errs) > 0 {
 		return -1, errors.New(fmt.Sprint("failed to write with errors: ", errs))
 	}
 
-	return ns[len(ns)-1], nil
+	return n, nil
 }
 
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern

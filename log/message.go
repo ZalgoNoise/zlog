@@ -34,6 +34,8 @@ func (ll LogLevel) String() string {
 	return logTypeVals[ll]
 }
 
+// Int method returns a LogLevel's value as an integer, to be used for comparison with
+// input log level filters
 func (ll LogLevel) Int() int {
 	return int(ll)
 }
@@ -58,8 +60,10 @@ var logTypeKeys = map[string]int{
 	"panic": 9,
 }
 
+// Field type is a generic type to build LogMessage Metadata
 type Field map[string]interface{}
 
+// ToMap method returns the Field in it's (raw) string-interface{} map format
 func (f Field) ToMap() map[string]interface{} {
 	return f
 }
@@ -129,6 +133,8 @@ func mappify(data map[string]interface{}) []field {
 	return fields
 }
 
+// ToXML method returns the Field in a list of key-value objects,
+// compatible with XML marshalling of data objects
 func (f Field) ToXML() []field {
 	return mappify(f.ToMap())
 }
@@ -154,6 +160,8 @@ func (m *LogMessage) encode() ([]byte, error) {
 	return buf.Bytes(), err
 }
 
+// Bytes method will return a LogMessage as a gob-encoded slice of bytes. It is compatible with
+// a Logger's io.Writer implementation, as its Write() method will decode this type of data
 func (m *LogMessage) Bytes() []byte {
 	// skip error checking
 	buf, _ := m.encode()
@@ -185,6 +193,8 @@ func (b *MessageBuilder) Prefix(p string) *MessageBuilder {
 	return b
 }
 
+// Sub method will set the sub-prefix element in the MessageBuilder with string s, and
+// return the builder
 func (b *MessageBuilder) Sub(s string) *MessageBuilder {
 	b.sub = s
 	return b
@@ -204,13 +214,21 @@ func (b *MessageBuilder) Level(l LogLevel) *MessageBuilder {
 	return b
 }
 
-// Metadata method will set the metadata element in the MessageBuilder with map m, and
-// return the builder
+// Metadata method will set (or add) the metadata element in the MessageBuilder
+// with map m, and return the builder
 func (b *MessageBuilder) Metadata(m map[string]interface{}) *MessageBuilder {
-	b.metadata = m
+	if b.metadata == nil {
+		b.metadata = m
+	} else {
+		for k, v := range m {
+			b.metadata[k] = v
+		}
+	}
 	return b
 }
 
+// CallStack method will grab the current call stack, and add it as a "callstack" object
+// in the MessageBuilder's metadata.
 func (b *MessageBuilder) CallStack() *MessageBuilder {
 	if b.metadata == nil {
 		b.metadata = map[string]interface{}{}

@@ -256,6 +256,23 @@ func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
 
 	for k, v := range data {
 		switch value := v.(type) {
+		case []map[string]interface{}:
+			meta += k + " = "
+			for _, m := range value {
+				meta += f.fmtMetadata(m)
+			}
+			if count < size {
+				meta += "; "
+			}
+		case []Field:
+			meta += k + " = "
+			for _, m := range value {
+				meta += f.fmtMetadata(m.ToMap())
+			}
+			if count < size {
+				meta += "; "
+			}
+
 		case map[string]interface{}:
 			meta += k + " = " + f.fmtMetadata(value)
 			count++

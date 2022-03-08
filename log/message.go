@@ -74,6 +74,40 @@ func mappify(data map[string]interface{}) []field {
 
 	for k, v := range data {
 		switch value := v.(type) {
+		case []map[string]interface{}:
+			f := []field{}
+
+			for _, im := range value {
+				ifield := field{}
+				for ik, iv := range im {
+					ifield.Key = ik
+					ifield.Val = iv
+				}
+
+				f = append(f, ifield)
+			}
+
+			fields = append(fields, field{
+				Key: k,
+				Val: f,
+			})
+		case []Field:
+			f := []field{}
+
+			for _, im := range value {
+				ifield := field{}
+				for ik, iv := range im.ToMap() {
+					ifield.Key = ik
+					ifield.Val = iv
+				}
+
+				f = append(f, ifield)
+			}
+
+			fields = append(fields, field{
+				Key: k,
+				Val: f,
+			})
 		case map[string]interface{}:
 			fields = append(fields, field{
 				Key: k,
@@ -174,6 +208,20 @@ func (b *MessageBuilder) Level(l LogLevel) *MessageBuilder {
 // return the builder
 func (b *MessageBuilder) Metadata(m map[string]interface{}) *MessageBuilder {
 	b.metadata = m
+	return b
+}
+
+func (b *MessageBuilder) CallStack() *MessageBuilder {
+	if b.metadata == nil {
+		b.metadata = map[string]interface{}{}
+	}
+	b.metadata["callstack"] = newCallStack().
+		getCallStack(false).
+		splitCallStack().
+		parseCallStack().
+		mapCallStack().
+		toField()
+
 	return b
 }
 

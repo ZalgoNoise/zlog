@@ -209,4 +209,23 @@ func main() {
 	filteredLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("filter").Sub("logger-service").Message("fatal").Build())
 	filteredLogger.Log(log.NewMessage().Level(log.LLPanic).Prefix("filter").Sub("logger-service").Message("panic").Build())
 
+	stackMessage := log.NewMessage().
+		Level(log.LLFatal).
+		Prefix("with-stack").
+		Sub("stacktrace").
+		Message("failed to execute with error").
+		CallStack().
+		Build()
+
+	filteredLogger.Log(stackMessage)
+
+	jsonLogger := log.New(
+		log.JSONCfg,
+		log.SkipExitCfg,
+		log.WithOut(os.Stdout),
+	)
+
+	jsonLogger.Log(stackMessage)
+
+	xmlLogger.Log(stackMessage)
 }

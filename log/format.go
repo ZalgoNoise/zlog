@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -54,6 +55,9 @@ const (
 	LTRFC3339     LogTimestamp = time.RFC3339
 	LTRFC822Z     LogTimestamp = time.RFC822Z
 	LTRubyDate    LogTimestamp = time.RubyDate
+	LTUnixNano    LogTimestamp = "UNIX_NANO"
+	LTUnixMilli   LogTimestamp = "UNIX_MILLI"
+	LTUnixMicro   LogTimestamp = "UNIX_MICRO"
 )
 
 // LogFormatter interface describes the behavior a Formatter should have.
@@ -200,12 +204,14 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 		subPrefix = baseTextWithSubPrefix
 	}
 
+	ftime := f.fmtTime(log.Time)
+
 	if f.levelFirst {
 		if log.Sub == "" {
 			message = fmt.Sprintf(
 				format,
 				f.colorize(log.Level),
-				log.Time.Format(f.timeFormat),
+				ftime,
 				f.capitalize(log.Prefix),
 				log.Msg,
 				f.fmtMetadata(log.Metadata),
@@ -215,7 +221,7 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 			message = fmt.Sprintf(
 				subFormat,
 				f.colorize(log.Level),
-				log.Time.Format(f.timeFormat),
+				ftime,
 				f.capitalize(log.Prefix),
 				f.capitalize(log.Sub),
 				log.Msg,
@@ -227,7 +233,7 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 		if log.Sub == "" {
 			message = fmt.Sprintf(
 				format,
-				log.Time.Format(f.timeFormat),
+				ftime,
 				f.colorize(log.Level),
 				f.capitalize(log.Prefix),
 				log.Msg,
@@ -237,7 +243,7 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 			subFormat := subPrefix + format
 			message = fmt.Sprintf(
 				subFormat,
-				log.Time.Format(f.timeFormat),
+				ftime,
 				f.colorize(log.Level),
 				f.capitalize(log.Prefix),
 				f.capitalize(log.Sub),
@@ -250,6 +256,19 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 
 	buf = []byte(message)
 	return
+}
+
+func (f *TextFmt) fmtTime(t time.Time) string {
+	switch f.timeFormat {
+	case LTUnixNano.String():
+		return strconv.Itoa(int(t.Unix()))
+	case LTUnixMilli.String():
+		return strconv.Itoa(int(t.UnixMilli()))
+	case LTUnixMicro.String():
+		return strconv.Itoa(int(t.UnixMicro()))
+	default:
+		return t.Format(f.timeFormat)
+	}
 }
 
 func (f *TextFmt) colorize(level string) string {

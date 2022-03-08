@@ -62,15 +62,15 @@ var LoggerConfigs = map[int]LoggerConfig{
 }
 
 var (
-	DefaultCfg   LoggerConfig = LoggerConfigs[0] // placeholder for an initialized default LoggerConfig
-	SkipExitCfg  LoggerConfig = LoggerConfigs[1] // placeholder for an initialized skip-exits LoggerConfig
-	TextCfg      LoggerConfig = LoggerConfigs[5] // placeholder for an initialized Text-LogFormatter LoggerConfig
-	JSONCfg      LoggerConfig = LoggerConfigs[6] // placeholder for an initialized JSON-LogFormatter LoggerConfig
-	StdOutCfg    LoggerConfig = LoggerConfigs[7] // placeholder for an initialized os.Stdout LoggerConfig
-	DefPrefixCfg LoggerConfig = LoggerConfigs[8] // placeholder for an initialized default-prefix LoggerConfig
-	InfoFilter   LoggerConfig = LoggerConfigs[9]
-	WarnFilter   LoggerConfig = LoggerConfigs[10]
-	ErrorFilter  LoggerConfig = LoggerConfigs[11]
+	DefaultCfg   LoggerConfig = LoggerConfigs[0]  // placeholder for an initialized default LoggerConfig
+	SkipExitCfg  LoggerConfig = LoggerConfigs[1]  // placeholder for an initialized skip-exits LoggerConfig
+	TextCfg      LoggerConfig = LoggerConfigs[5]  // placeholder for an initialized Text-LogFormatter LoggerConfig
+	JSONCfg      LoggerConfig = LoggerConfigs[6]  // placeholder for an initialized JSON-LogFormatter LoggerConfig
+	StdOutCfg    LoggerConfig = LoggerConfigs[7]  // placeholder for an initialized os.Stdout LoggerConfig
+	DefPrefixCfg LoggerConfig = LoggerConfigs[8]  // placeholder for an initialized default-prefix LoggerConfig
+	InfoFilter   LoggerConfig = LoggerConfigs[9]  // placeholder for an initialized Info-filtered LoggerConfig
+	WarnFilter   LoggerConfig = LoggerConfigs[10] // placeholder for an initialized Warn-filtered LoggerConfig
+	ErrorFilter  LoggerConfig = LoggerConfigs[11] // placeholder for an initialized Error-filtered LoggerConfig
 )
 
 // LCPrefix struct is a custom LoggerConfig to define prefixes to new Loggers
@@ -120,22 +120,35 @@ func (c *LCOut) Apply(lb *LoggerBuilder) {
 	lb.out = c.out
 }
 
+// LCSkipExit stuct is a custom LoggerConfig to define whether os.Exit(1) and panic() calls
+// should be respected or skipped
 type LCSkipExit struct{}
 
+// Apply method will set the configured skipExit option to true, in the input pointer to a LoggerBuilder
+//
+// Not setting this option will default to "false", or to respect os.Exit(1) and panic() calls
 func (c LCSkipExit) Apply(lb *LoggerBuilder) {
 	lb.skipExit = true
 }
 
+// LCSkipExit stuct is a custom LoggerConfig to filter Logger writes as per the message's
+// log level
 type LCFilter struct {
 	l LogLevel
 }
 
+// WithFilter function will allow filtering Logger writes, only to contain a certain log level
+// and above.
+//
+// This method can be used to either separate different logging severities or to reduce the amount
+// of bytes written to a logfile, by skipping more trivial messages
 func WithFilter(level LogLevel) LoggerConfig {
 	return &LCFilter{
 		l: level,
 	}
 }
 
+// Apply method will set the configured level filter to the input pointer to a LoggerBuilder
 func (c LCFilter) Apply(lb *LoggerBuilder) {
 	lb.levelFilter = c.l.Int()
 }

@@ -256,6 +256,12 @@ func (l *Logger) checkDefaults(m *LogMessage) {
 		m.Prefix = l.prefix
 	}
 
+	// use logger sub-prefix if default
+	// do not clear Logger.sub
+	if m.Sub == "" && l.sub != m.Sub {
+		m.Sub = l.sub
+	}
+
 	// push logger metadata to message
 	if m.Metadata == nil && l.meta != nil {
 		m.Metadata = l.meta

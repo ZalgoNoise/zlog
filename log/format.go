@@ -39,8 +39,12 @@ var levelColorMap = map[string]string{
 	LLPanic.String(): panicColor,
 }
 
+// LogTimestamp type will define the compatible timestamp formatting strings
+// which can be used
 type LogTimestamp string
 
+// String method is an implementation of the Stringer interface, to idiomatically
+// convert a LogTimestamp into its string representation
 func (lt LogTimestamp) String() string {
 	return string(lt)
 }
@@ -84,24 +88,24 @@ var LogFormatters = map[int]LogFormatter{
 }
 
 var (
-	TextFormat                LogFormatter = LogFormatters[0] // placeholder for an initialized Text LogFormatter
-	JSONFormat                LogFormatter = LogFormatters[1] // placeholder for an initialized JSON LogFormatter
-	CSVFormat                 LogFormatter = LogFormatters[2]
-	XMLFormat                 LogFormatter = LogFormatters[3]
-	TextLongDate              LogFormatter = LogFormatters[5] // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
-	TextShortDate             LogFormatter = LogFormatters[6] // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
-	TextRubyDate              LogFormatter = LogFormatters[7] // placeholder for an initialized Text LogFormatter, with a RubyDate date format
-	TextDoubleSpace           LogFormatter = LogFormatters[8]
-	TextLevelFirstSpaced      LogFormatter = LogFormatters[9]
-	TextLevelFirst            LogFormatter = LogFormatters[10]
-	ColorTextDoubleSpace      LogFormatter = LogFormatters[11]
-	ColorTextLevelFirstSpaced LogFormatter = LogFormatters[12]
-	ColorTextLevelFirst       LogFormatter = LogFormatters[13]
-	ColorText                 LogFormatter = LogFormatters[14]
+	TextFormat                LogFormatter = LogFormatters[0]  // placeholder for an initialized Text LogFormatter
+	JSONFormat                LogFormatter = LogFormatters[1]  // placeholder for an initialized JSON LogFormatter
+	CSVFormat                 LogFormatter = LogFormatters[2]  // placeholder for an initialized CSV LogFormatter
+	XMLFormat                 LogFormatter = LogFormatters[3]  // placeholder for an initialized XML LogFormatter
+	TextLongDate              LogFormatter = LogFormatters[5]  // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
+	TextShortDate             LogFormatter = LogFormatters[6]  // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
+	TextRubyDate              LogFormatter = LogFormatters[7]  // placeholder for an initialized Text LogFormatter, with a RubyDate date format
+	TextDoubleSpace           LogFormatter = LogFormatters[8]  // placeholder for an initialized Text LogFormatter, with double spaces
+	TextLevelFirstSpaced      LogFormatter = LogFormatters[9]  // placeholder for an initialized  LogFormatter, with level-first and double spaces
+	TextLevelFirst            LogFormatter = LogFormatters[10] // placeholder for an initialized  LogFormatter, with level-first
+	ColorTextDoubleSpace      LogFormatter = LogFormatters[11] // placeholder for an initialized  LogFormatter, with color and double spaces
+	ColorTextLevelFirstSpaced LogFormatter = LogFormatters[12] // placeholder for an initialized  LogFormatter, with color, level-first and double spaces
+	ColorTextLevelFirst       LogFormatter = LogFormatters[13] // placeholder for an initialized  LogFormatter, with color and level-first
+	ColorText                 LogFormatter = LogFormatters[14] // placeholder for an initialized  LogFormatter, with color
 )
 
-// TextFmt struct describes the different manipulations and processing that a Text LogFormatter
-// can apply to a LogMessage
+// TextFmt struct describes the different manipulations and processing that a
+// Text LogFormatter can apply to a LogMessage
 type TextFmt struct {
 	timeFormat  string
 	levelFirst  bool
@@ -110,6 +114,11 @@ type TextFmt struct {
 	upper       bool
 }
 
+// TextFmtBuilder struct will define the base of a custom TextFmt object,
+// which will take in different options in the form of methods that will define its
+// configuration.
+//
+// Then, the Build() method can be called to return a TextFmt object
 type TextFmtBuilder struct {
 	timeFormat  LogTimestamp
 	levelFirst  bool
@@ -118,35 +127,49 @@ type TextFmtBuilder struct {
 	upper       bool
 }
 
+// NewTextFormat function will initialize a TextFmtBuilder
 func NewTextFormat() *TextFmtBuilder {
 	return &TextFmtBuilder{}
 }
 
+// Time method will set a TextFmtBuilder's timeFormat, and return itself
+// to allow method chaining
 func (b *TextFmtBuilder) Time(t LogTimestamp) *TextFmtBuilder {
 	b.timeFormat = t
 	return b
 }
 
+// LevelFirst method will set a TextFmtBuilder's levelFirst element to true,
+// and return itself to allow method chaining
 func (b *TextFmtBuilder) LevelFirst() *TextFmtBuilder {
 	b.levelFirst = true
 	return b
 }
 
+// DoubleSpace method will set a TextFmtBuilder's doubleSpace element to true,
+// and return itself to allow method chaining
 func (b *TextFmtBuilder) DoubleSpace() *TextFmtBuilder {
 	b.doubleSpace = true
 	return b
 }
 
+// Color method will set a TextFmtBuilder's colored element to true,
+// and return itself to allow method chaining
 func (b *TextFmtBuilder) Color() *TextFmtBuilder {
 	b.colored = true
 	return b
 }
 
+// Upper method will set a TextFmtBuilder's upper element to true,
+// and return itself to allow method chaining
 func (b *TextFmtBuilder) Upper() *TextFmtBuilder {
 	b.upper = true
 	return b
 }
 
+// Build method will ensure the mandatory elements of TextFmt are set
+// and set them as default if otherwise, returning a pointer to a
+// (custom) TextFmt object
 func (b *TextFmtBuilder) Build() *TextFmt {
 	if b.timeFormat == "" {
 		b.timeFormat = LTRFC3339Nano
@@ -335,8 +358,13 @@ func (f *JSONFmt) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }
 
+// CSVFmt struct describes the different manipulations and processing that a CSV LogFormatter
+// can apply to a LogMessage
 type CSVFmt struct{}
 
+// Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
+//
+// This method will process the input LogMessage and marshal it according to this LogFormatter
 func (f *CSVFmt) Format(log *LogMessage) (buf []byte, err error) {
 	b := bytes.NewBuffer(buf)
 	w := csv.NewWriter(b)
@@ -382,12 +410,19 @@ func (f *CSVFmt) Format(log *LogMessage) (buf []byte, err error) {
 
 }
 
+// Apply method implements the LoggerConfig interface, allowing a CSVFmt object to be passed on as an
+// argument, when creating a new Logger. It will define the logger's formatter as a CSV LogFormatter
 func (f *CSVFmt) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }
 
+// XMLFmt struct describes the different manipulations and processing that a XML LogFormatter
+// can apply to a LogMessage
 type XMLFmt struct{}
 
+// Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
+//
+// This method will process the input LogMessage and marshal it according to this LogFormatter
 func (f *XMLFmt) Format(log *LogMessage) (buf []byte, err error) {
 	// remove trailing newline on XML format
 	if log.Msg[len(log.Msg)-1] == 10 {
@@ -416,6 +451,8 @@ func (f *XMLFmt) Format(log *LogMessage) (buf []byte, err error) {
 
 }
 
+// Apply method implements the LoggerConfig interface, allowing a XMLFmt object to be passed on as an
+// argument, when creating a new Logger. It will define the logger's formatter as a XML LogFormatter
 func (f *XMLFmt) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }

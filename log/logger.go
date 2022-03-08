@@ -175,6 +175,14 @@ func (l *Logger) Prefix(prefix string) LoggerI {
 	return l
 }
 
+// Sub method will set a Logger-scoped (as opposed to message-scoped) sub-prefix string to the logger
+//
+//
+// Logger-scoped sub-prefix strings can be set in order to avoid calling the `MessageBuilder.Sub()` method
+// repeatedly, and instead doing so via the logger at the beginning of a service or function
+//
+// A logger-scoped sub-prefix is not cleared with new Log messages, but `MessageBuilder.Sub()` calls will
+// replace it.
 func (l *Logger) Sub(sub string) LoggerI {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -200,10 +208,26 @@ func (l *Logger) Fields(fields map[string]interface{}) LoggerI {
 	return l
 }
 
+// IsSkipExit method returns a boolean on whether this logger is set to skip os.Exit(1)
+// or panic() calls.
+//
+// It is used in functions which call these, to first evaluate if those calls should be
+// executed or skipped
 func (l *Logger) IsSkipExit() bool {
 	return l.skipExit
 }
 
+// Write method implements the io.Writer interface, to allow a logger to be used in a more
+// abstract way, simply as a writer.
+//
+// To allow support for LogMessages, these can be gob-encoded and passed into this function
+// by calling its Bytes() method.
+//
+// A gob-encoded LogMessage can be decoded by a Logger serving as an io.Writer; and correctly
+// format the message to be written with all fields it contains.
+//
+// Otherwise, if a simple slice of bytes is passed, it is considered to be the LogMessage.Msg
+// portion, and the remaining fields will default to the Logger's set elements
 func (l *Logger) Write(p []byte) (n int, err error) {
 	// check if it's gob-encoded
 	m := &LogMessage{}

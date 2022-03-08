@@ -377,7 +377,25 @@ func (f *XMLFmt) Format(log *LogMessage) (buf []byte, err error) {
 		log.Msg = log.Msg[:len(log.Msg)-1]
 	}
 
-	return xml.Marshal(log)
+	type logMessage struct {
+		Time     time.Time `xml:"timestamp,omitempty"`
+		Prefix   string    `xml:"service,omitempty"`
+		Sub      string    `xml:"module,omitempty"`
+		Level    string    `xml:"level,omitempty"`
+		Msg      string    `xml:"message,omitempty"`
+		Metadata []field   `xml:"metadata,omitempty"`
+	}
+
+	xmlMsg := &logMessage{
+		Time:     log.Time,
+		Prefix:   log.Prefix,
+		Sub:      log.Sub,
+		Level:    log.Level,
+		Msg:      log.Msg,
+		Metadata: mappify(log.Metadata),
+	}
+
+	return xml.Marshal(xmlMsg)
 
 }
 

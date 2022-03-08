@@ -64,15 +64,50 @@ func (f Field) ToMap() map[string]interface{} {
 	return f
 }
 
+type field struct {
+	Key string      `xml:"key,omitempty"`
+	Val interface{} `xml:"value,omitempty"`
+}
+
+func mappify(data map[string]interface{}) []field {
+	var fields []field
+
+	for k, v := range data {
+		switch value := v.(type) {
+		case map[string]interface{}:
+			fields = append(fields, field{
+				Key: k,
+				Val: mappify(value),
+			})
+		case Field:
+			fields = append(fields, field{
+				Key: k,
+				Val: mappify(value.ToMap()),
+			})
+		default:
+			fields = append(fields, field{
+				Key: k,
+				Val: value,
+			})
+		}
+	}
+
+	return fields
+}
+
+func (f Field) ToXML() []field {
+	return mappify(f.ToMap())
+}
+
 // LogMessage struct describes a Log Message's elements, already in a format that can be
 // parsed by a valid formatter.
 type LogMessage struct {
-	Time     time.Time              `json:"timestamp,omitempty" xml:"timestamp"`
-	Prefix   string                 `json:"service,omitempty" xml:"service"`
-	Sub      string                 `json:"module,omitemtpy" xml:"module"`
-	Level    string                 `json:"level,omitempty" xml:"level"`
-	Msg      string                 `json:"message,omitempty" xml:"message"`
-	Metadata map[string]interface{} `json:"metadata,omitempty" xml:"-"`
+	Time     time.Time              `json:"timestamp,omitempty" xml:"timestamp,omitempty"`
+	Prefix   string                 `json:"service,omitempty" xml:"service,omitempty"`
+	Sub      string                 `json:"module,omitempty" xml:"module,omitempty"`
+	Level    string                 `json:"level,omitempty" xml:"level,omitempty"`
+	Msg      string                 `json:"message,omitempty" xml:"message,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty" xml:"metadata,omitempty"`
 }
 
 func (m *LogMessage) encode() ([]byte, error) {

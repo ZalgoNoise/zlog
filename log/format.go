@@ -275,7 +275,7 @@ func (f *TextFmt) colorize(level string) string {
 	if f.colored && runtime.GOOS != "windows" {
 		return levelColorMap[level] + f.capitalize(level) + colorReset
 	}
-	return level
+	return f.capitalize(level)
 }
 
 func (f *TextFmt) capitalize(s string) string {

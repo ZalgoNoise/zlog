@@ -274,3 +274,199 @@ func TestJSONFmtFormat(t *testing.T) {
 		verify(id, test, b)
 	}
 }
+
+func TestNewTextFormatter(t *testing.T) {
+
+	type test struct {
+		desc string
+		msg  *LogMessage
+		fmt  *TextFmt
+		rgx  *regexp.Regexp
+	}
+
+	var msg = NewMessage().Prefix("formatter-tests").Level(LLInfo).Message("test content").Build()
+	var msgSub = NewMessage().Prefix("formatter-tests").Sub("fmt").Level(LLInfo).Message("test content").Build()
+
+	tests := []test{
+		{
+			desc: "default",
+			msg:  msg,
+			fmt:  NewTextFormat().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "time: set RFC3339Nano",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTRFC3339Nano).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "time: set RFC3339",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTRFC3339).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "time: set RFC822Z",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTRFC822Z).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{2}\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{2}\s\d{2}:\d{2}\s\+\d{4}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "time: set RubyDate",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTRubyDate).Build(),
+			rgx:  regexp.MustCompile(`^\[(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{2}\s\d{2}:\d{2}:\d{2}\s\+\d{4}\s\d{4}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "time: set UnixNano",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "time: set UnixMilli",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixMilli).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{13}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "time: set UnixMicro",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixMicro).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{16}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "level first",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().Build(),
+			rgx:  regexp.MustCompile(`^\[info\]\s*\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "double space",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).DoubleSpace().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "color",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).Color().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[(.*)info(.*)\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "upper",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).Upper().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[INFO\]\s*\[FORMATTER-TESTS\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- default",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- time: set RFC3339Nano",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTRFC3339Nano).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- time: set RFC3339",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTRFC3339).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- time: set RFC822Z",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTRFC822Z).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{2}\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{2}\s\d{2}:\d{2}\s\+\d{4}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- time: set RubyDate",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTRubyDate).Build(),
+			rgx:  regexp.MustCompile(`^\[(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{2}\s\d{2}:\d{2}:\d{2}\s\+\d{4}\s\d{4}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- time: set UnixNano",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTUnixNano).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- time: set UnixMilli",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTUnixMilli).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{13}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- time: set UnixMicro",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTUnixMicro).Build(),
+			rgx:  regexp.MustCompile(`^\[\d{16}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- level first",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().Build(),
+			rgx:  regexp.MustCompile(`^\[info\]\s*\[\d{10}\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- double space",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTUnixNano).DoubleSpace().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- color",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTUnixNano).Color().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[(.*)info(.*)\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix -- upper",
+			msg:  msgSub,
+			fmt:  NewTextFormat().Time(LTUnixNano).Upper().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[INFO\]\s*\[FORMATTER-TESTS\]\s*\[FMT\]\s*test content`),
+		},
+	}
+
+	var verify = func(id int, test test) {
+
+		buf, err := test.fmt.Format(test.msg)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [NewTextFormat.Build()] Format(*LogMessage) -- failed to format message: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		if !test.rgx.MatchString(string(buf)) {
+			t.Errorf(
+				"#%v -- FAILED -- [NewTextFormat.Build()] Format(*LogMessage) -- %s -- mismatch: wanted %s ; got %s",
+				id,
+				test.desc,
+				test.rgx,
+				buf,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [NewTextFormat.Build()] Format(*LogMessage) -- %s -- %s",
+			id,
+			test.desc,
+			string(buf),
+		)
+	}
+
+	for id, test := range tests {
+		verify(id, test)
+	}
+}

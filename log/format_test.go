@@ -103,9 +103,10 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 	// [ simple-test = 0 ; passing = true ; tool = "zlog" ]
 	// [ simpler-test = "yes" ]
 	// [ cascaded-test = true ; metadata = [ nest-level = 1 ; data = "this is inner-level content" ] ]
-	// [ objList = [ [ test = true] ; [ another = true ] ] ]
+	// [ objList = [ [ test = true ] ; [ another = true ] ; [ third = "yes" ] ; [ fourth = "ok" ] ] ; small = [ [ a = 1 ] ; [ b = 2 ] ; [ c = 3 ] ] ]
 	// [ values = [ a = 1 ; b = 2 ; c = 3 ] ]
 	// [ a-map = [ a = 1 ] ; b-map = [ b = 2 ] ]
+	// [ a = "one" ; b = "two" ; c = "three" ; d = "four" ]
 	var testSimpleObjects = []map[string]interface{}{
 		{
 			"simple-test": 0,
@@ -130,6 +131,15 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 				{
 					"another": true,
 				},
+				{
+					"third": "yes",
+				},
+				{
+					"fourth": "ok",
+				},
+			},
+			"small": []map[string]interface{}{
+				{"a": 1}, {"b": 2}, {"c": 3},
 			},
 		},
 		{
@@ -147,19 +157,26 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 				"b": 2,
 			},
 		},
+		{
+			"a": "one",
+			"b": "two",
+			"c": "three",
+			"d": "four",
+		},
 	}
 
 	var rgxSimpleObjects = []*regexp.Regexp{
 		regexp.MustCompile(`\[ ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) \]`),
 		regexp.MustCompile(`\[ simpler-test = "yes" \]`),
 		regexp.MustCompile(`\[ ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) ; ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) \]`),
-		regexp.MustCompile(`^\[ objList = \[ \[ ((test = true)|(another = true)) \] ; \[ ((test = true)|(another = true)) \] \] \]`),
+		regexp.MustCompile(`\[ ((objList = \[ ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) \])|(small = \[ ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) \])) ; ((objList = \[ ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) \])|(small = \[ ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) \])) \]`),
 		regexp.MustCompile(`\[ values = \[ ((a = 1)|(b = 2)|(c = 3)) ; ((a = 1)|(b = 2)|(c = 3)) ; ((a = 1)|(b = 2)|(c = 3)) \] \]`),
 		regexp.MustCompile(`\[ ((a-map = \[ a = 1 \])|(b-map = \[ b = 2 \])) ; ((a-map = \[ a = 1 \])|(b-map = \[ b = 2 \])) \]`),
+		regexp.MustCompile(`\[ ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) \]`),
 	}
 
 	// [ a-map = [ b = 2 ; a = 1 ] ; b-map = [ a = 1 ; b = 2 ] ]
-	// [ objList = [ [ a = 1 ] ; [ b = 2 ] ] ]
+	// [ objList = [ [ a = 1 ] ; [ b = 2 ] ] ; same = [ [ a = 1 ] ; [ b = 2 ] ] ]
 	var testFieldObjects = []Field{
 		{
 			"a-map": Field{
@@ -180,12 +197,20 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 					"b": 2,
 				},
 			},
+			"same": []Field{
+				{
+					"a": 1,
+				},
+				{
+					"b": 2,
+				},
+			},
 		},
 	}
 
 	var rgxFieldObjects = []*regexp.Regexp{
 		regexp.MustCompile(`\[ ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) ; ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) \]`),
-		regexp.MustCompile(`\[ objList = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \] \]`),
+		regexp.MustCompile(`\[ ((objList = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])|(same = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((objList = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])|(same = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
 	}
 
 	var tests []test
@@ -361,13 +386,13 @@ func TestNewTextFormatter(t *testing.T) {
 			desc: "default",
 			msg:  msg,
 			fmt:  NewTextFormat().Build(),
-			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set RFC3339Nano",
 			msg:  msg,
 			fmt:  NewTextFormat().Time(LTRFC3339Nano).Build(),
-			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set RFC3339",
@@ -433,13 +458,13 @@ func TestNewTextFormatter(t *testing.T) {
 			desc: "w/sub-prefix -- default",
 			msg:  msgSub,
 			fmt:  NewTextFormat().Build(),
-			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set RFC3339Nano",
 			msg:  msgSub,
 			fmt:  NewTextFormat().Time(LTRFC3339Nano).Build(),
-			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set RFC3339",
@@ -535,7 +560,89 @@ func TestNewTextFormatter(t *testing.T) {
 		)
 	}
 
-	for id, test := range tests {
-		verify(id, test)
+	// run same tests at least 10x so that all random mapping occurrences are
+	// verified (because of separators and square brackets)
+
+	for i := 0; i < 10; i++ {
+		for id, test := range tests {
+			verify(id, test)
+		}
 	}
+
+}
+
+func TestCSVFmtFormat(t *testing.T) {
+	type test struct {
+		msg *LogMessage
+		rgx *regexp.Regexp
+	}
+
+	var tests = []test{
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1}).Build(),
+			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,\[ a = 1 \]`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1}).Build(),
+			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ a = 1 \]`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \] "`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \]`),
+		},
+	}
+
+	var verify = func(id int, test test, b []byte) {
+		if len(b) == 0 {
+			t.Errorf(
+				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- empty buffer error",
+				id,
+			)
+			return
+		}
+
+		if !test.rgx.Match(b) {
+			t.Errorf(
+				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- log message mismatch, expected output to match regex %s -- %s",
+				id,
+				test.rgx,
+				string(b),
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [TextFormat] Format(*LogMessage) -- %s",
+			id,
+			*test.msg,
+		)
+
+	}
+
+	for id, test := range tests {
+		csv := CSVFormat
+
+		b, err := csv.Format(test.msg)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- failed to format message: %s",
+				id,
+				err,
+			)
+		}
+		verify(id, test, b)
+	}
+
 }

@@ -307,6 +307,10 @@ func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
 				}
 			}
 			meta += "] "
+			count++
+			if count < size {
+				meta += "; "
+			}
 
 		case []Field:
 			meta += k + " = [ "
@@ -317,6 +321,10 @@ func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
 				}
 			}
 			meta += "] "
+			count++
+			if count < size {
+				meta += "; "
+			}
 
 		case map[string]interface{}:
 			meta += k + " = " + f.fmtMetadata(value)

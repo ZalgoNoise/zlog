@@ -103,6 +103,9 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 	// [ simple-test = 0 ; passing = true ; tool = "zlog" ]
 	// [ simpler-test = "yes" ]
 	// [ cascaded-test = true ; metadata = [ nest-level = 1 ; data = "this is inner-level content" ] ]
+	// [ objList = [ [ test = true] ; [ another = true ] ] ]
+	// [ values = [ a = 1 ; b = 2 ; c = 3 ] ]
+	// [ a-map = [ a = 1 ] ; b-map = [ b = 2 ] ]
 	var testSimpleObjects = []map[string]interface{}{
 		{
 			"simple-test": 0,
@@ -119,12 +122,70 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 				"data":       "this is inner-level content",
 			},
 		},
+		{
+			"objList": []map[string]interface{}{
+				{
+					"test": true,
+				},
+				{
+					"another": true,
+				},
+			},
+		},
+		{
+			"values": map[string]interface{}{
+				"a": 1,
+				"b": 2,
+				"c": 3,
+			},
+		},
+		{
+			"a-map": map[string]interface{}{
+				"a": 1,
+			},
+			"b-map": map[string]interface{}{
+				"b": 2,
+			},
+		},
 	}
 
 	var rgxSimpleObjects = []*regexp.Regexp{
 		regexp.MustCompile(`\[ ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) \]`),
 		regexp.MustCompile(`\[ simpler-test = "yes" \]`),
 		regexp.MustCompile(`\[ ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) ; ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) \]`),
+		regexp.MustCompile(`^\[ objList = \[ \[ ((test = true)|(another = true)) \] ; \[ ((test = true)|(another = true)) \] \] \]`),
+		regexp.MustCompile(`\[ values = \[ ((a = 1)|(b = 2)|(c = 3)) ; ((a = 1)|(b = 2)|(c = 3)) ; ((a = 1)|(b = 2)|(c = 3)) \] \]`),
+		regexp.MustCompile(`\[ ((a-map = \[ a = 1 \])|(b-map = \[ b = 2 \])) ; ((a-map = \[ a = 1 \])|(b-map = \[ b = 2 \])) \]`),
+	}
+
+	// [ a-map = [ b = 2 ; a = 1 ] ; b-map = [ a = 1 ; b = 2 ] ]
+	// [ objList = [ [ a = 1 ] ; [ b = 2 ] ] ]
+	var testFieldObjects = []Field{
+		{
+			"a-map": Field{
+				"a": 1,
+				"b": 2,
+			},
+			"b-map": Field{
+				"a": 1,
+				"b": 2,
+			},
+		},
+		{
+			"objList": []Field{
+				{
+					"a": 1,
+				},
+				{
+					"b": 2,
+				},
+			},
+		},
+	}
+
+	var rgxFieldObjects = []*regexp.Regexp{
+		regexp.MustCompile(`\[ ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) ; ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) \]`),
+		regexp.MustCompile(`\[ objList = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \] \]`),
 	}
 
 	var tests []test
@@ -133,6 +194,14 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 		obj := test{
 			obj: testSimpleObjects[a],
 			rgx: rgxSimpleObjects[a],
+		}
+		tests = append(tests, obj)
+	}
+
+	for a := 0; a < len(testFieldObjects); a++ {
+		obj := test{
+			obj: testFieldObjects[a],
+			rgx: rgxFieldObjects[a],
 		}
 		tests = append(tests, obj)
 	}

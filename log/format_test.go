@@ -1,6 +1,7 @@
 package log
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -528,19 +529,7 @@ func TestNewTextFormatter(t *testing.T) {
 		},
 	}
 
-	var verify = func(id int, test test) {
-
-		buf, err := test.fmt.Format(test.msg)
-
-		if err != nil {
-			t.Errorf(
-				"#%v -- FAILED -- [NewTextFormat.Build()] Format(*LogMessage) -- failed to format message: %s",
-				id,
-				err,
-			)
-			return
-		}
-
+	var verify = func(id int, test test, buf []byte) {
 		if !test.rgx.MatchString(string(buf)) {
 			t.Errorf(
 				"#%v -- FAILED -- [NewTextFormat.Build()] Format(*LogMessage) -- %s -- mismatch: wanted %s ; got %s",
@@ -562,11 +551,30 @@ func TestNewTextFormatter(t *testing.T) {
 
 	// run same tests at least 10x so that all random mapping occurrences are
 	// verified (because of separators and square brackets)
-
 	for i := 0; i < 10; i++ {
 		for id, test := range tests {
-			verify(id, test)
+			buf, err := test.fmt.Format(test.msg)
+
+			if err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [NewTextFormat.Build()] Format(*LogMessage) -- failed to format message: %s",
+					id,
+					err,
+				)
+				break
+			}
+			verify(id, test, buf)
 		}
+	}
+
+	// test logger config implementation
+	buf := &bytes.Buffer{}
+
+	for id, test := range tests {
+		buf.Reset()
+		txt := New(WithOut(buf), test.fmt)
+		txt.Log(test.msg)
+		verify(id, test, buf.Bytes())
 	}
 
 }
@@ -643,6 +651,16 @@ func TestCSVFmtFormat(t *testing.T) {
 			)
 		}
 		verify(id, test, b)
+	}
+
+	// test logger config implementation
+	buf := &bytes.Buffer{}
+	csv := New(WithOut(buf), CSVFormat)
+
+	for id, test := range tests {
+		buf.Reset()
+		csv.Log(test.msg)
+		verify(id, test, buf.Bytes())
 	}
 
 }

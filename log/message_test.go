@@ -691,6 +691,101 @@ func TestLogLevelString(t *testing.T) {
 	}
 }
 
+func TestLogLevelInt(t *testing.T) {
+	type test struct {
+		input LogLevel
+		ok    int
+		pass  bool
+	}
+
+	var passingTests = []test{
+		{
+			input: LogLevel(0),
+			ok:    0,
+			pass:  true,
+		}, {
+			input: LogLevel(1),
+			ok:    1,
+			pass:  true,
+		}, {
+			input: LogLevel(2),
+			ok:    2,
+			pass:  true,
+		}, {
+			input: LogLevel(3),
+			ok:    3,
+			pass:  true,
+		}, {
+			input: LogLevel(4),
+			ok:    4,
+			pass:  true,
+		}, {
+			input: LogLevel(5),
+			ok:    5,
+			pass:  true,
+		}, {
+			input: LogLevel(9),
+			ok:    9,
+			pass:  true,
+		},
+	}
+
+	var failingTests = []test{
+		{
+			input: LogLevel(6),
+			ok:    6,
+			pass:  false,
+		},
+		{
+			input: LogLevel(7),
+			ok:    7,
+			pass:  false,
+		},
+		{
+			input: LogLevel(8),
+			ok:    8,
+			pass:  false,
+		},
+		{
+			input: LogLevel(10),
+			ok:    10,
+			pass:  false,
+		},
+	}
+
+	var allTests []test
+	allTests = append(allTests, passingTests...)
+	allTests = append(allTests, failingTests...)
+
+	var verify = func(id, result int, test test) {
+		if test.pass && result != test.ok {
+			t.Errorf(
+				"#%v -- FAILED -- [LogLevel] LogLevel(%v).Int() --  wanted %v, got %v",
+				id,
+				int(test.input),
+				test.ok,
+				result,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [LogLevel] LogLevel(%v).Int() = %v",
+			id,
+			int(test.input),
+			result,
+		)
+
+	}
+
+	for id, test := range allTests {
+		result := test.input.Int()
+
+		verify(id, result, test)
+
+	}
+}
+
 func TestLoggerOutput(t *testing.T) {
 	type test struct {
 		level     LogLevel

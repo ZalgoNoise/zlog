@@ -664,3 +664,89 @@ func TestCSVFmtFormat(t *testing.T) {
 	}
 
 }
+
+func TestXMLFmtFormat(t *testing.T) {
+	type test struct {
+		msg *LogMessage
+		rgx *regexp.Regexp
+	}
+
+	var tests = []test{
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two\n").Metadata(Field{"a": 1}).Build(),
+			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message><metadata><key>a<\/key><value>1<\/value><\/metadata><\/logMessage>`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1}).Build(),
+			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message><metadata><key>a<\/key><value>1<\/value><\/metadata><\/logMessage>`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message>((<metadata><key>b<\/key>((<value><key>a<\/key><value>1<\/value><\/value>)|(<value><key>b<\/key><value>2<\/value><\/value>)){2}<\/metadata>)|(<metadata><key>a<\/key><value>1<\/value><\/metadata>)){2}<\/logMessage>`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message>((<metadata><key>a<\/key><value>1<\/value><\/metadata>)|(<metadata><key>b<\/key>((<value><key>a<\/key><value>1<\/value><\/value>)|(<value><key>b<\/key><value>2<\/value><\/value>)){2}<\/metadata>)){2}<\/logMessage>`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message>((<metadata><key>a<\/key><value>one<\/value><\/metadata>)|(<metadata><key>b<\/key>((<value><key>a<\/key><value>one<\/value><\/value>)|(<value><key>b<\/key><value>one<\/value><\/value>)){2}<\/metadata>)){2}<\/logMessage>`),
+		},
+		{
+			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message>((<metadata><key>b<\/key>((<value><key>a<\/key><value>one<\/value><\/value>)|(<value><key>b<\/key><value>one<\/value><\/value>)){2}<\/metadata>)|(<metadata><key>a<\/key><value>one<\/value><\/metadata>)){2}<\/logMessage>`),
+		},
+	}
+
+	var verify = func(id int, test test, b []byte) {
+		if len(b) == 0 {
+			t.Errorf(
+				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- empty buffer error",
+				id,
+			)
+			return
+		}
+
+		if !test.rgx.Match(b) {
+			t.Errorf(
+				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- log message mismatch, expected output to match regex %s -- %s",
+				id,
+				test.rgx,
+				string(b),
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [TextFormat] Format(*LogMessage) -- %s",
+			id,
+			*test.msg,
+		)
+
+	}
+
+	for id, test := range tests {
+		xml := XMLFormat
+
+		b, err := xml.Format(test.msg)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- failed to format message: %s",
+				id,
+				err,
+			)
+		}
+		verify(id, test, b)
+	}
+
+	// test logger config implementation
+	buf := &bytes.Buffer{}
+	xml := New(WithOut(buf), XMLFormat)
+
+	for id, test := range tests {
+		buf.Reset()
+		xml.Log(test.msg)
+		verify(id, test, buf.Bytes())
+	}
+
+}

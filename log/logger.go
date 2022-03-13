@@ -25,43 +25,6 @@ type LoggerI interface {
 	IsSkipExit() bool
 }
 
-type Printer interface {
-	Output(m *LogMessage) (n int, err error)
-	Log(m *LogMessage)
-
-	Print(v ...interface{})
-	Println(v ...interface{})
-	Printf(format string, v ...interface{})
-
-	Panic(v ...interface{})
-	Panicln(v ...interface{})
-	Panicf(format string, v ...interface{})
-
-	Fatal(v ...interface{})
-	Fatalln(v ...interface{})
-	Fatalf(format string, v ...interface{})
-
-	Error(v ...interface{})
-	Errorln(v ...interface{})
-	Errorf(format string, v ...interface{})
-
-	Warn(v ...interface{})
-	Warnln(v ...interface{})
-	Warnf(format string, v ...interface{})
-
-	Info(v ...interface{})
-	Infoln(v ...interface{})
-	Infof(format string, v ...interface{})
-
-	Debug(v ...interface{})
-	Debugln(v ...interface{})
-	Debugf(format string, v ...interface{})
-
-	Trace(v ...interface{})
-	Traceln(v ...interface{})
-	Tracef(format string, v ...interface{})
-}
-
 var std = New(defaultConfig)
 
 // LoggerBuilder struct describes a builder object for Loggers

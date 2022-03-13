@@ -24,19 +24,6 @@ func MultiLogger(loggers ...LoggerI) LoggerI {
 	return &multiLogger{allLoggers}
 }
 
-// Output method is similar to a Logger.Output() method, however the multiLogger will
-// range through all of its configured loggers and execute the same Output() method call
-// on each of them
-func (l *multiLogger) Output(m *LogMessage) (n int, err error) {
-	for _, logger := range l.loggers {
-		n, err := logger.Output(m)
-		if err != nil {
-			return n, err
-		}
-	}
-	return n, err
-}
-
 // SetOuts method is similar to a Logger.SetOuts() method, however the multiLogger will
 // range through all of its configured loggers and execute the same SetOuts() method call
 // on each of them

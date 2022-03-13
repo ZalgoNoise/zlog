@@ -5,6 +5,103 @@ import (
 	"os"
 )
 
+type Printer interface {
+	Output(m *LogMessage) (n int, err error)
+	Log(m *LogMessage)
+
+	Print(v ...interface{})
+	Println(v ...interface{})
+	Printf(format string, v ...interface{})
+
+	Panic(v ...interface{})
+	Panicln(v ...interface{})
+	Panicf(format string, v ...interface{})
+
+	Fatal(v ...interface{})
+	Fatalln(v ...interface{})
+	Fatalf(format string, v ...interface{})
+
+	Error(v ...interface{})
+	Errorln(v ...interface{})
+	Errorf(format string, v ...interface{})
+
+	Warn(v ...interface{})
+	Warnln(v ...interface{})
+	Warnf(format string, v ...interface{})
+
+	Info(v ...interface{})
+	Infoln(v ...interface{})
+	Infof(format string, v ...interface{})
+
+	Debug(v ...interface{})
+	Debugln(v ...interface{})
+	Debugf(format string, v ...interface{})
+
+	Trace(v ...interface{})
+	Traceln(v ...interface{})
+	Tracef(format string, v ...interface{})
+}
+
+func (l *Logger) checkDefaults(m *LogMessage) {
+	// use logger prefix if default
+	// do not clear Logger.prefix
+	if m.Prefix == "log" && l.prefix != m.Prefix {
+		m.Prefix = l.prefix
+	}
+
+	// use logger sub-prefix if default
+	// do not clear Logger.sub
+	if m.Sub == "" && l.sub != m.Sub {
+		m.Sub = l.sub
+	}
+
+	// push logger metadata to message
+	if m.Metadata == nil && l.meta != nil {
+		m.Metadata = l.meta
+	} else if m.Metadata != nil && l.meta != nil {
+		// add Logger metadata to existing metadata
+		for k, v := range l.meta {
+			m.Metadata[k] = v
+		}
+	}
+}
+
+// Output method will take in a pointer to a LogMessage, apply defaults to any unset elements
+// (or add its metadata to the message), format it -- and lastly to write it in the output io.Writer
+//
+// The `Output()` method is the the placeholder action to write a generic message to the logger's io.Writer
+//
+// All printing messages are either applying a `Logger.Log()` action or a `Logger.Output` one; while the former
+// is simply calling the latter.
+func (l *Logger) Output(m *LogMessage) (n int, err error) {
+
+	if l.levelFilter > logTypeKeys[m.Level] {
+		return 0, nil
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.checkDefaults(m)
+
+	// format message
+	buf, err := l.fmt.Format(m)
+
+	if err != nil {
+		return -1, err
+	}
+
+	l.buf = buf
+
+	// write message to outs
+	n, err = l.out.Write(l.buf)
+
+	if err != nil {
+		return n, err
+	}
+	return n, err
+}
+
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern
 //
 // It applies LogLevel Info
@@ -338,6 +435,19 @@ func (l *Logger) Tracef(format string, v ...interface{}) {
 	).Metadata(l.meta).Build()
 
 	l.Output(log)
+}
+
+// Output method is similar to a Logger.Output() method, however the multiLogger will
+// range through all of its configured loggers and execute the same Output() method call
+// on each of them
+func (l *multiLogger) Output(m *LogMessage) (n int, err error) {
+	for _, logger := range l.loggers {
+		n, err := logger.Output(m)
+		if err != nil {
+			return n, err
+		}
+	}
+	return n, err
 }
 
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern

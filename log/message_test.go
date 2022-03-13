@@ -441,7 +441,7 @@ func TestMessageBuilder(t *testing.T) {
 		}
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, msg *MessageBuilder) {
 		r := recover()
 
 		if r != nil {
@@ -482,6 +482,8 @@ func TestMessageBuilder(t *testing.T) {
 			)
 			return
 		}
+
+		logEntry := msg.Build()
 
 		if logEntry.Level != test.wants.Level {
 			t.Errorf(
@@ -600,12 +602,43 @@ func TestMessageBuilder(t *testing.T) {
 	for id, test := range tests {
 		mockLogger.buf.Reset()
 
-		builtMsg := NewMessage().Level(test.input.level).Prefix(test.input.prefix).Message(test.input.msg).Metadata(test.input.meta).Build()
+		msg := NewMessage().Level(test.input.level).Prefix(test.input.prefix).Message(test.input.msg).Metadata(test.input.meta)
 
-		verify(id, test, builtMsg)
+		verify(id, test, msg)
 
 	}
 
+	// test metadata appendage
+	mockLogger.buf.Reset()
+	msg := NewMessage().
+		Prefix("pref").
+		Message("hi").
+		Metadata(map[string]interface{}{"a": 1}).
+		Metadata(Field{"b": 2})
+
+	metatest := test{
+		input: data{
+			level:  LLInfo,
+			prefix: "pref",
+			msg:    "hi",
+			meta: map[string]interface{}{
+				"a": 1,
+				"b": 2,
+			},
+		},
+		wants: &LogMessage{
+			Level:  LLInfo.String(),
+			Prefix: "pref",
+			Msg:    "hi",
+			Metadata: map[string]interface{}{
+				"a": 1,
+				"b": 2,
+			},
+		},
+		panics: false,
+	}
+
+	verify(0, metatest, msg)
 }
 
 func TestLogLevelString(t *testing.T) {

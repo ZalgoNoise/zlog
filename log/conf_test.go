@@ -180,6 +180,60 @@ func TestLCPrefix(t *testing.T) {
 	}
 }
 
+func TestLCSub(t *testing.T) {
+	type test struct {
+		conf LoggerConfig
+		want *LoggerBuilder
+	}
+
+	tests := []test{
+		{
+			conf: WithSub(""),
+			want: &LoggerBuilder{
+				sub: "",
+			},
+		},
+		{
+			conf: WithSub("log"),
+			want: &LoggerBuilder{
+				sub: "log",
+			},
+		},
+		{
+			conf: WithSub("test"),
+			want: &LoggerBuilder{
+				sub: "test",
+			},
+		},
+	}
+
+	var verify = func(id int, test test, builder *LoggerBuilder) {
+
+		if builder.sub != test.want.sub {
+			t.Errorf(
+				"#%v -- FAILED -- [Conf] WithSub(sub) -- mismatching sub-prefixes: got %s ; expected %s",
+				id,
+				builder.prefix,
+				test.want.prefix,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [Conf] WithSub(sub)",
+			id,
+		)
+	}
+
+	for id, test := range tests {
+		builder := &LoggerBuilder{}
+
+		test.conf.Apply(builder)
+
+		verify(id, test, builder)
+	}
+}
+
 func TestLCOut(t *testing.T) {
 	type test struct {
 		conf LoggerConfig

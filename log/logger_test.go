@@ -594,3 +594,117 @@ func TestLoggerFields(t *testing.T) {
 	}
 
 }
+
+func TestLoggerWrite(t *testing.T) {
+	type test struct {
+		msg  []byte
+		want LogMessage
+	}
+
+	var tests = []test{
+		{
+			msg: NewMessage().Level(LLInfo).Prefix("test").Sub("tester").Message("write test").Build().Bytes(),
+			want: LogMessage{
+				Prefix: "test",
+				Sub:    "tester",
+				Level:  LLInfo.String(),
+				Msg:    "write test",
+			},
+		},
+		{
+			msg: []byte("hello world"),
+			want: LogMessage{
+				Prefix: "log",
+				Sub:    "",
+				Level:  LLInfo.String(),
+				Msg:    "hello world",
+			},
+		},
+	}
+
+	logger := New(JSONCfg, WithOut(mockBuffer))
+
+	var verify = func(id int, test test, buf []byte) {
+
+		logEntry := &LogMessage{}
+
+		err := json.Unmarshal(buf, logEntry)
+		if err != nil {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- JSON decoding error: %s",
+				id,
+				err,
+			)
+			return
+		}
+
+		if logEntry.Prefix != test.want.Prefix {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- prefix mismatch: wanted %s ; got %s",
+				id,
+				logEntry.Prefix,
+				test.want.Prefix,
+			)
+			return
+		}
+
+		if logEntry.Sub != test.want.Sub {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- sub-prefix mismatch: wanted %s ; got %s",
+				id,
+				logEntry.Sub,
+				test.want.Sub,
+			)
+			return
+		}
+
+		if logEntry.Level != test.want.Level {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- log level mismatch: wanted %s ; got %s",
+				id,
+				logEntry.Level,
+				test.want.Level,
+			)
+			return
+		}
+
+		if logEntry.Msg != test.want.Msg {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- message mismatch: wanted %s ; got %s",
+				id,
+				logEntry.Msg,
+				test.want.Msg,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v [Logger] -- PASSED -- Write([]byte)",
+			id,
+		)
+
+	}
+
+	for id, test := range tests {
+		mockBuffer.Reset()
+		n, err := logger.Write(test.msg)
+
+		if err != nil {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- write error: %s",
+				id,
+				err,
+			)
+		}
+
+		if n <= 0 {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- no bytes written: %v",
+				id,
+				n,
+			)
+		}
+
+		verify(id, test, mockBuffer.Bytes())
+	}
+}

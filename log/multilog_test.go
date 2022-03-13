@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"testing"
 )
 
@@ -1148,6 +1149,192 @@ func TestMultiLoggerFields(t *testing.T) {
 		verify(id, test)
 
 	}
+}
+
+func TestMultiLoggerWrite(t *testing.T) {
+	type test struct {
+		msg  []byte
+		want LogMessage
+	}
+
+	var tests = []test{
+		{
+			msg: NewMessage().Level(LLInfo).Prefix("test").Sub("tester").Message("write test").Build().Bytes(),
+			want: LogMessage{
+				Prefix: "test",
+				Sub:    "tester",
+				Level:  LLInfo.String(),
+				Msg:    "write test",
+			},
+		},
+		{
+			msg: []byte("hello world"),
+			want: LogMessage{
+				Prefix: "log",
+				Sub:    "",
+				Level:  LLInfo.String(),
+				Msg:    "hello world",
+			},
+		},
+	}
+
+	bufs := []*bytes.Buffer{{}, {}, {}}
+
+	logger := MultiLogger(
+		New(JSONFormat, WithOut(bufs[0])),
+		New(JSONFormat, WithOut(bufs[1])),
+		New(JSONFormat, WithOut(bufs[2])),
+	)
+	var verify = func(id int, test test) {
+
+		for bid, buffer := range bufs {
+
+			buf := buffer.Bytes()
+
+			if len(buf) <= 0 {
+				t.Errorf(
+					"#%v [Logger] -- FAILED -- [MultiLogger] Write([]byte) [buffer #%v] -- empty buffer error: %v bytes written",
+					id,
+					bid,
+					len(buf),
+				)
+				return
+			}
+
+			logEntry := &LogMessage{}
+
+			err := json.Unmarshal(buf, logEntry)
+			if err != nil {
+				t.Errorf(
+					"#%v [Logger] -- FAILED -- [MultiLogger] Write([]byte) [buffer #%v] -- JSON decoding error: %s ; buf: %s",
+					id,
+					bid,
+					err,
+					string(buf),
+				)
+				return
+			}
+
+			if logEntry.Prefix != test.want.Prefix {
+				t.Errorf(
+					"#%v [Logger] -- FAILED -- [MultiLogger] Write([]byte) [buffer #%v] -- prefix mismatch: wanted %s ; got %s",
+					id,
+					bid,
+					logEntry.Prefix,
+					test.want.Prefix,
+				)
+				return
+			}
+
+			if logEntry.Sub != test.want.Sub {
+				t.Errorf(
+					"#%v [Logger] -- FAILED -- [MultiLogger] Write([]byte) [buffer #%v] -- sub-prefix mismatch: wanted %s ; got %s",
+					id,
+					bid,
+					logEntry.Sub,
+					test.want.Sub,
+				)
+				return
+			}
+
+			if logEntry.Level != test.want.Level {
+				t.Errorf(
+					"#%v [Logger] -- FAILED -- [MultiLogger] Write([]byte) [buffer #%v] -- log level mismatch: wanted %s ; got %s",
+					id,
+					bid,
+					logEntry.Level,
+					test.want.Level,
+				)
+				return
+			}
+
+			if logEntry.Msg != test.want.Msg {
+				t.Errorf(
+					"#%v [Logger] -- FAILED -- [MultiLogger] Write([]byte) [buffer #%v] -- message mismatch: wanted %s ; got %s",
+					id,
+					bid,
+					logEntry.Msg,
+					test.want.Msg,
+				)
+				return
+			}
+
+			t.Logf(
+				"#%v [Logger] -- PASSED -- [MultiLogger] Write([]byte) [buffer #%v]",
+				id,
+				bid,
+			)
+		}
+
+	}
+
+	for id, test := range tests {
+		for _, b := range bufs {
+			b.Reset()
+		}
+		n, err := logger.Write(test.msg)
+
+		if err != nil {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- write error: %s",
+				id,
+				err,
+			)
+		}
+
+		if n <= 0 {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- no bytes written: %v",
+				id,
+				n,
+			)
+		}
+
+		verify(id, test)
+
+		for _, b := range bufs {
+			b.Reset()
+		}
+	}
+
+	// failing tests:
+	tmpf, err := os.Create(`tmp.log`)
+	if err != nil {
+		t.Errorf(
+			"#%v [Logger] -- FAILED -- Write([]byte) -- failed to create temp file: %s",
+			0,
+			err,
+		)
+	}
+	tmpf.Close()
+	defer os.RemoveAll(`tmp.log`)
+
+	closedBuf, err := os.OpenFile(`tmp.log`, os.O_RDONLY, 0o000)
+	if err != nil {
+		t.Errorf(
+			"#%v [Logger] -- FAILED -- Write([]byte) -- failed to open temp file: %s",
+			0,
+			err,
+		)
+	}
+	logger.SetOuts(closedBuf)
+
+	for id, test := range tests {
+		n, err := logger.Write(test.msg)
+		if err == nil && n <= 0 {
+			t.Errorf(
+				"#%v [Logger] -- FAILED -- Write([]byte) -- write succeeded when it shouldn't",
+				id,
+			)
+		}
+		t.Logf(
+			"#%v [Logger] -- PASSED -- Write([]byte) -- write failed as expected: error: %s ; bytes written: %v",
+			id,
+			err,
+			n,
+		)
+	}
+
 }
 
 func TestMultiLoggerPrint(t *testing.T) {

@@ -1126,11 +1126,25 @@ func TestLoggerLog(t *testing.T) {
 		msg       string
 		wantLevel string
 		wantMsg   string
+		meta      map[string]interface{}
 		ok        bool
 		panics    bool
 	}
 
 	var tests []test
+
+	// metadata appendage test
+	tests = append(tests, test{
+		level:     LLInfo,
+		wantLevel: LLInfo.String(),
+		msg:       "meta",
+		wantMsg:   "meta",
+		meta: map[string]interface{}{
+			"works": true,
+		},
+		ok:     true,
+		panics: false,
+	})
 
 	for a := 0; a < len(mockLogLevelsOK); a++ {
 		if a == 5 {
@@ -1142,6 +1156,7 @@ func TestLoggerLog(t *testing.T) {
 				msg:       mockMessages[b],
 				wantLevel: mockLogLevelsOK[a].String(),
 				wantMsg:   mockMessages[b],
+				meta:      nil,
 				ok:        true,
 				panics:    false,
 			}
@@ -1159,6 +1174,7 @@ func TestLoggerLog(t *testing.T) {
 				wantLevel: mockLogLevelsOK[a].String(),
 				wantMsg:   fmt.Sprintf(mockFmtMessages[c].format, mockFmtMessages[c].v...),
 				ok:        true,
+				meta:      nil,
 				panics:    false,
 			}
 
@@ -1169,6 +1185,7 @@ func TestLoggerLog(t *testing.T) {
 			tests = append(tests, test)
 		}
 	}
+
 	for d := 0; d < len(mockLogLevelsNOK); d++ {
 		if d == 5 {
 			continue // skip LLFatal, or os.Exit(1)
@@ -1179,6 +1196,7 @@ func TestLoggerLog(t *testing.T) {
 				msg:       mockMessages[e],
 				wantLevel: mockLogLevelsNOK[d].String(),
 				wantMsg:   mockMessages[e],
+				meta:      nil,
 				ok:        false,
 				panics:    false,
 			}
@@ -1195,6 +1213,7 @@ func TestLoggerLog(t *testing.T) {
 				msg:       fmt.Sprintf(mockFmtMessages[f].format, mockFmtMessages[f].v...),
 				wantLevel: mockLogLevelsNOK[d].String(),
 				wantMsg:   fmt.Sprintf(mockFmtMessages[f].format, mockFmtMessages[f].v...),
+				meta:      nil,
 				ok:        true,
 				panics:    false,
 			}
@@ -1279,6 +1298,24 @@ func TestLoggerLog(t *testing.T) {
 			return
 		}
 
+		if logEntry.Metadata != nil {
+			for k, v := range logEntry.Metadata {
+				if test.meta[k] != v {
+					t.Errorf(
+						"#%v -- FAILED -- [LoggerMessage] Log(%s, %s) -- metadata mismatch: key %s mismatch: wanted %s ; got %s",
+						id,
+						test.level.String(),
+						test.msg,
+						k,
+						k,
+						test.meta[k],
+					)
+					return
+				}
+			}
+
+		}
+
 		t.Logf(
 			"#%v -- PASSED -- [LoggerMessage] Log(%s, %s) : %s",
 			id,
@@ -1299,6 +1336,8 @@ func TestLoggerLog(t *testing.T) {
 			defer verify(id, test, logEntry)
 		}
 
+		mockLogger.logger.Fields(test.meta)
+
 		logMessage := NewMessage().Level(test.level).Message(test.msg).Build()
 
 		mockLogger.logger.Log(logMessage)
@@ -1306,6 +1345,7 @@ func TestLoggerLog(t *testing.T) {
 		if test.level != LLPanic {
 			verify(id, test, logEntry)
 		}
+		mockLogger.logger.Fields(nil)
 	}
 
 }

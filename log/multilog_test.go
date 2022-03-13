@@ -965,6 +965,214 @@ func TestMultiLoggerPrefix(t *testing.T) {
 	}
 }
 
+func TestMultiLoggerSub(t *testing.T) {
+
+	type ml struct {
+		log LoggerI
+		buf []*bytes.Buffer
+	}
+
+	type test struct {
+		msg *LogMessage
+		ml  ml
+		sub string
+	}
+
+	var newSubPrefixes = []string{
+		"Prefix()",
+		"new prefix",
+		"awesome service",
+		"alert!!",
+		"@whatever",
+		"01101001101",
+	}
+
+	var testAllObjects []map[string]interface{}
+	testAllObjects = append(testAllObjects, testObjects...)
+	testAllObjects = append(testAllObjects, testEmptyObjects...)
+
+	var testAllMessages []string
+	testAllMessages = append(testAllMessages, mockMessages...)
+	for _, fmtMsg := range mockFmtMessages {
+		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
+	}
+
+	var tests []test
+
+	for a := 0; a < len(newSubPrefixes); a++ {
+		for b := 0; b < len(testAllMessages); b++ {
+			for c := 0; c < len(testAllObjects); c++ {
+
+				var bufs []*bytes.Buffer
+				var logs []LoggerI
+				for d := 0; d < len(newSubPrefixes); d++ {
+					buf := &bytes.Buffer{}
+					bufs = append(bufs, buf)
+					logs = append(logs, New(WithPrefix("log"), JSONFormat, WithOut(buf)))
+				}
+				mlogger := MultiLogger(logs...)
+
+				obj := test{
+					sub: newSubPrefixes[a],
+					ml: ml{
+						log: mlogger,
+						buf: bufs,
+					},
+					msg: NewMessage().
+						Message(testAllMessages[b]).
+						Metadata(testAllObjects[c]).
+						Build(),
+				}
+
+				tests = append(tests, obj)
+			}
+
+		}
+
+	}
+
+	var verify = func(id int, test test) {
+		defer func() {
+			for _, b := range test.ml.buf {
+				b.Reset()
+			}
+		}()
+
+		for bufID, buf := range test.ml.buf {
+			logEntry := &LogMessage{}
+
+			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- unmarshal error: %s",
+					id,
+					bufID,
+					test.sub,
+					err,
+				)
+				return
+			}
+
+			if logEntry.Prefix != test.msg.Prefix {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- prefix mismatch: wanted %s ; got %s",
+					id,
+					bufID,
+					test.sub,
+					test.msg.Prefix,
+					logEntry.Prefix,
+				)
+				return
+			}
+
+			if logEntry.Sub != test.sub {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- sub-prefix mismatch: wanted %s ; got %s",
+					id,
+					bufID,
+					test.sub,
+					test.sub,
+					logEntry.Sub,
+				)
+				return
+			}
+
+			if logEntry.Level != LLInfo.String() {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- log level mismatch: wanted %s ; got %s",
+					id,
+					bufID,
+					test.sub,
+					LLInfo.String(),
+					logEntry.Level,
+				)
+				return
+			}
+
+			if logEntry.Msg != test.msg.Msg {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- message mismatch: wanted %s ; got %s",
+					id,
+					bufID,
+					test.sub,
+					test.msg.Msg,
+					logEntry.Msg,
+				)
+				return
+			}
+
+			if logEntry.Metadata == nil && test.msg.Metadata != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- retrieved empty metadata object: wanted %s ; got %s",
+					id,
+					bufID,
+					test.sub,
+					test.msg.Metadata,
+					logEntry.Metadata,
+				)
+				return
+			} else if logEntry.Metadata != nil && test.msg.Metadata == nil {
+				t.Errorf(
+					"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- retrieved unexpected metadata object: wanted %s ; got %s",
+					id,
+					bufID,
+					test.sub,
+					test.msg.Metadata,
+					logEntry.Metadata,
+				)
+				return
+			}
+
+			if logEntry.Metadata != nil && test.msg.Metadata != nil {
+				for k, v := range logEntry.Metadata {
+					if v != nil && test.msg.Metadata[k] == nil {
+						t.Errorf(
+							"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
+							id,
+							bufID,
+							test.sub,
+							k,
+							k,
+						)
+						return
+					}
+				}
+
+				if len(logEntry.Metadata) != len(test.msg.Metadata) {
+					t.Errorf(
+						"#%v -- FAILED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- metadata length mismatch -- wanted %v, got %v",
+						id,
+						bufID,
+						test.sub,
+						len(test.msg.Metadata),
+						len(logEntry.Metadata),
+					)
+					return
+				}
+			}
+
+			t.Logf(
+				"#%v -- PASSED -- [MultiLogger] MultiLogger(...LoggerI[%v]).Sub(%s) -- %s",
+				id,
+				bufID,
+				test.sub,
+				buf.String(),
+			)
+		}
+
+	}
+
+	for id, test := range tests {
+		for _, b := range test.ml.buf {
+			b.Reset()
+		}
+		test.ml.log.Sub(test.sub).Fields(test.msg.Metadata)
+		test.ml.log.Info(test.msg.Msg)
+
+		verify(id, test)
+
+	}
+}
+
 func TestMultiLoggerFields(t *testing.T) {
 	type ml struct {
 		log LoggerI

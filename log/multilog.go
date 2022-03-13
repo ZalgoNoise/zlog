@@ -125,27 +125,17 @@ func (l *multiLogger) IsSkipExit() bool {
 func (l *multiLogger) Write(p []byte) (n int, err error) {
 
 	var errs []error
-	// var ns []int
 
-	for _, logger := range l.loggers {
+	for idx, logger := range l.loggers {
 		n, err = logger.Write(p)
 
 		if err != nil {
 			errs = append(errs, err)
 		}
 
-		// if multiple loggers have different formatters, it will definitely result
-		// in a different byte count. Commenting this out until tests are written
-		//
-		// ns = append(ns, n)
-		// if idx > 0 && ns[idx-1] != n {
-		// 	errs = append(errs, fmt.Errorf("byte mismatch error -- writer #%v wrote %v bytes, while writer #%v wrote %v bytes",
-		// 		idx,
-		// 		n,
-		// 		idx-1,
-		// 		ns[idx-1],
-		// 	))
-		// }
+		if n == 0 {
+			errs = append(errs, fmt.Errorf("logger with index %v wrote %v bytes", idx, n))
+		}
 	}
 
 	if len(errs) > 0 {

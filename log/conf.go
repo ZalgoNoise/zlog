@@ -94,6 +94,23 @@ func (c *LCPrefix) Apply(lb *LoggerBuilder) {
 	lb.prefix = c.p
 }
 
+// LCSub struct is a custom LoggerConfig to define sub-prefixes to new Loggers
+type LCSub struct {
+	s string
+}
+
+// WithSub function will allow creating a LoggerConfig that applies a sub-prefix string to a Logger
+func WithSub(sub string) LoggerConfig {
+	return &LCSub{
+		s: sub,
+	}
+}
+
+// Apply method will set the configured sub-prefix string to the input pointer to a LoggerBuilder
+func (c *LCSub) Apply(lb *LoggerBuilder) {
+	lb.sub = c.s
+}
+
 // LCOut struct is a custom LoggerConfig to define the output io.Writer to new Loggers
 type LCOut struct {
 	out io.Writer

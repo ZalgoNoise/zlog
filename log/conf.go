@@ -25,6 +25,10 @@ type multiconf struct {
 // Similar to io.MultiWriter, it will iterate through all set LoggerConfig and run the same method
 // on each of them.
 func MultiConf(conf ...LoggerConfig) LoggerConfig {
+	if len(conf) == 0 {
+		return defaultConfig
+	}
+
 	allConf := make([]LoggerConfig, 0, len(conf))
 	allConf = append(allConf, conf...)
 

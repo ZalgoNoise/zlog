@@ -471,6 +471,92 @@ func TestLoggerPrefix(t *testing.T) {
 
 }
 
+func TestLoggerSub(t *testing.T) {
+	type test struct {
+		sub    string
+		format LoggerConfig
+		outs   []io.Writer
+		bufs   []*bytes.Buffer
+	}
+
+	var tests []test
+
+	var testSubPrefixes = []string{
+		"logger-prefix",
+		"logger-test",
+		"logger-new",
+		"logger-changed",
+		"logger-done",
+	}
+
+	regxStr := `^\[.*\]\s*\[info\]\s*\[log\]\s*\[(.*)\]\s*test content\s*$`
+	regx := regexp.MustCompile(regxStr)
+
+	format := TextFormat
+	msg := "test content"
+
+	for _, s := range testSubPrefixes {
+		buf := &bytes.Buffer{}
+		tests = append(tests, test{
+			sub:    s,
+			format: format,
+			outs:   []io.Writer{buf},
+			bufs:   []*bytes.Buffer{buf},
+		})
+	}
+
+	for id, test := range tests {
+		logger := New(
+			WithSub("old"),
+			test.format,
+			WithOut(test.outs...),
+		)
+		logger.Sub(test.sub)
+		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+
+		logger.Log(logMessage)
+
+		for _, buf := range test.bufs {
+			if !regx.MatchString(buf.String()) {
+				t.Errorf(
+					"#%v [Logger] FAILED -- Sub().Info(%s) -- message regex mismatch: %s",
+					id,
+					msg,
+					regxStr,
+				)
+			}
+
+			match := regx.FindStringSubmatch(buf.String())
+
+			var ok bool
+			for _, v := range match {
+				ok = false
+				if v == test.sub {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				t.Errorf(
+					"#%v [Logger] FAILED -- Sub().Info(%s) -- unexpected subprefix -- got %s ; wanted %s",
+					id,
+					msg,
+					buf.String(),
+					test.sub,
+				)
+			}
+
+			t.Logf(
+				"#%v -- TESTED -- [Logger] Prefix().Info(%s) -- finding prefix %s",
+				id,
+				msg,
+				test.sub,
+			)
+		}
+	}
+
+}
+
 func TestLoggerFields(t *testing.T) {
 
 	prefix := "test-new-logger"

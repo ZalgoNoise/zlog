@@ -599,15 +599,6 @@ func TestMessageBuilder(t *testing.T) {
 		mockLogger.buf.Reset()
 	}
 
-	for id, test := range tests {
-		mockLogger.buf.Reset()
-
-		msg := NewMessage().Level(test.input.level).Prefix(test.input.prefix).Message(test.input.msg).Metadata(test.input.meta)
-
-		verify(id, test, msg)
-
-	}
-
 	// test metadata appendage
 	mockLogger.buf.Reset()
 	msg := NewMessage().
@@ -639,6 +630,151 @@ func TestMessageBuilder(t *testing.T) {
 	}
 
 	verify(0, metatest, msg)
+
+	for id, test := range tests {
+		mockLogger.buf.Reset()
+
+		msg := NewMessage().Level(test.input.level).Prefix(test.input.prefix).Message(test.input.msg).Metadata(test.input.meta)
+
+		verify(id, test, msg)
+
+	}
+
+}
+
+func TestMessageBuilderCallStack(t *testing.T) {
+	type test struct {
+		msg *MessageBuilder
+		all bool
+		ok  bool
+	}
+	var tests = []test{
+		{
+			msg: NewMessage().Level(LLInfo).Prefix("test").Message("message"),
+			all: true,
+			ok:  true,
+		},
+		{
+			msg: NewMessage().Level(LLInfo).Prefix("test").Message("message"),
+			all: false,
+			ok:  true,
+		},
+		{
+			msg: NewMessage().Level(LLInfo).Prefix("test").Message("message"),
+			all: false,
+			ok:  false,
+		},
+		{
+			msg: NewMessage().Level(LLInfo).Prefix("test").Message("message").Metadata(Field{"a": 1}),
+			all: true,
+			ok:  true,
+		},
+		{
+			msg: NewMessage().Level(LLInfo).Prefix("test").Message("message").Metadata(Field{"callstack": 1}),
+			all: true,
+			ok:  true,
+		},
+	}
+
+	var verify = func(id int, test test, msg *LogMessage) {
+		if !test.ok {
+			if msg.Metadata != nil || len(msg.Metadata) > 0 {
+				t.Errorf(
+					"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- callstack present expected otherwise",
+					id,
+				)
+				return
+			}
+			t.Logf(
+				"#%v -- PASSED -- [MessageBuilder] NewMessage().Build() -- no CallStack() call",
+				id,
+			)
+			return
+
+		}
+
+		if test.ok && (msg.Metadata == nil || len(msg.Metadata) <= 0) {
+			t.Errorf(
+				"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- metadata object is emtpy",
+				id,
+			)
+			return
+		}
+
+		v, ok := msg.Metadata["callstack"]
+
+		if ok != test.ok {
+			t.Errorf(
+				"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- callstack absent when expected otherwise",
+				id,
+			)
+			return
+		}
+
+		field := v.(Field).ToMap()
+
+		for k, val := range field {
+			routine := val.(Field).ToMap()
+
+			if routine["id"] == nil || routine["id"] == "" {
+				t.Errorf(
+					"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- empty ID field in key %s",
+					id,
+					k,
+				)
+				return
+			}
+
+			if routine["status"] == nil || routine["status"] == "" {
+				t.Errorf(
+					"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- empty status field in key %s",
+					id,
+					k,
+				)
+				return
+			}
+
+			for idx, s := range routine["stack"].([]Field) {
+				if s["method"] == nil || s["method"] == "" {
+					t.Errorf(
+						"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- empty method field in key %s.stack[%v]",
+						id,
+						k,
+						idx,
+					)
+					return
+				}
+
+				if s["reference"] == nil || s["reference"] == "" {
+					t.Errorf(
+						"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- empty reference field in key %s.stack[%v]",
+						id,
+						k,
+						idx,
+					)
+					return
+				}
+			}
+		}
+		t.Logf(
+			"#%v -- PASSED -- [MessageBuilder] NewMessage().CallStack().Build()",
+			id,
+		)
+
+	}
+
+	for id, test := range tests {
+		var msg *LogMessage
+
+		if !test.ok {
+			msg = test.msg.Build()
+		} else {
+			msg = test.msg.CallStack(test.all).Build()
+		}
+
+		verify(id, test, msg)
+	}
+
 }
 
 func TestLogLevelString(t *testing.T) {

@@ -214,7 +214,7 @@ func main() {
 		Prefix("with-stack").
 		Sub("stacktrace").
 		Message("failed to execute with error").
-		CallStack().
+		CallStack(false).
 		Build()
 
 	filteredLogger.Log(stackMessage)

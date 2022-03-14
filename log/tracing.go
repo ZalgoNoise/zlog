@@ -1,7 +1,6 @@
 package log
 
 import (
-	"fmt"
 	"regexp"
 	"runtime"
 )
@@ -31,8 +30,6 @@ func (s *stacktrace) getCallStack(all bool) *stacktrace {
 	buf := make([]byte, 1024)
 	n := runtime.Stack(buf, all)
 	s.buf = buf[0:n]
-
-	fmt.Printf("\n\n%s\n\n", string(s.buf))
 
 	return s
 }
@@ -78,7 +75,7 @@ func (s *stacktrace) parseCallStack() *stacktrace {
 			cs.id = match[1]
 			cs.status = match[2]
 		} else {
-			if i+1 < len(s.split) && s.split[i+1][0] == 9 {
+			if i+1 < len(s.split) && len(s.split[i+1]) > 0 && s.split[i+1][0] == 9 {
 
 				s := callStack{
 					method:    string(s.split[i]),
@@ -131,7 +128,7 @@ func (s *stacktrace) mapCallStack() *stacktrace {
 }
 
 func (s *stacktrace) toMap() map[string]interface{} {
-	if s.out == nil {
+	if s.out == nil || len(s.out) <= 0 {
 		s.mapCallStack()
 	}
 	return s.out

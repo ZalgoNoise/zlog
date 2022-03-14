@@ -227,12 +227,12 @@ func (b *MessageBuilder) Metadata(m map[string]interface{}) *MessageBuilder {
 
 // CallStack method will grab the current call stack, and add it as a "callstack" object
 // in the MessageBuilder's metadata.
-func (b *MessageBuilder) CallStack() *MessageBuilder {
+func (b *MessageBuilder) CallStack(all bool) *MessageBuilder {
 	if b.metadata == nil {
 		b.metadata = map[string]interface{}{}
 	}
 	b.metadata["callstack"] = newCallStack().
-		getCallStack(false).
+		getCallStack(all).
 		splitCallStack().
 		parseCallStack().
 		mapCallStack().

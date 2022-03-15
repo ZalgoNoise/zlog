@@ -45,7 +45,7 @@ func (m multiconf) Apply(lb *LoggerBuilder) {
 
 var defaultConfig LoggerConfig = &multiconf{
 	confs: []LoggerConfig{
-		TextFormat,
+		NewTextFormat().LevelFirst().Color().Build(),
 		WithOut(),
 		WithPrefix("log"),
 	},

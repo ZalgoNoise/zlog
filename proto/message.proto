@@ -1,0 +1,22 @@
+syntax = "proto3";
+package log;
+import "google/protobuf/struct.proto";
+
+option go_package = "../log";
+
+message MessageRequest {
+    int64 time = 1;
+    string prefix = 2;
+    string sub = 3;
+    int32 level = 4;
+    string msg = 5;
+    google.protobuf.Struct meta = 6;
+}
+
+message MessageResponse {
+    bool ok = 1;
+}
+
+service LogService {
+    rpc Log(MessageRequest) returns (MessageResponse) {} 
+}

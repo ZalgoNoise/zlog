@@ -2,8 +2,14 @@ package log
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
+	"encoding/json"
+	"fmt"
 	"time"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // LogLevel type describes a numeric value for a log level with priority increasing in
@@ -166,6 +172,44 @@ func (m *LogMessage) Bytes() []byte {
 	return buf
 }
 
+func (m *LogMessage) GRPC() *MessageRequest {
+	msg, _ := m.ToGRPC()
+	return msg
+}
+
+func (m *LogMessage) ToGRPC() (*MessageRequest, error) {
+	b, err := mapToBytes(m.Metadata)
+	if err != nil {
+		return nil, err
+	}
+	s, err := encodeProto(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MessageRequest{
+		Time:   m.Time.Unix(),
+		Prefix: m.Prefix,
+		Sub:    m.Sub,
+		Level:  int32(logTypeKeys[m.Level]),
+		Msg:    m.Msg,
+		Meta:   s,
+	}, nil
+}
+
+func mapToBytes(in map[string]interface{}) ([]byte, error) {
+	return json.Marshal(in)
+}
+
+func encodeProto(in []byte) (*structpb.Struct, error) {
+	s := &structpb.Struct{}
+	err := protojson.Unmarshal(in, s)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
 // MessageBuilder struct describes the elements in a LogMessage's builder, which will
 // be the target of different changes until its `Build()` method is called -- returning
 // then a pointer to a LogMessage object
@@ -241,11 +285,23 @@ func (b *MessageBuilder) CallStack(all bool) *MessageBuilder {
 	return b
 }
 
+func (b *MessageBuilder) FromProto(in *MessageRequest) *MessageBuilder {
+	b.time = time.Unix(in.Time, 0)
+	b.level = LogLevel(int(in.Level)).String()
+	b.prefix = in.Prefix
+	b.sub = in.Sub
+	b.msg = in.Msg
+	b.metadata = in.Meta.AsMap()
+
+	return b
+}
+
 // Build method will create a new timestamp, review all elements in the `MessageBuilder`,
 // apply any defaults to non-defined elements, and return a pointer to a LogMessage
 func (b *MessageBuilder) Build() *LogMessage {
-	// b.time = now.Format(time.RFC3339Nano)
-	b.time = time.Now()
+	if b.time.IsZero() {
+		b.time = time.Now()
+	}
 
 	if b.prefix == "" {
 		b.prefix = "log"
@@ -263,4 +319,14 @@ func (b *MessageBuilder) Build() *LogMessage {
 		Msg:      b.msg,
 		Metadata: b.metadata,
 	}
+}
+
+type LogServer struct{}
+
+func (s *LogServer) Log(ctx context.Context, msg *MessageRequest) (*MessageResponse, error) {
+	// process input message
+	logmsg := NewMessage().FromProto(msg).Build()
+	fmt.Println(logmsg)
+
+	return &MessageResponse{Ok: true}, nil
 }

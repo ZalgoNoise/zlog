@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/store"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 		2, 3, 5,
 	}
 
-	customLog, err := log.NewLogfile("/tmp/test-custom.log")
+	customLog, err := store.NewLogfile("/tmp/test-custom.log")
 	if err != nil {
 		fmt.Printf("err: %s\n", err)
 	}
@@ -214,7 +215,10 @@ func main() {
 		Prefix("with-stack").
 		Sub("stacktrace").
 		Message("failed to execute with error").
-		CallStack(false).
+		Metadata(log.Field{
+			"critical": true,
+		}).
+		CallStack(true).
 		Build()
 
 	filteredLogger.Log(stackMessage)
@@ -226,6 +230,6 @@ func main() {
 	)
 
 	jsonLogger.Log(stackMessage)
-
+	fmt.Println()
 	xmlLogger.Log(stackMessage)
 }

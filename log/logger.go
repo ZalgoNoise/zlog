@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"io"
+	"os"
 	"sync"
 )
 
@@ -26,6 +27,7 @@ type LoggerI interface {
 }
 
 var std = New(defaultConfig)
+var stdout = os.Stdout
 
 // LoggerBuilder struct describes a builder object for Loggers
 //
@@ -100,6 +102,10 @@ type Logger struct {
 func (l *Logger) SetOuts(outs ...io.Writer) LoggerI {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if len(outs) == 0 {
+		l.out = stdout
+		return l
+	}
 
 	l.out = io.MultiWriter(outs...)
 
@@ -132,6 +138,11 @@ func (l *Logger) AddOuts(outs ...io.Writer) LoggerI {
 func (l *Logger) Prefix(prefix string) LoggerI {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	if prefix == "" {
+		l.prefix = "log"
+		return l
+	}
 
 	l.prefix = prefix
 

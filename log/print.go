@@ -42,7 +42,7 @@ type Printer interface {
 	Tracef(format string, v ...interface{})
 }
 
-func (l *Logger) checkDefaults(m *LogMessage) {
+func (l *logger) checkDefaults(m *LogMessage) {
 	// use logger prefix if default
 	// do not clear Logger.prefix
 	if m.Prefix == "log" && l.prefix != m.Prefix {
@@ -73,7 +73,7 @@ func (l *Logger) checkDefaults(m *LogMessage) {
 //
 // All printing messages are either applying a `Logger.Log()` action or a `Logger.Output` one; while the former
 // is simply calling the latter.
-func (l *Logger) Output(m *LogMessage) (n int, err error) {
+func (l *logger) Output(m *LogMessage) (n int, err error) {
 
 	if l.levelFilter > LogTypeKeys[m.Level] {
 		return 0, nil
@@ -105,7 +105,7 @@ func (l *Logger) Output(m *LogMessage) (n int, err error) {
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern
 //
 // It applies LogLevel Info
-func (l *Logger) Print(v ...interface{}) {
+func (l *logger) Print(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
@@ -117,7 +117,7 @@ func (l *Logger) Print(v ...interface{}) {
 // Println method (similar to fmt.Println) will print a message using an fmt.Sprintln(v...) pattern
 //
 // It applies LogLevel Info
-func (l *Logger) Println(v ...interface{}) {
+func (l *logger) Println(v ...interface{}) {
 
 	// build message
 	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
@@ -130,7 +130,7 @@ func (l *Logger) Println(v ...interface{}) {
 // Printf method (similar to fmt.Printf) will print a message using an fmt.Sprintf(format, v...) pattern
 //
 // It applies LogLevel Info
-func (l *Logger) Printf(format string, v ...interface{}) {
+func (l *logger) Printf(format string, v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
@@ -145,7 +145,7 @@ func (l *Logger) Printf(format string, v ...interface{}) {
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
 // Logfiles, this is assumed to be safe.
-func (l *Logger) Log(m *LogMessage) {
+func (l *logger) Log(m *LogMessage) {
 	// replace defaults if logger has them set
 	if m.Prefix == "log" && l.prefix != "" {
 		m.Prefix = l.prefix
@@ -170,7 +170,7 @@ func (l *Logger) Log(m *LogMessage) {
 // automatically applying LogLevel Panic.
 //
 // This method will end calling `panic()` with the LogMessage's message content
-func (l *Logger) Panic(v ...interface{}) {
+func (l *logger) Panic(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLPanic).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
@@ -187,7 +187,7 @@ func (l *Logger) Panic(v ...interface{}) {
 // automatically applying LogLevel Panic.
 //
 // This method will end calling `panic()` with the LogMessage's message content
-func (l *Logger) Panicln(v ...interface{}) {
+func (l *logger) Panicln(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLPanic).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
@@ -205,7 +205,7 @@ func (l *Logger) Panicln(v ...interface{}) {
 // automatically applying LogLevel Panic.
 //
 // This method will end calling `panic()` with the LogMessage's message content
-func (l *Logger) Panicf(format string, v ...interface{}) {
+func (l *logger) Panicf(format string, v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLPanic).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
@@ -223,7 +223,7 @@ func (l *Logger) Panicf(format string, v ...interface{}) {
 // automatically applying LogLevel Fatal.
 //
 // This method will end calling `os.Exit(1)`
-func (l *Logger) Fatal(v ...interface{}) {
+func (l *logger) Fatal(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLFatal).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
@@ -240,7 +240,7 @@ func (l *Logger) Fatal(v ...interface{}) {
 // automatically applying LogLevel Fatal.
 //
 // This method will end calling `os.Exit(1)`
-func (l *Logger) Fatalln(v ...interface{}) {
+func (l *logger) Fatalln(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLFatal).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
@@ -257,7 +257,7 @@ func (l *Logger) Fatalln(v ...interface{}) {
 // automatically applying LogLevel Fatal.
 //
 // This method will end calling `os.Exit(1)`
-func (l *Logger) Fatalf(format string, v ...interface{}) {
+func (l *logger) Fatalf(format string, v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLFatal).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
@@ -272,7 +272,7 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 
 // Error method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Error.
-func (l *Logger) Error(v ...interface{}) {
+func (l *logger) Error(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLError).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
@@ -283,7 +283,7 @@ func (l *Logger) Error(v ...interface{}) {
 
 // Errorln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Error.
-func (l *Logger) Errorln(v ...interface{}) {
+func (l *logger) Errorln(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLError).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
@@ -294,7 +294,7 @@ func (l *Logger) Errorln(v ...interface{}) {
 
 // Errorf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Error.
-func (l *Logger) Errorf(format string, v ...interface{}) {
+func (l *logger) Errorf(format string, v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLError).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
@@ -305,7 +305,7 @@ func (l *Logger) Errorf(format string, v ...interface{}) {
 
 // Warn method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Warn.
-func (l *Logger) Warn(v ...interface{}) {
+func (l *logger) Warn(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLWarn).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
@@ -317,7 +317,7 @@ func (l *Logger) Warn(v ...interface{}) {
 
 // Warnln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Warn.
-func (l *Logger) Warnln(v ...interface{}) {
+func (l *logger) Warnln(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLWarn).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
@@ -328,7 +328,7 @@ func (l *Logger) Warnln(v ...interface{}) {
 
 // Warnf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Warn.
-func (l *Logger) Warnf(format string, v ...interface{}) {
+func (l *logger) Warnf(format string, v ...interface{}) {
 
 	// build message
 	log := NewMessage().Level(LLWarn).Prefix(l.prefix).Message(
@@ -340,7 +340,7 @@ func (l *Logger) Warnf(format string, v ...interface{}) {
 
 // Info method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Info.
-func (l *Logger) Info(v ...interface{}) {
+func (l *logger) Info(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
@@ -351,7 +351,7 @@ func (l *Logger) Info(v ...interface{}) {
 
 // Infoln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Info.
-func (l *Logger) Infoln(v ...interface{}) {
+func (l *logger) Infoln(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
@@ -362,7 +362,7 @@ func (l *Logger) Infoln(v ...interface{}) {
 
 // Infof method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Info.
-func (l *Logger) Infof(format string, v ...interface{}) {
+func (l *logger) Infof(format string, v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
@@ -373,7 +373,7 @@ func (l *Logger) Infof(format string, v ...interface{}) {
 
 // Debug method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Debug.
-func (l *Logger) Debug(v ...interface{}) {
+func (l *logger) Debug(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLDebug).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
@@ -384,7 +384,7 @@ func (l *Logger) Debug(v ...interface{}) {
 
 // Debugln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Debug.
-func (l *Logger) Debugln(v ...interface{}) {
+func (l *logger) Debugln(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLDebug).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
@@ -395,7 +395,7 @@ func (l *Logger) Debugln(v ...interface{}) {
 
 // Debugf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Debug.
-func (l *Logger) Debugf(format string, v ...interface{}) {
+func (l *logger) Debugf(format string, v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLDebug).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
@@ -406,7 +406,7 @@ func (l *Logger) Debugf(format string, v ...interface{}) {
 
 // Trace method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Trace.
-func (l *Logger) Trace(v ...interface{}) {
+func (l *logger) Trace(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLTrace).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
@@ -417,7 +417,7 @@ func (l *Logger) Trace(v ...interface{}) {
 
 // Traceln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Trace.
-func (l *Logger) Traceln(v ...interface{}) {
+func (l *logger) Traceln(v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLTrace).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
@@ -428,7 +428,7 @@ func (l *Logger) Traceln(v ...interface{}) {
 
 // Tracef method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Trace.
-func (l *Logger) Tracef(format string, v ...interface{}) {
+func (l *logger) Tracef(format string, v ...interface{}) {
 	// build message
 	log := NewMessage().Level(LLTrace).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),

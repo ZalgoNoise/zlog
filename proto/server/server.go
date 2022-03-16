@@ -12,7 +12,7 @@ import (
 type GRPCLogServer struct {
 	Addr   string
 	opts   []grpc.ServerOption
-	Logger log.LoggerI
+	Logger log.Logger
 	ErrCh  chan error
 	LogSv  *pb.LogServer
 	Server *grpc.Server
@@ -32,7 +32,7 @@ func New(opts ...LogServerConfig) *GRPCLogServer {
 		WithAddr("").Apply(server)
 	}
 
-	if server.Logger == nil {
+	if server.Logger != nil {
 		WithLogger().Apply(server)
 	}
 

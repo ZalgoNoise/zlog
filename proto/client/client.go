@@ -56,12 +56,12 @@ func (c GRPCLogClient) dial() *grpc.ClientConn {
 	return conn
 }
 
-// implement LoggerI
+// implement Logger
 //
 // rebuild later if needed; for now the client does not write to anything
 // only messages the server to do so
-func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.LoggerI { return c }
-func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.LoggerI { return c }
+func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger { return c }
+func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger { return c }
 
 func (c GRPCLogClient) Write(p []byte) (n int, err error) {
 	// check if it's gob-encoded
@@ -86,7 +86,7 @@ func (c GRPCLogClient) Write(p []byte) (n int, err error) {
 	return c.Output(m)
 }
 
-func (c GRPCLogClient) Prefix(prefix string) log.LoggerI {
+func (c GRPCLogClient) Prefix(prefix string) log.Logger {
 	if prefix == "" {
 		c.prefix = "log"
 		return c
@@ -95,12 +95,12 @@ func (c GRPCLogClient) Prefix(prefix string) log.LoggerI {
 	return c
 }
 
-func (c GRPCLogClient) Sub(sub string) log.LoggerI {
+func (c GRPCLogClient) Sub(sub string) log.Logger {
 	c.sub = sub
 	return c
 }
 
-func (c GRPCLogClient) Fields(fields map[string]interface{}) log.LoggerI {
+func (c GRPCLogClient) Fields(fields map[string]interface{}) log.Logger {
 	c.meta = fields
 	return c
 }

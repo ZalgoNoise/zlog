@@ -29,10 +29,10 @@ func (l LSAddr) Apply(ls *GRPCLogServer) {
 }
 
 type LSLogger struct {
-	logger log.LoggerI
+	logger log.Logger
 }
 
-func WithLogger(loggers ...log.LoggerI) LogServerConfig {
+func WithLogger(loggers ...log.Logger) LogServerConfig {
 	l := &LSLogger{}
 
 	// enforce defaults

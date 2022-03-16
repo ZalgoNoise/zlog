@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // LogLevel type describes a numeric value for a log level with priority increasing in
@@ -188,7 +189,7 @@ func (m *LogMessage) ToGRPC() (*MessageRequest, error) {
 	}
 
 	return &MessageRequest{
-		Time:   m.Time.Unix(),
+		Time:   timestamppb.New(m.Time),
 		Prefix: m.Prefix,
 		Sub:    m.Sub,
 		Level:  int32(logTypeKeys[m.Level]),
@@ -286,7 +287,7 @@ func (b *MessageBuilder) CallStack(all bool) *MessageBuilder {
 }
 
 func (b *MessageBuilder) FromProto(in *MessageRequest) *MessageBuilder {
-	b.time = time.Unix(in.Time, 0)
+	b.time = in.Time.AsTime()
 	b.level = LogLevel(int(in.Level)).String()
 	b.prefix = in.Prefix
 	b.sub = in.Sub

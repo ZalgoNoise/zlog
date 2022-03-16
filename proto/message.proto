@@ -1,11 +1,12 @@
 syntax = "proto3";
 package log;
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "../log";
 
 message MessageRequest {
-    int64 time = 1;
+    google.protobuf.Timestamp time = 1;
     string prefix = 2;
     string sub = 3;
     int32 level = 4;

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/zalgonoise/zlog/log"
@@ -9,7 +10,7 @@ import (
 )
 
 type GRPCLogServer struct {
-	addr   string
+	Addr   string
 	opts   []grpc.ServerOption
 	Logger log.LoggerI
 	ErrCh  chan error
@@ -27,7 +28,7 @@ func New(opts ...LogServerConfig) *GRPCLogServer {
 		opt.Apply(server)
 	}
 
-	if server.addr == "" {
+	if server.Addr == "" {
 		WithAddr("").Apply(server)
 	}
 
@@ -44,7 +45,7 @@ func New(opts ...LogServerConfig) *GRPCLogServer {
 }
 
 func (s GRPCLogServer) listen() net.Listener {
-	lis, err := net.Listen("tcp", s.addr)
+	lis, err := net.Listen("tcp", s.Addr)
 
 	if err != nil {
 		s.ErrCh <- err
@@ -73,6 +74,8 @@ func (s GRPCLogServer) Serve() {
 
 	s.Server = grpc.NewServer(s.opts...)
 	pb.RegisterLogServiceServer(s.Server, s.LogSv)
+
+	s.Logger.Log(log.NewMessage().Message(fmt.Sprintf("gRPC server running on port %s", s.Addr)).Build())
 
 	if err := s.Server.Serve(lis); err != nil {
 		s.ErrCh <- err

@@ -213,7 +213,13 @@ func (l *Logger) Write(p []byte) (n int, err error) {
 
 	if err != nil {
 		// default to printing message
-		return l.Output(NewMessage().Message(string(p)).Build())
+		return l.Output(NewMessage().
+			Level(LLInfo).
+			Prefix(l.prefix).
+			Sub(l.sub).
+			Message(string(p)).
+			Metadata(l.meta).
+			Build())
 	}
 
 	// print gob-encoded message

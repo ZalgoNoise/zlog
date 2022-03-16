@@ -1,29 +1,19 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/zalgonoise/zlog/log"
-	pb "github.com/zalgonoise/zlog/proto/message"
-	"google.golang.org/grpc"
+	"github.com/zalgonoise/zlog/proto/client"
 )
 
 func main() {
-	port := ":9000"
+	logger := client.New(
+		client.WithAddr(":9099"),
+	)
 
-	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(port, grpc.WithInsecure())
-
-	if err != nil {
-		panic(err)
-	}
-
-	defer conn.Close()
-
-	c := pb.NewLogServiceClient(conn)
-
-	msg := log.NewMessage().
+	msg1 := log.NewMessage().Message("all the way").Build()
+	msg2 := log.NewMessage().
 		Level(log.LLInfo).
 		Prefix("service").
 		Sub("module").
@@ -34,26 +24,26 @@ func main() {
 			"quantity": 3,
 		}).
 		CallStack(true).
-		Build().Proto()
+		Build()
 
-	for i := 0; i < 10; i++ {
-		r, err := sendMsg(c, msg)
+	go func() {
 
-		if err != nil {
-			panic(err)
-		}
+		logger.Info("test")
+		logger.Prefix("service").Sub("module")
+		logger.Warn("serious stuff")
 
-		fmt.Println(r)
+		logger.Prefix("").Sub("")
+
+		logger.Log(msg1)
+		n, err := logger.Output(msg2)
+		fmt.Println(n, err)
+
+	}()
+
+	for {
+		err := <-logger.ErrCh
+		fmt.Println(err)
+
 	}
 
-}
-
-func sendMsg(client pb.LogServiceClient, msg *pb.MessageRequest) (*pb.MessageResponse, error) {
-	response, err := client.Log(context.Background(), msg)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
 }

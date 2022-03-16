@@ -5,20 +5,22 @@ import (
 )
 
 type LogServer struct {
-	msgCh chan *MessageRequest
+	MsgCh chan *MessageRequest
+	Done  chan struct{}
 }
 
 func (s *LogServer) Log(ctx context.Context, msg *MessageRequest) (*MessageResponse, error) {
 	// process input message
 	// logmsg := NewMessage().FromProto(msg).Build()
 	// fmt.Println(logmsg)
-	s.msgCh <- msg
+	s.MsgCh <- msg
 
 	return &MessageResponse{Ok: true}, nil
 }
 
-func NewLogServer(msgCh chan *MessageRequest) *LogServer {
+func NewLogServer() *LogServer {
 	return &LogServer{
-		msgCh: msgCh,
+		MsgCh: make(chan *MessageRequest),
+		Done:  make(chan struct{}),
 	}
 }

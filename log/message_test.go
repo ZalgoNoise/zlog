@@ -786,7 +786,7 @@ func TestLogLevelString(t *testing.T) {
 
 	var passingTests []test
 
-	for k, v := range logTypeVals {
+	for k, v := range LogTypeVals {
 		passingTests = append(passingTests, test{
 			input: k,
 			ok:    v,

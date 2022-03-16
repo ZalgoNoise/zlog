@@ -75,7 +75,7 @@ func (l *Logger) checkDefaults(m *LogMessage) {
 // is simply calling the latter.
 func (l *Logger) Output(m *LogMessage) (n int, err error) {
 
-	if l.levelFilter > logTypeKeys[m.Level] {
+	if l.levelFilter > LogTypeKeys[m.Level] {
 		return 0, nil
 	}
 

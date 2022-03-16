@@ -33,9 +33,9 @@ const (
 
 // String method is defined for LogLevel objects to implement the Stringer interface
 //
-// It returns the string to which this log level is mapped to, in `logTypeVals`
+// It returns the string to which this log level is mapped to, in `LogTypeVals`
 func (ll LogLevel) String() string {
-	return logTypeVals[ll]
+	return LogTypeVals[ll]
 }
 
 // Int method returns a LogLevel's value as an integer, to be used for comparison with
@@ -44,7 +44,7 @@ func (ll LogLevel) Int() int {
 	return int(ll)
 }
 
-var logTypeVals = map[LogLevel]string{
+var LogTypeVals = map[LogLevel]string{
 	0: "trace",
 	1: "debug",
 	2: "info",
@@ -54,7 +54,7 @@ var logTypeVals = map[LogLevel]string{
 	9: "panic",
 }
 
-var logTypeKeys = map[string]int{
+var LogTypeKeys = map[string]int{
 	"trace": 0,
 	"debug": 1,
 	"info":  2,
@@ -191,7 +191,7 @@ func (m *LogMessage) ToProto() (*pb.MessageRequest, error) {
 		Time:   timestamppb.New(m.Time),
 		Prefix: m.Prefix,
 		Sub:    m.Sub,
-		Level:  int32(logTypeKeys[m.Level]),
+		Level:  int32(LogTypeKeys[m.Level]),
 		Msg:    m.Msg,
 		Meta:   s,
 	}, nil
@@ -309,6 +309,10 @@ func (b *MessageBuilder) Build() *LogMessage {
 
 	if b.level == "" {
 		b.level = LLInfo.String()
+	}
+
+	if b.metadata == nil {
+		b.metadata = map[string]interface{}{}
 	}
 
 	return &LogMessage{

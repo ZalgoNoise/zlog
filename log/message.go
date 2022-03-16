@@ -2,15 +2,14 @@ package log
 
 import (
 	"bytes"
-	"context"
 	"encoding/gob"
 	"encoding/json"
-	"fmt"
 	"time"
 
+	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // LogLevel type describes a numeric value for a log level with priority increasing in
@@ -173,12 +172,12 @@ func (m *LogMessage) Bytes() []byte {
 	return buf
 }
 
-func (m *LogMessage) GRPC() *MessageRequest {
-	msg, _ := m.ToGRPC()
+func (m *LogMessage) Proto() *pb.MessageRequest {
+	msg, _ := m.ToProto()
 	return msg
 }
 
-func (m *LogMessage) ToGRPC() (*MessageRequest, error) {
+func (m *LogMessage) ToProto() (*pb.MessageRequest, error) {
 	b, err := mapToBytes(m.Metadata)
 	if err != nil {
 		return nil, err
@@ -188,7 +187,7 @@ func (m *LogMessage) ToGRPC() (*MessageRequest, error) {
 		return nil, err
 	}
 
-	return &MessageRequest{
+	return &pb.MessageRequest{
 		Time:   timestamppb.New(m.Time),
 		Prefix: m.Prefix,
 		Sub:    m.Sub,
@@ -286,7 +285,7 @@ func (b *MessageBuilder) CallStack(all bool) *MessageBuilder {
 	return b
 }
 
-func (b *MessageBuilder) FromProto(in *MessageRequest) *MessageBuilder {
+func (b *MessageBuilder) FromProto(in *pb.MessageRequest) *MessageBuilder {
 	b.time = in.Time.AsTime()
 	b.level = LogLevel(int(in.Level)).String()
 	b.prefix = in.Prefix
@@ -320,14 +319,4 @@ func (b *MessageBuilder) Build() *LogMessage {
 		Msg:      b.msg,
 		Metadata: b.metadata,
 	}
-}
-
-type LogServer struct{}
-
-func (s *LogServer) Log(ctx context.Context, msg *MessageRequest) (*MessageResponse, error) {
-	// process input message
-	logmsg := NewMessage().FromProto(msg).Build()
-	fmt.Println(logmsg)
-
-	return &MessageResponse{Ok: true}, nil
 }

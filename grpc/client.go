@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/zalgonoise/zlog/log"
+	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
 )
 
@@ -20,10 +21,10 @@ func main() {
 
 	defer conn.Close()
 
-	c := log.NewLogServiceClient(conn)
+	c := pb.NewLogServiceClient(conn)
 
 	msg := log.NewMessage().
-		Level(log.LLTrace).
+		Level(log.LLInfo).
 		Prefix("service").
 		Sub("module").
 		Message("grpc logging").
@@ -33,13 +34,26 @@ func main() {
 			"quantity": 3,
 		}).
 		CallStack(true).
-		Build().GRPC()
+		Build().Proto()
 
-	response, err := c.Log(context.Background(), msg)
+	for i := 0; i < 10; i++ {
+		r, err := sendMsg(c, msg)
 
-	if err != nil {
-		panic(err)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(r)
 	}
 
-	fmt.Println(response)
+}
+
+func sendMsg(client pb.LogServiceClient, msg *pb.MessageRequest) (*pb.MessageResponse, error) {
+	response, err := client.Log(context.Background(), msg)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }

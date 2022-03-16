@@ -320,6 +320,10 @@ func TestLoggerSetOuts(t *testing.T) {
 
 }
 
+// func TestLoggerSetEmptyOuts(t *testing.T) {
+
+// }
+
 func TestLoggerAddOuts(t *testing.T) {
 	type test struct {
 		prefix string

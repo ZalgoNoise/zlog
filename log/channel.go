@@ -40,7 +40,7 @@ type LogChannel struct {
 //     logCh.Close()
 //     // or
 //     done <- struct{}{}
-func NewLogCh(logger LoggerI) (logCh ChanneledLogger) {
+func NewLogCh(logger Logger) (logCh ChanneledLogger) {
 
 	msgCh := make(chan *LogMessage)
 	done := make(chan struct{})

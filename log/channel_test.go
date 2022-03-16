@@ -20,7 +20,7 @@ var mockChBufs = [][]*bytes.Buffer{
 
 func TestNewLogCh(t *testing.T) {
 	type log struct {
-		logger LoggerI
+		logger Logger
 		buf    []*bytes.Buffer
 	}
 	type test struct {
@@ -141,7 +141,7 @@ func TestNewLogCh(t *testing.T) {
 				return
 			}
 
-			if logEntry.Metadata == nil && test.msg.Metadata != nil {
+			if len(logEntry.Metadata) == 0 && len(test.msg.Metadata) > 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- retrieved empty metadata object: wanted %s ; got %s",
 					id,
@@ -151,7 +151,7 @@ func TestNewLogCh(t *testing.T) {
 					logEntry.Metadata,
 				)
 				return
-			} else if logEntry.Metadata != nil && test.msg.Metadata == nil {
+			} else if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) == 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- retrieved unexpected metadata object: wanted %s ; got %s",
 					id,
@@ -163,7 +163,7 @@ func TestNewLogCh(t *testing.T) {
 				return
 			}
 
-			if logEntry.Metadata != nil && test.msg.Metadata != nil {
+			if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) > 0 {
 				for k, v := range logEntry.Metadata {
 					if v != nil && test.msg.Metadata[k] == nil {
 						t.Errorf(
@@ -229,7 +229,7 @@ func TestNewLogCh(t *testing.T) {
 
 func TestNewLogChMultiLogger(t *testing.T) {
 	type log struct {
-		logger LoggerI
+		logger Logger
 		buf    []*bytes.Buffer
 	}
 	type test struct {
@@ -261,7 +261,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 						}
 
 						var bufs []*bytes.Buffer
-						var logs []LoggerI
+						var logs []Logger
 
 						for f := 0; f < a; f++ {
 
@@ -360,7 +360,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 				return
 			}
 
-			if logEntry.Metadata == nil && test.msg.Metadata != nil {
+			if len(logEntry.Metadata) == 0 && len(test.msg.Metadata) > 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- retrieved empty metadata object: wanted %s ; got %s",
 					id,
@@ -370,7 +370,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 					logEntry.Metadata,
 				)
 				return
-			} else if logEntry.Metadata != nil && test.msg.Metadata == nil {
+			} else if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) == 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- retrieved unexpected metadata object: wanted %s ; got %s",
 					id,
@@ -382,7 +382,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 				return
 			}
 
-			if logEntry.Metadata != nil && test.msg.Metadata != nil {
+			if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) > 0 {
 				for k, v := range logEntry.Metadata {
 					if v != nil && test.msg.Metadata[k] == nil {
 						t.Errorf(
@@ -445,7 +445,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 
 func TestNewLogChMultiEntry(t *testing.T) {
 	type log struct {
-		logger LoggerI
+		logger Logger
 		buf    []*bytes.Buffer
 	}
 	type test struct {
@@ -490,7 +490,7 @@ func TestNewLogChMultiEntry(t *testing.T) {
 	for a := 0; a < len(mockChBufs[0]); a++ {
 
 		var bufs []*bytes.Buffer
-		var logs []LoggerI
+		var logs []Logger
 		var msgObj []*LogMessage
 		var rxList []string
 

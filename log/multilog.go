@@ -7,18 +7,18 @@ import (
 )
 
 type multiLogger struct {
-	loggers []LoggerI
+	loggers []Logger
 }
 
-// MultiLogger function is a wrapper for multiple LoggerI
+// MultiLogger function is a wrapper for multiple Logger
 //
 // Similar to how io.MultiWriter() is implemented, this function generates a single
-// LoggerI that targets a set of configured LoggerI.
+// Logger that targets a set of configured Logger.
 //
-// As such, a single LoggerI can have multiple Loggers with different configurations and
+// As such, a single Logger can have multiple Loggers with different configurations and
 // output files, while still registering the same log message.
-func MultiLogger(loggers ...LoggerI) LoggerI {
-	allLoggers := make([]LoggerI, 0, len(loggers))
+func MultiLogger(loggers ...Logger) Logger {
+	allLoggers := make([]Logger, 0, len(loggers))
 	allLoggers = append(allLoggers, loggers...)
 
 	return &multiLogger{allLoggers}
@@ -28,11 +28,11 @@ func MultiLogger(loggers ...LoggerI) LoggerI {
 // range through all of its configured loggers and execute the same SetOuts() method call
 // on each of them
 //
-// This method has been created to comply with the LoggerI interface -- but it's worth underlining
+// This method has been created to comply with the Logger interface -- but it's worth underlining
 // that it will overwrite all the loggers' outs. This may not be exactly the best action
 // considering if there are different formats or more than one logger, it will result in
 // different types of messages and / or repeated ones, respectively.
-func (l *multiLogger) SetOuts(outs ...io.Writer) LoggerI {
+func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
 	for _, logger := range l.loggers {
 		logger.SetOuts(outs...)
 	}
@@ -44,11 +44,11 @@ func (l *multiLogger) SetOuts(outs ...io.Writer) LoggerI {
 // range through all of its configured loggers and execute the same AddOuts() method call
 // on each of them
 //
-// This method has been created to comply with the LoggerI interface -- but it's worth underlining
+// This method has been created to comply with the Logger interface -- but it's worth underlining
 // that it will add the same io.Writer to all the loggers' outs. This may not be exactly
 // the best action considering if there are different formats or more than one logger, it will
 // result in different types of messages and / or repeated ones, respectively.
-func (l *multiLogger) AddOuts(outs ...io.Writer) LoggerI {
+func (l *multiLogger) AddOuts(outs ...io.Writer) Logger {
 	for _, logger := range l.loggers {
 		logger.AddOuts(outs...)
 	}
@@ -59,7 +59,7 @@ func (l *multiLogger) AddOuts(outs ...io.Writer) LoggerI {
 // Prefix method is similar to a Logger.Prefix() method, however the multiLogger will
 // range through all of its configured loggers and execute the same Prefix() method call
 // on each of them -- applying the input prefix string as each Logger's prefix.
-func (l *multiLogger) Prefix(prefix string) LoggerI {
+func (l *multiLogger) Prefix(prefix string) Logger {
 	for _, logger := range l.loggers {
 		logger.Prefix(prefix)
 	}
@@ -70,7 +70,7 @@ func (l *multiLogger) Prefix(prefix string) LoggerI {
 // Fields method is similar to a Logger.Fields() method, however the multiLogger will
 // range through all of its configured loggers and execute the same Fields() method call
 // on each of them -- applying the input Metadata map as the Logger's metadata.
-func (l *multiLogger) Fields(fields map[string]interface{}) LoggerI {
+func (l *multiLogger) Fields(fields map[string]interface{}) Logger {
 	for _, logger := range l.loggers {
 		logger.Fields(fields)
 	}
@@ -80,7 +80,7 @@ func (l *multiLogger) Fields(fields map[string]interface{}) LoggerI {
 // Sub method is similar to a Logger.Sub() method, however the multiLogger will
 // range through all of its configured loggers and execute the same Sub() method call
 // on each of them -- applying the input sub-prefix string as each Logger's sub-prefix.
-func (l *multiLogger) Sub(sub string) LoggerI {
+func (l *multiLogger) Sub(sub string) Logger {
 	for _, logger := range l.loggers {
 		logger.Sub(sub)
 	}

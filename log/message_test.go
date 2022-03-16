@@ -10,7 +10,7 @@ import (
 
 var mockBuffer = &bytes.Buffer{}
 var mockLogger = struct {
-	logger LoggerI
+	logger Logger
 	buf    *bytes.Buffer
 }{
 	logger: New(
@@ -172,8 +172,8 @@ var testObjects = []map[string]interface{}{
 var testEmptyObjects = []map[string]interface{}{
 	nil,
 	nil,
-	nil,
-	nil,
+	{},
+	{},
 }
 
 func match(want, got interface{}) bool {
@@ -527,7 +527,7 @@ func TestMessageBuilder(t *testing.T) {
 			return
 		}
 
-		if logEntry.Metadata == nil && test.wants.Metadata != nil {
+		if len(logEntry.Metadata) == 0 && len(test.wants.Metadata) > 0 {
 			t.Errorf(
 				"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- retrieved empty metadata object: wanted %s ; got %s",
 				id,
@@ -539,7 +539,7 @@ func TestMessageBuilder(t *testing.T) {
 				logEntry.Metadata,
 			)
 			return
-		} else if logEntry.Metadata != nil && test.wants.Metadata == nil {
+		} else if len(logEntry.Metadata) > 0 && len(test.wants.Metadata) == 0 {
 			t.Errorf(
 				"#%v -- FAILED -- [MessageBuilder] NewMessage().Level(%s).Prefix(%s).Message(%s).Metadata(%s).Build() Log(msg) -- retrieved unexpected metadata object: wanted %s ; got %s",
 				id,
@@ -553,7 +553,7 @@ func TestMessageBuilder(t *testing.T) {
 			return
 		}
 
-		if logEntry.Metadata != nil && test.wants.Metadata != nil {
+		if len(logEntry.Metadata) > 0 && len(test.wants.Metadata) > 0 {
 			for k, v := range logEntry.Metadata {
 				if v != nil && test.wants.Metadata[k] == nil {
 					t.Errorf(
@@ -678,7 +678,7 @@ func TestMessageBuilderCallStack(t *testing.T) {
 
 	var verify = func(id int, test test, msg *LogMessage) {
 		if !test.ok {
-			if msg.Metadata != nil || len(msg.Metadata) > 0 {
+			if len(msg.Metadata) > 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- callstack present expected otherwise",
 					id,

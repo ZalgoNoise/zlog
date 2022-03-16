@@ -8,21 +8,21 @@ import (
 	"sync"
 )
 
-// LoggerI interface defines the general behavior of a Logger object
+// Logger interface defines the general behavior of a Logger object
 //
 // It lists all the methods that a Logger implements in order to print
 // timestamped messages to an io.Writer, and additional configuration
 // methods to enhance its behavior and application (such as `Prefix()`
 // and `Fields()`; and `SetOuts()` or `AddOuts()`)
-type LoggerI interface {
+type Logger interface {
 	io.Writer
 	Printer
 
-	SetOuts(outs ...io.Writer) LoggerI
-	AddOuts(outs ...io.Writer) LoggerI
-	Prefix(prefix string) LoggerI
-	Sub(sub string) LoggerI
-	Fields(fields map[string]interface{}) LoggerI
+	SetOuts(outs ...io.Writer) Logger
+	AddOuts(outs ...io.Writer) Logger
+	Prefix(prefix string) Logger
+	Sub(sub string) Logger
+	Fields(fields map[string]interface{}) Logger
 	IsSkipExit() bool
 }
 
@@ -44,7 +44,7 @@ type LoggerBuilder struct {
 	levelFilter int
 }
 
-// New function allows creating a basic Logger (implementing the LoggerI
+// New function allows creating a basic Logger (implementing the Logger
 // interface).
 //
 // Its input parameters are a list of objects which implement the
@@ -53,7 +53,7 @@ type LoggerBuilder struct {
 //
 // Defaults are automatically applied to all elements which aren't defined
 // in the input configuration.
-func New(confs ...LoggerConfig) LoggerI {
+func New(confs ...LoggerConfig) Logger {
 	builder := &LoggerBuilder{}
 
 	MultiConf(confs...).Apply(builder)
@@ -70,7 +70,7 @@ func New(confs ...LoggerConfig) LoggerI {
 		DefPrefixCfg.Apply(builder)
 	}
 
-	return &Logger{
+	return &logger{
 		out:         builder.out,
 		prefix:      builder.prefix,
 		sub:         builder.sub,
@@ -80,9 +80,9 @@ func New(confs ...LoggerConfig) LoggerI {
 	}
 }
 
-// Logger struct describes a basic Logger, which is used to print timestamped messages
+// logger struct describes a basic Logger, which is used to print timestamped messages
 // to an io.Writer
-type Logger struct {
+type logger struct {
 	mu          sync.Mutex
 	out         io.Writer
 	buf         []byte
@@ -99,7 +99,7 @@ type Logger struct {
 //
 // By default, these input io.Writer will be processed with an io.MultiWriter call to create
 // a wrapper for multiple io.Writers
-func (l *Logger) SetOuts(outs ...io.Writer) LoggerI {
+func (l *logger) SetOuts(outs ...io.Writer) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if len(outs) == 0 {
@@ -117,7 +117,7 @@ func (l *Logger) SetOuts(outs ...io.Writer) LoggerI {
 //
 // By default, these input io.Writer will be processed with an io.MultiWriter call to create
 // a wrapper for multiple io.Writers
-func (l *Logger) AddOuts(outs ...io.Writer) LoggerI {
+func (l *logger) AddOuts(outs ...io.Writer) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -135,7 +135,7 @@ func (l *Logger) AddOuts(outs ...io.Writer) LoggerI {
 //
 // A logger-scoped prefix is not cleared with new Log messages, but `MessageBuilder.Prefix()` calls will
 // replace it.
-func (l *Logger) Prefix(prefix string) LoggerI {
+func (l *logger) Prefix(prefix string) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -157,7 +157,7 @@ func (l *Logger) Prefix(prefix string) LoggerI {
 //
 // A logger-scoped sub-prefix is not cleared with new Log messages, but `MessageBuilder.Sub()` calls will
 // replace it.
-func (l *Logger) Sub(sub string) LoggerI {
+func (l *logger) Sub(sub string) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -173,7 +173,7 @@ func (l *Logger) Sub(sub string) LoggerI {
 //
 // Logger-scoped metadata fields are not cleared with new log messages, but only added to the existing
 // metadata map. These can be cleared with a call to `Logger.Fields(nil)`
-func (l *Logger) Fields(fields map[string]interface{}) LoggerI {
+func (l *logger) Fields(fields map[string]interface{}) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -187,7 +187,7 @@ func (l *Logger) Fields(fields map[string]interface{}) LoggerI {
 //
 // It is used in functions which call these, to first evaluate if those calls should be
 // executed or skipped
-func (l *Logger) IsSkipExit() bool {
+func (l *logger) IsSkipExit() bool {
 	return l.skipExit
 }
 
@@ -202,7 +202,7 @@ func (l *Logger) IsSkipExit() bool {
 //
 // Otherwise, if a simple slice of bytes is passed, it is considered to be the LogMessage.Msg
 // portion, and the remaining fields will default to the Logger's set elements
-func (l *Logger) Write(p []byte) (n int, err error) {
+func (l *logger) Write(p []byte) (n int, err error) {
 	// check if it's gob-encoded
 	m := &LogMessage{}
 

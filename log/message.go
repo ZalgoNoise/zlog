@@ -259,7 +259,11 @@ func (b *MessageBuilder) Level(l LogLevel) *MessageBuilder {
 // Metadata method will set (or add) the metadata element in the MessageBuilder
 // with map m, and return the builder
 func (b *MessageBuilder) Metadata(m map[string]interface{}) *MessageBuilder {
-	if b.metadata == nil {
+	if m == nil {
+		return b
+	}
+
+	if b.metadata == nil || len(b.metadata) == 0 {
 		b.metadata = m
 	} else {
 		for k, v := range m {

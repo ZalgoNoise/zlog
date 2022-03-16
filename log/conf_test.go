@@ -19,7 +19,7 @@ func TestMultiConf(t *testing.T) {
 				out:         os.Stdout,
 				prefix:      "log",
 				sub:         "",
-				fmt:         TextFormat,
+				fmt:         ColorTextLevelFirst,
 				skipExit:    false,
 				levelFilter: 0,
 			},

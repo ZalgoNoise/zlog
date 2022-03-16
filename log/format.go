@@ -88,6 +88,7 @@ var LogFormatters = map[int]LogFormatter{
 	10: NewTextFormat().LevelFirst().Build(),
 	11: NewTextFormat().DoubleSpace().Color().Build(),
 	12: NewTextFormat().DoubleSpace().LevelFirst().Color().Build(),
+	13: NewTextFormat().LevelFirst().Color().Build(),
 	14: NewTextFormat().Color().Build(),
 }
 

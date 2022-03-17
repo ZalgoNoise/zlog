@@ -8,8 +8,8 @@ import (
 )
 
 func main() {
-	logger := client.New(
-		client.WithAddr(":9099", ":9090"),
+	logger, errCh := client.New(
+		client.WithAddr(":9099"),
 	)
 
 	msg1 := log.NewMessage().Message("all the way").Build()
@@ -34,14 +34,16 @@ func main() {
 
 		logger.Prefix("").Sub("")
 
-		logger.Log(msg1)
+		for i := 0; i < 1000; i++ {
+			logger.Log(msg1)
+		}
 		n, err := logger.Output(msg2)
 		fmt.Println(n, err)
 
 	}()
 
 	for {
-		err := <-logger.ErrCh
+		err := <-errCh
 		fmt.Println(err)
 
 	}

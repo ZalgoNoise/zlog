@@ -24,3 +24,30 @@ func NewLogServer() *LogServer {
 		Done:  make(chan struct{}),
 	}
 }
+
+// type LogStreamServer struct {
+// 	MsgCh chan *MessageRequest
+// 	Done  chan struct{}
+// }
+
+// func (s *LogServer) LogStream(stream LogService_LogStreamClient) error {
+// 	for {
+// 		in, err := stream.Recv()
+// 		if err == io.EOF {
+// 			return nil
+// 		}
+// 		if err != nil {
+// 			return err
+// 		}
+// 		if !in.GetOk() {
+// 			return errors.New("gRPC server failed to write the log message")
+// 		}
+// 	}
+// }
+
+// func NewLogStreamServer() *LogStreamServer {
+// 	return &LogStreamServer{
+// 		MsgCh: make(chan *MessageRequest),
+// 		Done:  make(chan struct{}),
+// 	}
+// }

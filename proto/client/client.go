@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/gob"
 	"fmt"
 	"io"
@@ -16,8 +15,7 @@ import (
 type GRPCLogClient struct {
 	addr  *ConnAddr
 	opts  []grpc.DialOption
-	ErrCh chan error
-	Ctx   context.Context
+	errCh chan error
 
 	prefix      string
 	sub         string
@@ -26,9 +24,9 @@ type GRPCLogClient struct {
 	levelFilter int
 }
 
-func New(opts ...LogClientConfig) *GRPCLogClient {
+func New(opts ...LogClientConfig) (log.Logger, chan error) {
 	client := &GRPCLogClient{
-		ErrCh: make(chan error),
+		errCh: make(chan error),
 	}
 
 	for _, opt := range opts {
@@ -43,11 +41,7 @@ func New(opts ...LogClientConfig) *GRPCLogClient {
 		WithGRPCOpts().Apply(client)
 	}
 
-	if client.Ctx == nil {
-		NewContext().Apply(client)
-	}
-
-	return client
+	return client, client.errCh
 }
 
 // implement Logger
@@ -63,22 +57,25 @@ func (c GRPCLogClient) Output(m *log.LogMessage) (n int, err error) {
 		conn, err = grpc.Dial(remote, c.opts...)
 
 		if err != nil {
-			c.ErrCh <- err
+			c.errCh <- err
 			return -1, err
 		}
 		defer conn.Close()
 
 		client := pb.NewLogServiceClient(conn)
 
-		response, err := client.Log(c.Ctx, m.Proto())
+		ctx, cancel := NewContext()
+		defer cancel()
+
+		response, err := client.Log(ctx, m.Proto())
 
 		if err != nil {
-			c.ErrCh <- err
+			c.errCh <- err
 			return -1, err
 		}
 
 		if !response.Ok {
-			c.ErrCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
+			c.errCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
 			return -1, err
 		}
 	}

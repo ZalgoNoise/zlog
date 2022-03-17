@@ -117,6 +117,8 @@ type TextFmt struct {
 	doubleSpace bool
 	colored     bool
 	upper       bool
+	noTimestamp bool
+	noHeaders   bool
 }
 
 // TextFmtBuilder struct will define the base of a custom TextFmt object,
@@ -130,6 +132,8 @@ type TextFmtBuilder struct {
 	doubleSpace bool
 	colored     bool
 	upper       bool
+	noTimestamp bool
+	noHeaders   bool
 }
 
 // NewTextFormat function will initialize a TextFmtBuilder
@@ -172,6 +176,20 @@ func (b *TextFmtBuilder) Upper() *TextFmtBuilder {
 	return b
 }
 
+// NoTimestamp method will set a TextFmtBuilder's noTimestamp element to true,
+// and return itself to allow method chaining
+func (b *TextFmtBuilder) NoTimestamp() *TextFmtBuilder {
+	b.noTimestamp = true
+	return b
+}
+
+// NoHeaders method will set a TextFmtBuilder's noHeaders element to true,
+// and return itself to allow method chaining
+func (b *TextFmtBuilder) NoHeaders() *TextFmtBuilder {
+	b.noHeaders = true
+	return b
+}
+
 // Build method will ensure the mandatory elements of TextFmt are set
 // and set them as default if otherwise, returning a pointer to a
 // (custom) TextFmt object
@@ -186,6 +204,8 @@ func (b *TextFmtBuilder) Build() *TextFmt {
 		doubleSpace: b.doubleSpace,
 		colored:     b.colored,
 		upper:       b.upper,
+		noTimestamp: b.noTimestamp,
+		noHeaders:   b.noHeaders,
 	}
 }
 
@@ -193,69 +213,68 @@ func (b *TextFmtBuilder) Build() *TextFmt {
 //
 // This method will process the input LogMessage and marshal it according to this LogFormatter
 func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
-	var message string
-	var format string
-	var subPrefix string
+	var sb strings.Builder
 
-	if f.doubleSpace {
-		format = extendedTextFormat
-		subPrefix = extendedTextWithSubPrefix
-	} else {
-		format = baseTextFormat
-		subPrefix = baseTextWithSubPrefix
-	}
-
-	ftime := f.fmtTime(log.Time)
-
-	if f.levelFirst {
-		if log.Sub == "" {
-			message = fmt.Sprintf(
-				format,
-				f.colorize(log.Level),
-				ftime,
-				f.capitalize(log.Prefix),
-				log.Msg,
-				f.fmtMetadata(log.Metadata),
-			)
-		} else {
-			subFormat := subPrefix + format
-			message = fmt.Sprintf(
-				subFormat,
-				f.colorize(log.Level),
-				ftime,
-				f.capitalize(log.Prefix),
-				f.capitalize(log.Sub),
-				log.Msg,
-				f.fmtMetadata(log.Metadata),
-			)
-
+	// [info] (...)
+	if f.levelFirst && !f.noHeaders {
+		sb.WriteString("[")
+		sb.WriteString(f.colorize(log.Level))
+		sb.WriteString("]\t")
+		if f.doubleSpace {
+			sb.WriteString("\t")
 		}
-	} else {
-		if log.Sub == "" {
-			message = fmt.Sprintf(
-				format,
-				ftime,
-				f.colorize(log.Level),
-				f.capitalize(log.Prefix),
-				log.Msg,
-				f.fmtMetadata(log.Metadata),
-			)
-		} else {
-			subFormat := subPrefix + format
-			message = fmt.Sprintf(
-				subFormat,
-				ftime,
-				f.colorize(log.Level),
-				f.capitalize(log.Prefix),
-				f.capitalize(log.Sub),
-				log.Msg,
-				f.fmtMetadata(log.Metadata),
-			)
+	}
+	if !f.noTimestamp {
+		// [time] (...)
+		sb.WriteString("[")
+		sb.WriteString(f.fmtTime(log.Time))
+		sb.WriteString("]\t")
+		if f.doubleSpace {
+			sb.WriteString("\t")
+		}
+	}
+	if !f.levelFirst {
+		// (...) [info] (...)
+		sb.WriteString("[")
+		sb.WriteString(f.colorize(log.Level))
+		sb.WriteString("]\t")
+		if f.doubleSpace {
+			sb.WriteString("\t")
+		}
+	}
+	if !f.noHeaders {
+		if log.Prefix != "" {
+			// (...) [service] (...)
+			sb.WriteString("[")
+			sb.WriteString(f.capitalize(log.Prefix))
+			sb.WriteString("]\t")
+			if f.doubleSpace {
+				sb.WriteString("\t")
+			}
+		}
 
+		if log.Sub != "" {
+			// (...) [module] (...)
+			sb.WriteString("[")
+			sb.WriteString(f.capitalize(log.Sub))
+			sb.WriteString("]\t")
+			if f.doubleSpace {
+				sb.WriteString("\t")
+			}
 		}
 	}
 
-	buf = []byte(message)
+	sb.WriteString(log.Msg)
+
+	if len(log.Metadata) > 0 {
+		sb.WriteString("\t")
+		if f.doubleSpace {
+			sb.WriteString("\t")
+		}
+		sb.WriteString(f.fmtMetadata(log.Metadata))
+	}
+
+	buf = []byte(sb.String())
 	return
 }
 

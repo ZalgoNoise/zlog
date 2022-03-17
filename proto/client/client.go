@@ -14,7 +14,7 @@ import (
 )
 
 type GRPCLogClient struct {
-	addr  ConnAddr
+	addr  *ConnAddr
 	opts  []grpc.DialOption
 	ErrCh chan error
 
@@ -58,7 +58,7 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 		addr.Add(r.Strings()...)
 	}
 
-	c.addr = *addr
+	c.addr = addr
 
 	return c
 }

@@ -27,7 +27,7 @@ func WithAddr(addr ...string) LogClientConfig {
 }
 
 func (l LSAddr) Apply(ls *GRPCLogClient) {
-	ls.addr = l.addr
+	ls.addr = &l.addr
 }
 
 type LSOpts struct {

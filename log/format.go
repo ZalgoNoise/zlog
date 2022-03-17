@@ -13,11 +13,7 @@ import (
 )
 
 const (
-	baseTextFormat            string = "[%s]\t[%s]\t[%s]\t%s\t%s\n"
-	extendedTextFormat        string = "[%s]\t\t[%s]\t\t[%s]\t\t%s\t\t%s\n"
-	baseTextWithSubPrefix     string = "[%s]\t"
-	extendedTextWithSubPrefix string = "[%s]\t\t"
-	colorReset                string = "\033[0m"
+	colorReset string = "\033[0m"
 )
 
 const (
@@ -90,6 +86,11 @@ var LogFormatters = map[int]LogFormatter{
 	12: NewTextFormat().DoubleSpace().LevelFirst().Color().Build(),
 	13: NewTextFormat().LevelFirst().Color().Build(),
 	14: NewTextFormat().Color().Build(),
+	15: NewTextFormat().NoHeaders().NoTimestamp().NoLevel().Build(),
+	16: NewTextFormat().NoHeaders().Build(),
+	17: NewTextFormat().NoTimestamp().Build(),
+	18: NewTextFormat().NoTimestamp().Color().Build(),
+	19: NewTextFormat().NoTimestamp().Color().Upper().Build(),
 }
 
 var (
@@ -107,6 +108,11 @@ var (
 	ColorTextLevelFirstSpaced LogFormatter = LogFormatters[12] // placeholder for an initialized  LogFormatter, with color, level-first and double spaces
 	ColorTextLevelFirst       LogFormatter = LogFormatters[13] // placeholder for an initialized  LogFormatter, with color and level-first
 	ColorText                 LogFormatter = LogFormatters[14] // placeholder for an initialized  LogFormatter, with color
+	TextOnly                  LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, with only the text content
+	TextNoHeaders             LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without headers
+	TextNoTimestamp           LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp
+	ColorTextNoTimestamp      LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp
+	ColorTextUpperNoTimestamp LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp and uppercase headers
 )
 
 // TextFmt struct describes the different manipulations and processing that a
@@ -119,6 +125,7 @@ type TextFmt struct {
 	upper       bool
 	noTimestamp bool
 	noHeaders   bool
+	noLevel     bool
 }
 
 // TextFmtBuilder struct will define the base of a custom TextFmt object,
@@ -134,6 +141,7 @@ type TextFmtBuilder struct {
 	upper       bool
 	noTimestamp bool
 	noHeaders   bool
+	noLevel     bool
 }
 
 // NewTextFormat function will initialize a TextFmtBuilder
@@ -190,12 +198,31 @@ func (b *TextFmtBuilder) NoHeaders() *TextFmtBuilder {
 	return b
 }
 
+// NoLevel method will set a TextFmtBuilder's noLevel element to true,
+// and return itself to allow method chaining
+func (b *TextFmtBuilder) NoLevel() *TextFmtBuilder {
+	b.noLevel = true
+	return b
+}
+
 // Build method will ensure the mandatory elements of TextFmt are set
 // and set them as default if otherwise, returning a pointer to a
 // (custom) TextFmt object
 func (b *TextFmtBuilder) Build() *TextFmt {
 	if b.timeFormat == "" {
 		b.timeFormat = LTRFC3339Nano
+	}
+
+	if b.noLevel && b.levelFirst {
+		b.levelFirst = false
+	}
+
+	if b.noLevel && b.colored {
+		b.colored = false
+	}
+
+	if b.noLevel && b.noHeaders && b.upper {
+		b.upper = false
 	}
 
 	return &TextFmt{
@@ -206,6 +233,7 @@ func (b *TextFmtBuilder) Build() *TextFmt {
 		upper:       b.upper,
 		noTimestamp: b.noTimestamp,
 		noHeaders:   b.noHeaders,
+		noLevel:     b.noLevel,
 	}
 }
 
@@ -233,7 +261,7 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 			sb.WriteString("\t")
 		}
 	}
-	if !f.levelFirst {
+	if !f.levelFirst && !f.noLevel {
 		// (...) [info] (...)
 		sb.WriteString("[")
 		sb.WriteString(f.colorize(log.Level))

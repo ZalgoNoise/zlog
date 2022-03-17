@@ -32,7 +32,7 @@ func New(opts ...LogServerConfig) *GRPCLogServer {
 		WithAddr("").Apply(server)
 	}
 
-	if server.Logger != nil {
+	if server.Logger == nil {
 		WithLogger().Apply(server)
 	}
 

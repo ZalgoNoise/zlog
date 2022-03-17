@@ -14,7 +14,7 @@ import (
 )
 
 type GRPCLogClient struct {
-	addr  string
+	addr  ConnAddr
 	opts  []grpc.DialOption
 	ErrCh chan error
 
@@ -34,7 +34,7 @@ func New(opts ...LogClientConfig) *GRPCLogClient {
 		opt.Apply(client)
 	}
 
-	if client.addr == "" {
+	if client.addr.Len() == 0 {
 		WithAddr("").Apply(client)
 	}
 
@@ -45,23 +45,38 @@ func New(opts ...LogClientConfig) *GRPCLogClient {
 	return client
 }
 
-func (c GRPCLogClient) dial() *grpc.ClientConn {
-	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(c.addr, c.opts...)
-
-	if err != nil {
-		c.ErrCh <- err
-		return nil
-	}
-	return conn
-}
-
 // implement Logger
-//
-// rebuild later if needed; for now the client does not write to anything
-// only messages the server to do so
-func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger { return c }
-func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger { return c }
+
+func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
+	addr := &ConnAddr{}
+
+	for _, remote := range outs {
+		r, ok := remote.(ConnAddr)
+		if !ok {
+			return c
+		}
+		addr.Add(r.Strings()...)
+	}
+
+	c.addr = *addr
+
+	return c
+}
+func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
+	addr := &ConnAddr{}
+
+	for _, remote := range outs {
+		r, ok := remote.(ConnAddr)
+		if !ok {
+			return c
+		}
+		addr.Add(r.Strings()...)
+	}
+
+	c.addr.Add(addr.Strings()...)
+
+	return c
+}
 
 func (c GRPCLogClient) Write(p []byte) (n int, err error) {
 	// check if it's gob-encoded
@@ -118,28 +133,30 @@ func (c GRPCLogClient) Output(m *log.LogMessage) (n int, err error) {
 		return 0, nil
 	}
 
-	// conn := c.dial()
 	var conn *grpc.ClientConn
-	conn, err = grpc.Dial(c.addr, c.opts...)
 
-	if err != nil {
-		c.ErrCh <- err
-		return -1, err
-	}
-	defer conn.Close()
+	for _, remote := range c.addr.Strings() {
+		conn, err = grpc.Dial(remote, c.opts...)
 
-	client := pb.NewLogServiceClient(conn)
+		if err != nil {
+			c.ErrCh <- err
+			return -1, err
+		}
+		defer conn.Close()
 
-	response, err := client.Log(context.Background(), m.Proto())
+		client := pb.NewLogServiceClient(conn)
 
-	if err != nil {
-		c.ErrCh <- err
-		return -1, err
-	}
+		response, err := client.Log(context.Background(), m.Proto())
 
-	if !response.Ok {
-		c.ErrCh <- fmt.Errorf("failed to write message to gRPC Log Server: %v", response)
-		return -1, err
+		if err != nil {
+			c.ErrCh <- err
+			return -1, err
+		}
+
+		if !response.Ok {
+			c.ErrCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
+			return -1, err
+		}
 	}
 	return 1, nil
 

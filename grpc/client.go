@@ -9,7 +9,7 @@ import (
 
 func main() {
 	logger := client.New(
-		client.WithAddr(":9099"),
+		client.WithAddr(":9099", ":9090"),
 	)
 
 	msg1 := log.NewMessage().Message("all the way").Build()

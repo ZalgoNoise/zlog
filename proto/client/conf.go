@@ -10,18 +10,20 @@ type LogClientConfig interface {
 }
 
 type LSAddr struct {
-	addr string
+	addr ConnAddr
 }
 
-func WithAddr(addr string) LogClientConfig {
-	// enforce defaults
-	if addr == "" || addr == ":" {
-		addr = ":9099"
+func WithAddr(addr ...string) LogClientConfig {
+	a := &LSAddr{}
+
+	if len(addr) == 0 || addr == nil {
+		a.addr.Add(":9099")
+		return a
 	}
 
-	return &LSAddr{
-		addr: addr,
-	}
+	a.addr.Add(addr...)
+
+	return a
 }
 
 func (l LSAddr) Apply(ls *GRPCLogClient) {

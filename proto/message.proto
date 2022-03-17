@@ -22,4 +22,5 @@ message MessageResponse {
 
 service LogService {
     rpc Log(MessageRequest) returns (MessageResponse) {} 
+    // rpc LogStream(stream MessageRequest) returns (stream MessageResponse) {}
 }

@@ -17,6 +17,7 @@ type GRPCLogClient struct {
 	addr  *ConnAddr
 	opts  []grpc.DialOption
 	ErrCh chan error
+	Ctx   context.Context
 
 	prefix      string
 	sub         string
@@ -42,10 +43,48 @@ func New(opts ...LogClientConfig) *GRPCLogClient {
 		WithGRPCOpts().Apply(client)
 	}
 
+	if client.Ctx == nil {
+		NewContext().Apply(client)
+	}
+
 	return client
 }
 
 // implement Logger
+
+func (c GRPCLogClient) Output(m *log.LogMessage) (n int, err error) {
+	if c.levelFilter > log.LogTypeKeys[m.Level] {
+		return 0, nil
+	}
+
+	var conn *grpc.ClientConn
+
+	for _, remote := range c.addr.Strings() {
+		conn, err = grpc.Dial(remote, c.opts...)
+
+		if err != nil {
+			c.ErrCh <- err
+			return -1, err
+		}
+		defer conn.Close()
+
+		client := pb.NewLogServiceClient(conn)
+
+		response, err := client.Log(c.Ctx, m.Proto())
+
+		if err != nil {
+			c.ErrCh <- err
+			return -1, err
+		}
+
+		if !response.Ok {
+			c.ErrCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
+			return -1, err
+		}
+	}
+	return 1, nil
+
+}
 
 func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 	addr := &ConnAddr{}
@@ -126,40 +165,6 @@ func (c GRPCLogClient) IsSkipExit() bool {
 
 func (c GRPCLogClient) Log(m *log.LogMessage) {
 	c.Output(m)
-}
-
-func (c GRPCLogClient) Output(m *log.LogMessage) (n int, err error) {
-	if c.levelFilter > log.LogTypeKeys[m.Level] {
-		return 0, nil
-	}
-
-	var conn *grpc.ClientConn
-
-	for _, remote := range c.addr.Strings() {
-		conn, err = grpc.Dial(remote, c.opts...)
-
-		if err != nil {
-			c.ErrCh <- err
-			return -1, err
-		}
-		defer conn.Close()
-
-		client := pb.NewLogServiceClient(conn)
-
-		response, err := client.Log(context.Background(), m.Proto())
-
-		if err != nil {
-			c.ErrCh <- err
-			return -1, err
-		}
-
-		if !response.Ok {
-			c.ErrCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
-			return -1, err
-		}
-	}
-	return 1, nil
-
 }
 
 func (c GRPCLogClient) Print(v ...interface{}) {

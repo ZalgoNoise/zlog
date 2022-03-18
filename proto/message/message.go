@@ -13,9 +13,7 @@ type LogServer struct {
 }
 
 func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageResponse, error) {
-	// process input message
-	// logmsg := NewMessage().FromProto(msg).Build()
-	// fmt.Println(logmsg)
+	// fmt.Print(CtxGet(ctx), "::")
 	s.MsgCh <- in
 
 	return &MessageResponse{Ok: true}, nil
@@ -39,6 +37,9 @@ func (s *LogServer) LogStream(stream LogService_LogStreamServer) error {
 				s.ErrCh <- err
 				return
 			}
+			// ctx := stream.Context()
+			// fmt.Print(CtxGet(ctx), "::")
+
 			s.MsgCh <- in
 			err = stream.Send(&MessageResponse{Ok: true})
 			if err != nil {
@@ -53,30 +54,3 @@ func (s *LogServer) LogStream(stream LogService_LogStreamServer) error {
 		fmt.Println(err)
 	}
 }
-
-// type LogStreamServer struct {
-// 	MsgCh chan *MessageRequest
-// 	Done  chan struct{}
-// }
-
-// func (s *LogServer) LogStream(stream LogService_LogStreamClient) error {
-// 	for {
-// 		in, err := stream.Recv()
-// 		if err == io.EOF {
-// 			return nil
-// 		}
-// 		if err != nil {
-// 			return err
-// 		}
-// 		if !in.GetOk() {
-// 			return errors.New("gRPC server failed to write the log message")
-// 		}
-// 	}
-// }
-
-// func NewLogStreamServer() *LogStreamServer {
-// 	return &LogStreamServer{
-// 		MsgCh: make(chan *MessageRequest),
-// 		Done:  make(chan struct{}),
-// 	}
-// }

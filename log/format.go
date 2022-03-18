@@ -301,6 +301,7 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 		}
 		sb.WriteString(f.fmtMetadata(log.Metadata))
 	}
+	sb.WriteString("\n")
 
 	buf = []byte(sb.String())
 	return

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,7 +14,13 @@ type LogClientConfig interface {
 	Apply(ls *GRPCLogClientBuilder)
 }
 
-const defaultTimeout = time.Second * 30
+// can't compare Deadline Exceeded errors with
+//   if err == context.DeadlineExceeded
+// nor
+//   if errors.Is(err, context.DeadlineExceeded)
+var DeadlineError = regexp.MustCompile(`rpc error: code = DeadlineExceeded desc = context deadline exceeded`)
+
+const defaultTimeout = time.Second * 3
 
 type ContextValue string
 

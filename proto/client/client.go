@@ -59,11 +59,6 @@ func newGRPCLogClient(opts ...LogClientConfig) *GRPCLogClientBuilder {
 func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 	builder := newGRPCLogClient(opts...)
 
-	err := builder.connect()
-	if err != nil {
-		panic(err)
-	}
-
 	client := &GRPCLogClient{
 		addr:  builder.addr,
 		opts:  builder.opts,
@@ -82,31 +77,7 @@ func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 func newUnaryLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 	errCh := make(chan error)
 
-	go func() {
-		for remote, conn := range c.addr.Map() {
-			defer conn.Close()
-
-			client := pb.NewLogServiceClient(conn)
-
-			for msg := range c.msgCh {
-				ctx, cancel := NewContextTimeout()
-
-				response, err := client.Log(ctx, msg.Proto())
-				if err != nil {
-					errCh <- err
-					cancel()
-					return
-				}
-				if !response.Ok {
-					errCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
-					cancel()
-					return
-				}
-				cancel()
-			}
-
-		}
-	}()
+	go c.log(errCh)
 
 	return c, errCh
 }
@@ -115,52 +86,12 @@ func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 
 	errCh := make(chan error)
 
-	for _, conn := range c.addr.Map() {
-		logClient := pb.NewLogServiceClient(conn)
-		stream, err := logClient.LogStream(NewContext())
-
-		if err != nil {
-			errCh <- err
-			return nil, errCh
-		}
-
-		go func(client *GRPCLogClient) {
-			respCh := make(chan bool)
-			go func() {
-				for {
-					in, err := stream.Recv()
-					if err != nil {
-						errCh <- err
-						respCh <- false
-					}
-					respCh <- in.GetOk()
-				}
-			}()
-
-			for {
-				select {
-				case out := <-client.msgCh:
-					err := stream.Send(out.Proto())
-					if err != nil {
-						errCh <- err
-					}
-				case in := <-respCh:
-					if !in {
-						errCh <- errors.New("failed to write log message to gRPC server")
-						return
-					}
-				case <-client.done:
-					return
-				}
-
-			}
-		}(c)
-	}
+	go c.stream(errCh)
 
 	return c, errCh
 }
 
-func (c GRPCLogClientBuilder) connect() error {
+func (c GRPCLogClient) connect() error {
 	if c.addr.Len() == 0 {
 		return errors.New("cannot connect to gRPC server since no addresses were provided")
 	}
@@ -178,6 +109,102 @@ func (c GRPCLogClientBuilder) connect() error {
 
 	}
 	return nil
+}
+
+func (c GRPCLogClient) log(errCh chan error) {
+	err := c.connect()
+	if err != nil {
+		// errCh := make(chan error)
+		// go func() {
+		errCh <- err
+		return
+		// }()
+
+		// return nil, errCh
+	}
+
+	for remote, conn := range c.addr.Map() {
+		defer conn.Close()
+
+		client := pb.NewLogServiceClient(conn)
+
+		for msg := range c.msgCh {
+			ctx, cancel := NewContextTimeout()
+
+			response, err := client.Log(ctx, msg.Proto())
+			if err != nil {
+				errCh <- err
+				cancel()
+				return
+			}
+			if !response.Ok {
+				errCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
+				cancel()
+				return
+			}
+			cancel()
+		}
+	}
+}
+
+func (c GRPCLogClient) stream(errCh chan error) {
+
+	localErr := make(chan error)
+
+	err := c.connect()
+	if err != nil {
+		errCh <- err
+		return
+	}
+	for _, conn := range c.addr.Map() {
+		logClient := pb.NewLogServiceClient(conn)
+		ctx, cancel := NewContextTimeout()
+		stream, err := logClient.LogStream(ctx)
+
+		if err != nil {
+			errCh <- err
+		}
+
+		go func() {
+			respCh := make(chan bool)
+			go func() {
+				for {
+					in, err := stream.Recv()
+					if err != nil {
+						localErr <- err
+					}
+					respCh <- in.GetOk()
+				}
+			}()
+
+			for {
+				select {
+				case out := <-c.msgCh:
+					err := stream.Send(out.Proto())
+					if err != nil {
+						localErr <- err
+					}
+				case in := <-respCh:
+					if !in {
+						errCh <- errors.New("failed to write log message to gRPC server")
+						return
+					}
+				case <-c.done:
+					cancel()
+					return
+				case err := <-localErr:
+					if DeadlineError.MatchString(err.Error()) {
+						go c.stream(errCh)
+					} else {
+						errCh <- err
+						cancel()
+					}
+					return
+				}
+
+			}
+		}()
+	}
 }
 
 // implement ChanneledLogger

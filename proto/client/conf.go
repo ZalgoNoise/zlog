@@ -1,42 +1,12 @@
 package client
 
 import (
-	"context"
-	"regexp"
-	"time"
-
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type LogClientConfig interface {
 	Apply(ls *GRPCLogClientBuilder)
-}
-
-// can't compare Deadline Exceeded errors with
-//   if err == context.DeadlineExceeded
-// nor
-//   if errors.Is(err, context.DeadlineExceeded)
-var DeadlineError = regexp.MustCompile(`rpc error: code = DeadlineExceeded desc = context deadline exceeded`)
-
-const defaultTimeout = time.Second * 3
-
-type ContextValue string
-
-func NewContext() context.Context {
-	bgCtx := context.Background()
-	c := context.WithValue(bgCtx, ContextValue("id"), ContextValue(uuid.New().String()))
-
-	return c
-}
-
-func NewContextTimeout() (context.Context, context.CancelFunc) {
-	bgCtx := context.Background()
-	vctx := context.WithValue(bgCtx, ContextValue("id"), ContextValue(uuid.New().String()))
-
-	c, cancel := context.WithTimeout(vctx, defaultTimeout)
-	return c, cancel
 }
 
 type LSAddr struct {

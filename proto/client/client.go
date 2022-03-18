@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
 )
+
+var DeadlineError = regexp.MustCompile(`rpc error: code = DeadlineExceeded desc = context deadline exceeded`)
 
 type GRPCLogger interface {
 	log.Logger
@@ -103,7 +106,6 @@ func (c GRPCLogClient) connect() error {
 
 		if err != nil {
 			return err
-			// panic(err)
 		}
 		c.addr.Set(remote, conn)
 
@@ -114,13 +116,8 @@ func (c GRPCLogClient) connect() error {
 func (c GRPCLogClient) log(errCh chan error) {
 	err := c.connect()
 	if err != nil {
-		// errCh := make(chan error)
-		// go func() {
 		errCh <- err
 		return
-		// }()
-
-		// return nil, errCh
 	}
 
 	for remote, conn := range c.addr.Map() {
@@ -129,7 +126,8 @@ func (c GRPCLogClient) log(errCh chan error) {
 		client := pb.NewLogServiceClient(conn)
 
 		for msg := range c.msgCh {
-			ctx, cancel := NewContextTimeout()
+
+			ctx, cancel := pb.NewContextTimeout()
 
 			response, err := client.Log(ctx, msg.Proto())
 			if err != nil {
@@ -158,7 +156,9 @@ func (c GRPCLogClient) stream(errCh chan error) {
 	}
 	for _, conn := range c.addr.Map() {
 		logClient := pb.NewLogServiceClient(conn)
-		ctx, cancel := NewContextTimeout()
+
+		ctx, cancel := pb.NewContextTimeout()
+
 		stream, err := logClient.LogStream(ctx)
 
 		if err != nil {

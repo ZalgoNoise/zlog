@@ -185,13 +185,17 @@ var file_proto_message_proto_rawDesc = []byte{
 	0x75, 0x66, 0x2e, 0x53, 0x74, 0x72, 0x75, 0x63, 0x74, 0x52, 0x04, 0x6d, 0x65, 0x74, 0x61, 0x22,
 	0x21, 0x0a, 0x0f, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
 	0x73, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x6f, 0x6b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x02,
-	0x6f, 0x6b, 0x32, 0x48, 0x0a, 0x0a, 0x4c, 0x6f, 0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
-	0x12, 0x3a, 0x0a, 0x03, 0x4c, 0x6f, 0x67, 0x12, 0x17, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67,
-	0x65, 0x2e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x18, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x4d, 0x65, 0x73, 0x73, 0x61,
-	0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x0b, 0x5a, 0x09,
-	0x2e, 0x2f, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x6f, 0x6b, 0x32, 0x8e, 0x01, 0x0a, 0x0a, 0x4c, 0x6f, 0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
+	0x65, 0x12, 0x3a, 0x0a, 0x03, 0x4c, 0x6f, 0x67, 0x12, 0x17, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61,
+	0x67, 0x65, 0x2e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x1a, 0x18, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x4d, 0x65, 0x73, 0x73,
+	0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x44, 0x0a,
+	0x09, 0x4c, 0x6f, 0x67, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x17, 0x2e, 0x6d, 0x65, 0x73,
+	0x73, 0x61, 0x67, 0x65, 0x2e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x18, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x4d, 0x65,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x28,
+	0x01, 0x30, 0x01, 0x42, 0x0b, 0x5a, 0x09, 0x2e, 0x2f, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -217,9 +221,11 @@ var file_proto_message_proto_depIdxs = []int32{
 	2, // 0: message.MessageRequest.time:type_name -> google.protobuf.Timestamp
 	3, // 1: message.MessageRequest.meta:type_name -> google.protobuf.Struct
 	0, // 2: message.LogService.Log:input_type -> message.MessageRequest
-	1, // 3: message.LogService.Log:output_type -> message.MessageResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
+	0, // 3: message.LogService.LogStream:input_type -> message.MessageRequest
+	1, // 4: message.LogService.Log:output_type -> message.MessageResponse
+	1, // 5: message.LogService.LogStream:output_type -> message.MessageResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -289,6 +295,7 @@ const _ = grpc.SupportPackageIsVersion6
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type LogServiceClient interface {
 	Log(ctx context.Context, in *MessageRequest, opts ...grpc.CallOption) (*MessageResponse, error)
+	LogStream(ctx context.Context, opts ...grpc.CallOption) (LogService_LogStreamClient, error)
 }
 
 type logServiceClient struct {
@@ -308,9 +315,41 @@ func (c *logServiceClient) Log(ctx context.Context, in *MessageRequest, opts ...
 	return out, nil
 }
 
+func (c *logServiceClient) LogStream(ctx context.Context, opts ...grpc.CallOption) (LogService_LogStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_LogService_serviceDesc.Streams[0], "/message.LogService/LogStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &logServiceLogStreamClient{stream}
+	return x, nil
+}
+
+type LogService_LogStreamClient interface {
+	Send(*MessageRequest) error
+	Recv() (*MessageResponse, error)
+	grpc.ClientStream
+}
+
+type logServiceLogStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *logServiceLogStreamClient) Send(m *MessageRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *logServiceLogStreamClient) Recv() (*MessageResponse, error) {
+	m := new(MessageResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // LogServiceServer is the server API for LogService service.
 type LogServiceServer interface {
 	Log(context.Context, *MessageRequest) (*MessageResponse, error)
+	LogStream(LogService_LogStreamServer) error
 }
 
 // UnimplementedLogServiceServer can be embedded to have forward compatible implementations.
@@ -319,6 +358,9 @@ type UnimplementedLogServiceServer struct {
 
 func (*UnimplementedLogServiceServer) Log(context.Context, *MessageRequest) (*MessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Log not implemented")
+}
+func (*UnimplementedLogServiceServer) LogStream(LogService_LogStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method LogStream not implemented")
 }
 
 func RegisterLogServiceServer(s *grpc.Server, srv LogServiceServer) {
@@ -343,6 +385,32 @@ func _LogService_Log_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LogService_LogStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(LogServiceServer).LogStream(&logServiceLogStreamServer{stream})
+}
+
+type LogService_LogStreamServer interface {
+	Send(*MessageResponse) error
+	Recv() (*MessageRequest, error)
+	grpc.ServerStream
+}
+
+type logServiceLogStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *logServiceLogStreamServer) Send(m *MessageResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *logServiceLogStreamServer) Recv() (*MessageRequest, error) {
+	m := new(MessageRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 var _LogService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "message.LogService",
 	HandlerType: (*LogServiceServer)(nil),
@@ -352,6 +420,13 @@ var _LogService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _LogService_Log_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "LogStream",
+			Handler:       _LogService_LogStream_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "proto/message.proto",
 }

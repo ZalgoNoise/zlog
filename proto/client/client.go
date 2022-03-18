@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,10 +13,16 @@ import (
 	"google.golang.org/grpc"
 )
 
+type GRPCLogger interface {
+	log.Logger
+	log.ChanneledLogger
+}
+
 type GRPCLogClient struct {
 	addr  *ConnAddr
 	opts  []grpc.DialOption
-	errCh chan error
+	msgCh chan *log.LogMessage
+	done  chan struct{}
 
 	prefix      string
 	sub         string
@@ -24,24 +31,161 @@ type GRPCLogClient struct {
 	levelFilter int
 }
 
-func New(opts ...LogClientConfig) (log.Logger, chan error) {
-	client := &GRPCLogClient{
-		errCh: make(chan error),
-	}
+type GRPCLogClientBuilder struct {
+	addr    *ConnAddr
+	opts    []grpc.DialOption
+	isUnary bool
+}
+
+func newGRPCLogClient(opts ...LogClientConfig) *GRPCLogClientBuilder {
+	builder := &GRPCLogClientBuilder{}
 
 	for _, opt := range opts {
-		opt.Apply(client)
+		opt.Apply(builder)
 	}
 
-	if client.addr.Len() == 0 {
-		WithAddr("").Apply(client)
+	if builder.addr.Len() == 0 {
+		WithAddr("").Apply(builder)
 	}
 
-	if client.opts == nil {
-		WithGRPCOpts().Apply(client)
+	if builder.opts == nil {
+		WithGRPCOpts().Apply(builder)
 	}
 
-	return client, client.errCh
+	return builder
+}
+
+// factory
+func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
+	builder := newGRPCLogClient(opts...)
+
+	err := builder.connect()
+	if err != nil {
+		panic(err)
+	}
+
+	client := &GRPCLogClient{
+		addr:  builder.addr,
+		opts:  builder.opts,
+		msgCh: make(chan *log.LogMessage),
+		done:  make(chan struct{}),
+	}
+
+	if !builder.isUnary {
+		return newStreamLogger(client)
+	} else {
+		return newUnaryLogger(client)
+	}
+
+}
+
+func newUnaryLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
+	errCh := make(chan error)
+
+	go func() {
+		for remote, conn := range c.addr.Map() {
+			defer conn.Close()
+
+			client := pb.NewLogServiceClient(conn)
+
+			for msg := range c.msgCh {
+				ctx, cancel := NewContextTimeout()
+
+				response, err := client.Log(ctx, msg.Proto())
+				if err != nil {
+					errCh <- err
+					cancel()
+					return
+				}
+				if !response.Ok {
+					errCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
+					cancel()
+					return
+				}
+				cancel()
+			}
+
+		}
+	}()
+
+	return c, errCh
+}
+
+func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
+
+	errCh := make(chan error)
+
+	for _, conn := range c.addr.Map() {
+		logClient := pb.NewLogServiceClient(conn)
+		stream, err := logClient.LogStream(NewContext())
+
+		if err != nil {
+			errCh <- err
+			return nil, errCh
+		}
+
+		go func(client *GRPCLogClient) {
+			respCh := make(chan bool)
+			go func() {
+				for {
+					in, err := stream.Recv()
+					if err != nil {
+						errCh <- err
+						respCh <- false
+					}
+					respCh <- in.GetOk()
+				}
+			}()
+
+			for {
+				select {
+				case out := <-client.msgCh:
+					err := stream.Send(out.Proto())
+					if err != nil {
+						errCh <- err
+					}
+				case in := <-respCh:
+					if !in {
+						errCh <- errors.New("failed to write log message to gRPC server")
+						return
+					}
+				case <-client.done:
+					return
+				}
+
+			}
+		}(c)
+	}
+
+	return c, errCh
+}
+
+func (c GRPCLogClientBuilder) connect() error {
+	if c.addr.Len() == 0 {
+		return errors.New("cannot connect to gRPC server since no addresses were provided")
+	}
+
+	for _, remote := range c.addr.Keys() {
+		// connect
+		var conn *grpc.ClientConn
+		conn, err := grpc.Dial(remote, c.opts...)
+
+		if err != nil {
+			return err
+			// panic(err)
+		}
+		c.addr.Set(remote, conn)
+
+	}
+	return nil
+}
+
+// implement ChanneledLogger
+func (c GRPCLogClient) Close() {
+	c.done <- struct{}{}
+}
+func (c GRPCLogClient) Channels() (logCh chan *log.LogMessage, done chan struct{}) {
+	return c.msgCh, c.done
 }
 
 // implement Logger
@@ -51,34 +195,7 @@ func (c GRPCLogClient) Output(m *log.LogMessage) (n int, err error) {
 		return 0, nil
 	}
 
-	var conn *grpc.ClientConn
-
-	for _, remote := range c.addr.Strings() {
-		conn, err = grpc.Dial(remote, c.opts...)
-
-		if err != nil {
-			c.errCh <- err
-			return -1, err
-		}
-		defer conn.Close()
-
-		client := pb.NewLogServiceClient(conn)
-
-		ctx, cancel := NewContext()
-		defer cancel()
-
-		response, err := client.Log(ctx, m.Proto())
-
-		if err != nil {
-			c.errCh <- err
-			return -1, err
-		}
-
-		if !response.Ok {
-			c.errCh <- fmt.Errorf("failed to write message to gRPC Log Server %s: %v", remote, response)
-			return -1, err
-		}
-	}
+	c.msgCh <- m
 	return 1, nil
 
 }
@@ -91,7 +208,7 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 		if !ok {
 			return c
 		}
-		addr.Add(r.Strings()...)
+		addr.Add(r.Keys()...)
 	}
 
 	c.addr = addr
@@ -106,10 +223,10 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 		if !ok {
 			return c
 		}
-		addr.Add(r.Strings()...)
+		addr.Add(r.Keys()...)
 	}
 
-	c.addr.Add(addr.Strings()...)
+	c.addr.Add(addr.Keys()...)
 
 	return c
 }
@@ -160,8 +277,10 @@ func (c GRPCLogClient) IsSkipExit() bool {
 	return c.skipExit
 }
 
-func (c GRPCLogClient) Log(m *log.LogMessage) {
-	c.Output(m)
+func (c GRPCLogClient) Log(m ...*log.LogMessage) {
+	for _, msg := range m {
+		c.Output(msg)
+	}
 }
 
 func (c GRPCLogClient) Print(v ...interface{}) {

@@ -10,14 +10,21 @@ import (
 )
 
 type LogClientConfig interface {
-	Apply(ls *GRPCLogClient)
+	Apply(ls *GRPCLogClientBuilder)
 }
 
 const defaultTimeout = time.Second * 30
 
 type ContextValue string
 
-func NewContext() (context.Context, context.CancelFunc) {
+func NewContext() context.Context {
+	bgCtx := context.Background()
+	c := context.WithValue(bgCtx, ContextValue("id"), ContextValue(uuid.New().String()))
+
+	return c
+}
+
+func NewContextTimeout() (context.Context, context.CancelFunc) {
 	bgCtx := context.Background()
 	vctx := context.WithValue(bgCtx, ContextValue("id"), ContextValue(uuid.New().String()))
 
@@ -30,7 +37,9 @@ type LSAddr struct {
 }
 
 func WithAddr(addr ...string) LogClientConfig {
-	a := &LSAddr{}
+	a := &LSAddr{
+		addr: map[string]*grpc.ClientConn{},
+	}
 
 	if len(addr) == 0 || addr == nil {
 		a.addr.Add(":9099")
@@ -42,7 +51,7 @@ func WithAddr(addr ...string) LogClientConfig {
 	return a
 }
 
-func (l LSAddr) Apply(ls *GRPCLogClient) {
+func (l LSAddr) Apply(ls *GRPCLogClientBuilder) {
 	ls.addr = &l.addr
 }
 
@@ -68,6 +77,27 @@ func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
 
 }
 
-func (l LSOpts) Apply(ls *GRPCLogClient) {
+func (l LSOpts) Apply(ls *GRPCLogClientBuilder) {
 	ls.opts = l.opts
+}
+
+type LSType struct {
+	isUnary bool
+}
+
+func StreamRPC() LogClientConfig {
+	return &LSType{
+		isUnary: false,
+	}
+
+}
+
+func UnaryRPC() LogClientConfig {
+	return &LSType{
+		isUnary: true,
+	}
+}
+
+func (l LSType) Apply(ls *GRPCLogClientBuilder) {
+	ls.isUnary = l.isUnary
 }

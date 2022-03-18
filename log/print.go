@@ -7,7 +7,7 @@ import (
 
 type Printer interface {
 	Output(m *LogMessage) (n int, err error)
-	Log(m *LogMessage)
+	Log(m ...*LogMessage)
 
 	Print(v ...interface{})
 	Println(v ...interface{})
@@ -145,25 +145,31 @@ func (l *logger) Printf(format string, v ...interface{}) {
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
 // Logfiles, this is assumed to be safe.
-func (l *logger) Log(m *LogMessage) {
-	// replace defaults if logger has them set
-	if m.Prefix == "log" && l.prefix != "" {
-		m.Prefix = l.prefix
+func (l *logger) Log(m ...*LogMessage) {
+	if len(m) == 0 || m == nil {
+		return
 	}
 
-	// replace defaults if logger has them set
-	if m.Metadata == nil && l.meta != nil {
-		m.Metadata = l.meta
+	for _, msg := range m {
+		// replace defaults if logger has them set
+		if msg.Prefix == "log" && l.prefix != "" {
+			msg.Prefix = l.prefix
+		}
+
+		// replace defaults if logger has them set
+		if msg.Metadata == nil && l.meta != nil {
+			msg.Metadata = l.meta
+		}
+
+		s := msg.Msg
+		l.Output(msg)
+		if !l.IsSkipExit() && msg.Level == LLPanic.String() {
+			panic(s)
+		} else if !l.IsSkipExit() && msg.Level == LLFatal.String() {
+			os.Exit(1)
+		}
 	}
 
-	s := m.Msg
-	l.Output(m)
-
-	if !l.IsSkipExit() && m.Level == LLPanic.String() {
-		panic(s)
-	} else if !l.IsSkipExit() && m.Level == LLFatal.String() {
-		os.Exit(1)
-	}
 }
 
 // Panic method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
@@ -486,9 +492,9 @@ func (l *multiLogger) Printf(format string, v ...interface{}) {
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
 // Logfiles, this is assumed to be safe.
-func (l *multiLogger) Log(m *LogMessage) {
+func (l *multiLogger) Log(m ...*LogMessage) {
 	for _, logger := range l.loggers {
-		logger.Log(m)
+		logger.Log(m...)
 	}
 }
 
@@ -735,8 +741,8 @@ func Printf(format string, v ...interface{}) {
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
 // Logfiles, this is assumed to be safe.
-func Log(m *LogMessage) {
-	std.Log(m)
+func Log(m ...*LogMessage) {
+	std.Log(m...)
 }
 
 // Panic function (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while

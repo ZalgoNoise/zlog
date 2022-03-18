@@ -13,7 +13,7 @@ import (
 func main() {
 	logger, errCh := client.New(
 		client.WithAddr(":9099"),
-		// client.UnaryRPC(),
+		client.UnaryRPC(),
 	)
 
 	msgCh, done := logger.Channels()

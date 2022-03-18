@@ -10,7 +10,7 @@ func (a *ConnAddr) Map() map[string]*grpc.ClientConn {
 
 func (a *ConnAddr) Keys() []string {
 	var keys []string
-	for k, _ := range *a {
+	for k := range *a {
 		keys = append(keys, k)
 	}
 	return keys

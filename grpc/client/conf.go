@@ -1,6 +1,7 @@
 package client
 
 import (
+	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -36,21 +37,24 @@ type LSOpts struct {
 	opts []grpc.DialOption
 }
 
+var defaultDialOptions = []grpc.DialOption{
+	grpc.WithTransportCredentials(insecure.NewCredentials()),
+	grpc.FailOnNonTempDialError(true),
+	grpc.WithReturnConnectionError(),
+	grpc.WithDisableRetry(),
+}
+
 func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
 	if opts != nil {
 		// enforce defaults
 		if len(opts) == 0 {
-			return &LSOpts{
-				opts: []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
-			}
+			return &LSOpts{opts: defaultDialOptions}
 		}
 		return &LSOpts{
 			opts: opts,
 		}
 	}
-	return &LSOpts{
-		opts: []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())},
-	}
+	return &LSOpts{opts: defaultDialOptions}
 
 }
 
@@ -77,4 +81,30 @@ func UnaryRPC() LogClientConfig {
 
 func (l LSType) Apply(ls *GRPCLogClientBuilder) {
 	ls.isUnary = l.isUnary
+}
+
+type LSLogger struct {
+	logger log.Logger
+}
+
+func WithLogger(loggers ...log.Logger) LogClientConfig {
+	if len(loggers) == 1 {
+		return &LSLogger{
+			logger: loggers[0],
+		}
+	}
+
+	if len(loggers) > 1 {
+		return &LSLogger{
+			logger: log.MultiLogger(loggers...),
+		}
+	}
+
+	return &LSLogger{
+		logger: log.New(log.NilConfig),
+	}
+}
+
+func (l LSLogger) Apply(ls *GRPCLogClientBuilder) {
+	ls.svcLogger = l.logger
 }

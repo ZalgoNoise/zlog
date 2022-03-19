@@ -14,6 +14,11 @@ func main() {
 				log.ColorTextLevelFirstSpaced,
 			),
 		),
+		server.WithServiceLogger(
+			log.New(
+				log.ColorTextLevelFirstSpaced,
+			),
+		),
 	)
 	grpcLogger.Serve()
 

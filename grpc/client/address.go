@@ -50,6 +50,15 @@ func (a *ConnAddr) Reset() {
 	a = &new
 }
 
+func (a ConnAddr) Unset(addr ...string) {
+	if len(addr) == 0 || addr == nil {
+		return
+	}
+	for _, address := range addr {
+		delete(a, address)
+	}
+}
+
 func (a ConnAddr) Write(p []byte) (n int, err error) {
 	a.Add(string(p))
 	return a.Len(), nil

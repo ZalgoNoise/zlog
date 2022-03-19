@@ -12,9 +12,8 @@ import (
 
 func main() {
 	logger := log.New(
-		// log.WithOut(os.Stdout),
 		log.ColorTextLevelFirst,
-		log.WithFilter(log.LLWarn),
+		// log.WithFilter(log.LLWarn),
 	)
 
 	grpcLogger, errCh := client.New(

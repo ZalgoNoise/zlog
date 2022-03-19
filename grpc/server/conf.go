@@ -33,26 +33,52 @@ type LSLogger struct {
 }
 
 func WithLogger(loggers ...log.Logger) LogServerConfig {
-	l := &LSLogger{}
-
-	// enforce defaults
-	if len(loggers) == 0 {
-		l.logger = log.New()
-	}
-
 	if len(loggers) == 1 {
-		l.logger = loggers[0]
+		return &LSLogger{
+			logger: loggers[0],
+		}
 	}
 
 	if len(loggers) > 1 {
-		l.logger = log.MultiLogger(loggers...)
+		return &LSLogger{
+			logger: log.MultiLogger(loggers...),
+		}
 	}
 
-	return l
+	return &LSLogger{
+		logger: log.New(),
+	}
 }
 
 func (l LSLogger) Apply(ls *GRPCLogServer) {
 	ls.Logger = l.logger
+}
+
+type LSServiceLogger struct {
+	logger log.Logger
+}
+
+func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
+
+	if len(loggers) == 1 {
+		return &LSServiceLogger{
+			logger: loggers[0],
+		}
+	}
+
+	if len(loggers) > 1 {
+		return &LSServiceLogger{
+			logger: log.MultiLogger(loggers...),
+		}
+	}
+
+	return &LSServiceLogger{
+		logger: log.New(log.NilConfig),
+	}
+}
+
+func (l LSServiceLogger) Apply(ls *GRPCLogServer) {
+	ls.SvcLogger = l.logger
 }
 
 type LSOpts struct {

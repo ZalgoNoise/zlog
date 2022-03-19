@@ -1,6 +1,7 @@
 package log
 
 import (
+	"bytes"
 	"io"
 	"os"
 )
@@ -63,6 +64,7 @@ var LoggerConfigs = map[int]LoggerConfig{
 	9:  WithFilter(LLInfo),
 	10: WithFilter(LLWarn),
 	11: WithFilter(LLError),
+	12: NilLogger(),
 }
 
 var (
@@ -75,7 +77,19 @@ var (
 	InfoFilter   LoggerConfig = LoggerConfigs[9]  // placeholder for an initialized Info-filtered LoggerConfig
 	WarnFilter   LoggerConfig = LoggerConfigs[10] // placeholder for an initialized Warn-filtered LoggerConfig
 	ErrorFilter  LoggerConfig = LoggerConfigs[11] // placeholder for an initialized Error-filtered LoggerConfig
+	NilConfig    LoggerConfig = LoggerConfigs[12] // placeholder for an initialized empty / nil LoggerConfig
 )
+
+func NilLogger() LoggerConfig {
+	buf := make([]byte, 0)
+
+	return MultiConf(
+		&LCOut{
+			out: bytes.NewBuffer(buf),
+		},
+		NewTextFormat().NoHeaders().NoTimestamp().NoLevel().Build(),
+	)
+}
 
 // LCPrefix struct is a custom LoggerConfig to define prefixes to new Loggers
 type LCPrefix struct {

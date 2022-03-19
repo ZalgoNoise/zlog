@@ -8,7 +8,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const defaultTimeout = time.Second * 30
+const TimeoutSeconds = 30
+const StreamTimeoutSeconds = 3600
+
+const DefaultTimeout = time.Second * TimeoutSeconds
+const DefaultStreamTimeout = time.Second * StreamTimeoutSeconds
 
 func CtxGet(ctx context.Context) []string {
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -28,11 +32,13 @@ func NewContext() context.Context {
 
 }
 
-func NewContextTimeout() (context.Context, context.CancelFunc) {
+func NewContextTimeout(t time.Duration) (context.Context, context.CancelFunc, string) {
+	uuid := uuid.New().String()
+
 	bgCtx := context.Background()
 
-	ctx, cancel := context.WithTimeout(bgCtx, defaultTimeout)
+	ctx, cancel := context.WithTimeout(bgCtx, t)
 	return metadata.NewOutgoingContext(
 		ctx,
-		metadata.Pairs("id", uuid.New().String())), cancel
+		metadata.Pairs("id", uuid)), cancel, uuid
 }

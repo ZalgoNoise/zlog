@@ -105,6 +105,7 @@ func (c GRPCLogClient) connect() error {
 		conn, err := grpc.Dial(remote, c.opts...)
 
 		if err != nil {
+			c.addr.Unset(remote)
 			return err
 		}
 		c.addr.Set(remote, conn)

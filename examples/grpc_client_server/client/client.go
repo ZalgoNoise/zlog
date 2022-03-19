@@ -11,28 +11,43 @@ import (
 )
 
 func main() {
-	logger, errCh := client.New(
-		client.WithAddr(":9099"),
-		client.UnaryRPC(),
+	logger := log.New(
+		// log.WithOut(os.Stdout),
+		log.ColorTextLevelFirst,
+		log.WithFilter(log.LLWarn),
 	)
 
-	msgCh, done := logger.Channels()
+	grpcLogger, errCh := client.New(
+		client.WithAddr("127.0.0.1:9099"),
+		// client.UnaryRPC(),
+		client.WithLogger(
+			logger,
+		),
+	)
 
-	// msg1 := log.NewMessage().Message("all the way").Build()
-	msg2 := log.NewMessage().
-		Level(log.LLInfo).
-		Prefix("service").
-		Sub("module").
-		Message("grpc logging").
-		Metadata(log.Field{
-			"content":  true,
-			"inner":    "yes",
-			"quantity": 3,
-		}).
-		CallStack(true).
-		Build()
+	// msgCh, done := logger.Channels()
 
-	msg3 := log.NewMessage().Message("loop").Level(log.LLWarn)
+	msg1 := log.NewMessage().Message("all the way").Build()
+	// msg2 := log.NewMessage().
+	// 	Level(log.LLInfo).
+	// 	Prefix("service").
+	// 	Sub("module").
+	// 	Message("grpc logging").
+	// 	Metadata(log.Field{
+	// 		"content":  true,
+	// 		"inner":    "yes",
+	// 		"quantity": 3,
+	// 	}).
+	// 	CallStack(true).
+	// 	Build()
+
+	msg3 := log.NewMessage().Level(log.LLWarn)
+
+	grpcLogger.Log(msg1)
+	for i := 0; i < 10000; i++ {
+		grpcLogger.Log(msg3.Message(fmt.Sprintf("#%v", i)).Build())
+		time.Sleep(time.Millisecond * 100)
+	}
 
 	// logger <- msg1
 
@@ -40,39 +55,40 @@ func main() {
 
 	// logger <- msg2
 	// time.Sleep(1 * time.Second)
-	go func() {
+	// go func() {
 
-		// logger <- msg1
-		// time.Sleep(1 * time.Second)
-		// logger <- msg2
-		// time.Sleep(1 * time.Second)
+	// 	// logger <- msg1
+	// 	// time.Sleep(1 * time.Second)
+	// 	// logger <- msg2
+	// 	// time.Sleep(1 * time.Second)
 
-		// logger.Info("test")
-		// logger.Prefix("service").Sub("module")
-		// logger.Warn("serious stuff")
-		msgCh <- msg2
+	// 	// logger.Info("test")
+	// 	// logger.Prefix("service").Sub("module")
+	// 	// logger.Warn("serious stuff")
+	// 	msgCh <- msg2
 
-		logger.Prefix("").Sub("")
+	// 	logger.Prefix("").Sub("")
 
-		t := time.Now()
-		// fmt.Println(t)
-		for i := 0; i < 1000; i++ {
-			logger.Log(msg3.Message(fmt.Sprint(i)).Build())
-			time.Sleep(time.Second * 1)
-		}
-		st := time.Since(t)
-		fmt.Println(st)
-		msgCh <- msg2
-		// n, err := logger.Output(msg2)
-		// fmt.Println(n, err)
+	// 	t := time.Now()
+	// 	// fmt.Println(t)
+	// 	for i := 0; i < 1000; i++ {
+	// 		logger.Log(msg3.Message(fmt.Sprint(i)).Build())
+	// 		time.Sleep(time.Second * 1)
+	// 	}
+	// 	st := time.Since(t)
+	// 	fmt.Println(st)
+	// 	msgCh <- msg2
+	// 	// n, err := logger.Output(msg2)
+	// 	// fmt.Println(n, err)
+	// 	fmt.Println(buf.String())
 
-		done <- struct{}{}
+	// 	done <- struct{}{}
 
-	}()
+	// }()
 
 	for {
 		err := <-errCh
-		if client.DeadlineError.MatchString(err.Error()) {
+		if client.DeadlineErrorRegexp.MatchString(err.Error()) {
 			fmt.Println("caught deadline exceeded error")
 		} else {
 			panic(err)

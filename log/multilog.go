@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/zalgonoise/zlog/grpc/address"
+	// "github.com/zalgonoise/zlog/grpc/client"
 )
 
 type multiLogger struct {
@@ -33,8 +36,26 @@ func MultiLogger(loggers ...Logger) Logger {
 // considering if there are different formats or more than one logger, it will result in
 // different types of messages and / or repeated ones, respectively.
 func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
-	for _, logger := range l.loggers {
-		logger.SetOuts(outs...)
+	var addrMap = make([]io.Writer, 0)
+	var writers = make([]io.Writer, 0)
+
+	for _, out := range outs {
+		if addr, ok := out.(*address.ConnAddr); ok {
+			addrMap = append(addrMap, addr)
+		} else {
+			writers = append(writers, out)
+		}
+	}
+
+	for _, log := range l.loggers {
+		if l, ok := log.(*logger); ok {
+			l.SetOuts(writers...)
+		} else if ml, ok := log.(*multiLogger); ok {
+			ml.SetOuts(writers...)
+		} else {
+			log.SetOuts(addrMap...)
+		}
+
 	}
 
 	return l
@@ -49,8 +70,26 @@ func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
 // the best action considering if there are different formats or more than one logger, it will
 // result in different types of messages and / or repeated ones, respectively.
 func (l *multiLogger) AddOuts(outs ...io.Writer) Logger {
-	for _, logger := range l.loggers {
-		logger.AddOuts(outs...)
+	var addrMap = make([]io.Writer, 0)
+	var writers = make([]io.Writer, 0)
+
+	for _, out := range outs {
+		if addr, ok := out.(*address.ConnAddr); ok {
+			addrMap = append(addrMap, addr)
+		} else {
+			writers = append(writers, out)
+		}
+	}
+
+	for _, log := range l.loggers {
+		if l, ok := log.(*logger); ok {
+			l.AddOuts(writers...)
+		} else if ml, ok := log.(*multiLogger); ok {
+			ml.AddOuts(writers...)
+		} else {
+			log.AddOuts(addrMap...)
+		}
+
 	}
 
 	return l

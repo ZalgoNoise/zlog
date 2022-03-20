@@ -102,11 +102,11 @@ func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 
 	if !builder.isUnary {
 
-		client.svcLogger.Log(logInitMessage.Message("setting up Unary gRPC client").Build())
+		client.svcLogger.Log(logInitMessage.Message("setting up Stream gRPC client").Build())
 		return newStreamLogger(client)
 
 	} else {
-		client.svcLogger.Log(logInitMessage.Message("setting up Stream gRPC client").Build())
+		client.svcLogger.Log(logInitMessage.Message("setting up Unary gRPC client").Build())
 		return newUnaryLogger(client)
 
 	}

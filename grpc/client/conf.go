@@ -1,6 +1,7 @@
 package client
 
 import (
+	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -11,7 +12,7 @@ type LogClientConfig interface {
 }
 
 type LSAddr struct {
-	addr ConnAddr
+	addr address.ConnAddr
 }
 
 func WithAddr(addr ...string) LogClientConfig {

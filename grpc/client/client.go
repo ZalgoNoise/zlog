@@ -2,13 +2,13 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"regexp"
-	"time"
 
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
@@ -17,26 +17,17 @@ import (
 )
 
 var (
-	ErrDeadlineRegexp = regexp.MustCompile(`rpc error: code = DeadlineExceeded desc = context deadline exceeded`)
-	ErrEOFRegexp      = regexp.MustCompile(`rpc error: code = Unavailable desc = error reading from server: EOF`)
+	ErrDeadlineRegexp    = regexp.MustCompile(`rpc error: code = DeadlineExceeded desc = context deadline exceeded`)
+	ErrEOFRegexp         = regexp.MustCompile(`rpc error: code = Unavailable desc = error reading from server: EOF`)
+	ErrConnRefusedRegexp = regexp.MustCompile(`rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing dial tcp .*: connect: connection refused"`)
 
 	ErrNoAddr      error = errors.New("cannot connect to gRPC server since no addresses were provided")
 	ErrNoConns     error = errors.New("could not establish any successful connection with the provided address(es)")
 	ErrBadResponse error = errors.New("failed to write log message in remote gRPC server")
 	ErrBadWriter   error = errors.New("invalid writer -- must be of type client.ConnAddr")
-
-	logInitMessage        *log.MessageBuilder = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init")
-	logConnMessage        *log.MessageBuilder = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn")
-	logConnMessageWarn    *log.MessageBuilder = log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("conn")
-	logLogMessage         *log.MessageBuilder = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log")
-	logLogMessageFatal    *log.MessageBuilder = log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log")
-	logStreamMessage      *log.MessageBuilder = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream")
-	logStreamMessageFatal *log.MessageBuilder = log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream")
-	logStreamMessageWarn  *log.MessageBuilder = log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream")
-
-	logConnNoAddr *log.LogMessage = log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("connect").Metadata(log.Field{"error": ErrNoAddr.Error()}).Message("no addresses provided").Build()
-	logNoConn     *log.LogMessage = log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("connect").Metadata(log.Field{"error": ErrNoConns.Error()}).Message("all connections failed").Build()
 )
+
+var defaultStreamBackoff = NewBackoff()
 
 type GRPCLogger interface {
 	log.Logger
@@ -59,10 +50,11 @@ type GRPCLogClient struct {
 }
 
 type GRPCLogClientBuilder struct {
-	addr      *address.ConnAddr
-	opts      []grpc.DialOption
-	isUnary   bool
-	svcLogger log.Logger
+	addr       *address.ConnAddr
+	opts       []grpc.DialOption
+	isUnary    bool
+	expBackoff *ExpBackoff
+	svcLogger  log.Logger
 }
 
 func newGRPCLogClient(opts ...LogClientConfig) *GRPCLogClientBuilder {
@@ -85,6 +77,10 @@ func newGRPCLogClient(opts ...LogClientConfig) *GRPCLogClientBuilder {
 		WithLogger().Apply(builder)
 	}
 
+	// if builder.expBackoff == nil {
+	// 	WithBackoff(0).Apply(builder)
+	// }
+
 	return builder
 }
 
@@ -102,11 +98,11 @@ func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 
 	if !builder.isUnary {
 
-		client.svcLogger.Log(logInitMessage.Message("setting up Stream gRPC client").Build())
+		client.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Stream gRPC client").Build())
 		return newStreamLogger(client)
 
 	} else {
-		client.svcLogger.Log(logInitMessage.Message("setting up Unary gRPC client").Build())
+		client.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Unary gRPC client").Build())
 		return newUnaryLogger(client)
 
 	}
@@ -116,7 +112,9 @@ func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 func newUnaryLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 	errCh := make(chan error)
 
-	go c.log(errCh)
+	defaultStreamBackoff.RegisterLog(c.log, errCh).WithDone(&c.done)
+
+	go c.listen(errCh)
 
 	return c, errCh
 }
@@ -125,15 +123,25 @@ func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 
 	errCh := make(chan error)
 
+	defaultStreamBackoff.RegisterStream(c.stream, errCh).WithDone(&c.done)
+
 	go c.stream(errCh)
 
 	return c, errCh
 }
 
+func (c GRPCLogClient) listen(errCh chan error) {
+	for {
+		msg := <-c.msgCh
+		defaultStreamBackoff.AddMessage(msg)
+		go c.log(msg, errCh)
+	}
+}
+
 func (c GRPCLogClient) connect() error {
 
 	if c.addr.Len() == 0 {
-		c.svcLogger.Log(logConnNoAddr)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("conn").Metadata(log.Field{"error": ErrNoAddr.Error()}).Message("no addresses provided").Build())
 		return ErrNoAddr
 	}
 
@@ -141,7 +149,7 @@ func (c GRPCLogClient) connect() error {
 
 	for idx, remote := range c.addr.Keys() {
 		c.svcLogger.Log(
-			logConnMessage.
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").
 				Metadata(log.Field{
 					"index": idx,
 					"addr":  remote,
@@ -153,25 +161,46 @@ func (c GRPCLogClient) connect() error {
 		conn, err := grpc.Dial(remote, c.opts...)
 
 		if err != nil {
-			// conn.Close()
-
 			c.svcLogger.Log(
-				logConnMessageWarn.
-					Metadata(log.Field{
-						"error": err.Error(),
-					}).
-					Message("removing address after failed dial attempt").Build(),
+				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").Metadata(log.Field{
+					"error":      err,
+					"iterations": defaultStreamBackoff.Counter(),
+					"maxWait":    defaultStreamBackoff.Max(),
+					"curWait":    defaultStreamBackoff.Current(),
+				}).Message("retrying connection").Build(),
 			)
 
-			c.addr.Unset(remote)
-			continue
+			if defaultStreamBackoff.IsLocked() {
+				return ErrBackoffLocked
+			} else {
+
+				call, err := defaultStreamBackoff.
+					Increment().
+					Wait()
+
+				if err != nil {
+					c.svcLogger.Log(
+						log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("conn").
+							Metadata(log.Field{
+								"error": err.Error(),
+							}).
+							Message("removing address after failed dial attempt").Build(),
+					)
+					c.addr.Unset(remote)
+					continue
+				} else {
+					go call()
+					return ErrFailedConn
+				}
+			}
+
 		}
 
 		c.addr.Set(remote, conn)
 		liveConns++
 
 		c.svcLogger.Log(
-			logConnMessage.
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").
 				Metadata(log.Field{
 					"index": idx,
 					"addr":  remote,
@@ -180,21 +209,25 @@ func (c GRPCLogClient) connect() error {
 		)
 	}
 	if liveConns == 0 {
-		c.svcLogger.Log(logNoConn)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("conn").Metadata(log.Field{"error": ErrNoConns.Error()}).Message("all connections failed").Build())
 		return ErrNoConns
 	}
 
 	return nil
 }
 
-func (c GRPCLogClient) log(errCh chan error) {
+func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 	err := c.connect()
 
 	if err != nil {
+		if errors.Is(err, ErrFailedConn) || errors.Is(err, ErrBackoffLocked) {
+			return
+		}
+
 		errCh <- err
 
 		c.svcLogger.Log(
-			logLogMessageFatal.Metadata(log.Field{
+			log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
 				"error": err.Error(),
 			}).Message("failed to connect").Build(),
 		)
@@ -208,58 +241,56 @@ func (c GRPCLogClient) log(errCh chan error) {
 		client := pb.NewLogServiceClient(conn)
 
 		c.svcLogger.Log(
-			logLogMessage.Metadata(log.Field{
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
 				"remote": remote,
 			}).Message("setting up log service with connection").Build(),
 		)
 
-		for msg := range c.msgCh {
+		ctx, cancel, reqID := pb.NewContextTimeout(pb.DefaultTimeout)
 
-			ctx, cancel, reqID := pb.NewContextTimeout(pb.DefaultTimeout)
+		c.svcLogger.Log(
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
+				"timeout": pb.TimeoutSeconds,
+				"id":      reqID,
+				"remote":  remote,
+			}).Message("received a new log message to register").Build(),
+		)
+
+		response, err := client.Log(ctx, msg.Proto())
+
+		if err != nil {
+			errCh <- err
+			cancel()
 
 			c.svcLogger.Log(
-				logLogMessage.Metadata(log.Field{
-					"timeout": pb.TimeoutSeconds,
-					"id":      reqID,
-					"remote":  remote,
-				}).Message("received a new log message to register").Build(),
+				log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
+					"id":     reqID,
+					"remote": remote,
+					"error":  err.Error(),
+				}).Message("failed to send message to gRPC server").Build(),
 			)
 
-			response, err := client.Log(ctx, msg.Proto())
-
-			if err != nil {
-				errCh <- err
-				cancel()
-
-				c.svcLogger.Log(
-					logLogMessageFatal.Metadata(log.Field{
-						"id":     reqID,
-						"remote": remote,
-						"error":  err.Error(),
-					}).Message("failed to send message to gRPC server").Build(),
-				)
-
-				return
-			}
-			if !response.Ok {
-				errCh <- ErrBadResponse
-				cancel()
-
-				c.svcLogger.Log(
-					logLogMessageFatal.Metadata(log.Field{
-						"id":     reqID,
-						"remote": remote,
-						"error":  err.Error(),
-						"response": log.Field{
-							"ok": response.GetOk(),
-						},
-					}).Message("failed to send message to gRPC server").Build(),
-				)
-
-				return
-			}
-			cancel()
+			return
 		}
+		if !response.Ok {
+			errCh <- ErrBadResponse
+			cancel()
+
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
+					"id":     reqID,
+					"remote": remote,
+					"error":  err.Error(),
+					"response": log.Field{
+						"ok": response.GetOk(),
+					},
+				}).Message("failed to send message to gRPC server").Build(),
+			)
+
+			return
+		}
+		cancel()
+
 	}
 }
 
@@ -269,10 +300,13 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 	err := c.connect()
 	if err != nil {
+		if errors.Is(err, ErrFailedConn) || errors.Is(err, ErrBackoffLocked) {
+			return
+		}
 		errCh <- err
 
 		c.svcLogger.Log(
-			logStreamMessageFatal.Metadata(log.Field{
+			log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 				"error": err.Error(),
 			}).Message("failed to connect").Build(),
 		)
@@ -283,7 +317,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 		logClient := pb.NewLogServiceClient(conn)
 
 		c.svcLogger.Log(
-			logStreamMessage.Metadata(log.Field{
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 				"remote": remote,
 			}).Message("setting up log service with connection").Build(),
 		)
@@ -291,7 +325,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 		ctx, cancel, reqID := pb.NewContextTimeout(pb.DefaultStreamTimeout)
 
 		c.svcLogger.Log(
-			logStreamMessage.Metadata(log.Field{
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 				"timeout": pb.StreamTimeoutSeconds,
 				"id":      reqID,
 				"remote":  remote,
@@ -301,12 +335,49 @@ func (c GRPCLogClient) stream(errCh chan error) {
 		stream, err := logClient.LogStream(ctx)
 
 		if err != nil {
+			if ErrConnRefusedRegexp.MatchString(err.Error()) || ErrEOFRegexp.MatchString(err.Error()) {
+				// conn.Close()
+				call, err := defaultStreamBackoff.
+					Increment().
+					Wait()
+
+				if err != nil {
+					fmt.Println("stream err listner: ", ErrFailedRetry)
+					cancel()
+
+					errCh <- ErrFailedRetry
+
+					c.svcLogger.Log(
+						log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+							"id":         reqID,
+							"error":      err.Error(),
+							"numRetries": defaultStreamBackoff.Counter(),
+						}).Message("closing stream after too many failed attempts to reconnect").Build(),
+					)
+					return
+
+				}
+
+				c.svcLogger.Log(
+					log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+						"error":      err,
+						"iterations": defaultStreamBackoff.Counter(),
+						"maxWait":    defaultStreamBackoff.Max(),
+						"curWait":    defaultStreamBackoff.Current(),
+					}).Message("retrying connection").Build(),
+				)
+
+				go call()
+				return
+
+			}
+
 			errCh <- err
 			conn.Close()
 			cancel()
 
 			c.svcLogger.Log(
-				logStreamMessageWarn.Metadata(log.Field{
+				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 					"id":     reqID,
 					"remote": remote,
 					"error":  err.Error(),
@@ -318,130 +389,201 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 		go func() {
 			respCh := make(chan bool)
-			go func() {
-				for {
-					in, err := stream.Recv()
+			go c.handleStreamService(
+				reqID,
+				stream,
+				localErr,
+				respCh,
+				c.done,
+			)
+
+			c.handleStreamMessages(
+				reqID,
+				stream,
+				localErr,
+				errCh,
+				respCh,
+				cancel,
+			)
+		}()
+	}
+}
+
+func (c GRPCLogClient) handleStreamService(
+	reqID string,
+	stream pb.LogService_LogStreamClient,
+	localErr chan error,
+	respCh chan bool,
+	done chan struct{},
+) {
+	for {
+		if in, err := stream.Recv(); err != nil {
+			localErr <- err
+
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+					"id":    reqID,
+					"error": err.Error(),
+				}).Message("issue receiving message from stream").Build(),
+			)
+			continue
+		} else {
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+					"id": reqID,
+				}).Message("response received from gRPC server").Build(),
+			)
+
+			respCh <- in.GetOk()
+		}
+	}
+}
+
+func (c GRPCLogClient) handleStreamMessages(
+	reqID string,
+	stream pb.LogService_LogStreamClient,
+	localErr chan error,
+	errCh chan error,
+	respCh chan bool,
+	cancel context.CancelFunc,
+) {
+	for {
+		select {
+		case out := <-c.msgCh:
+
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+					"id": reqID,
+				}).Message("incoming log message to send").Build(),
+			)
+
+			err := stream.Send(out.Proto())
+			if err != nil {
+				localErr <- err
+
+				c.svcLogger.Log(
+					log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+						"id":    reqID,
+						"error": err.Error(),
+					}).Message("issue sending log message to gRPC server").Build(),
+				)
+			}
+		case in := <-respCh:
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+					"id": reqID,
+					"response": log.Field{
+						"ok": in,
+					},
+				}).Message("registering server response").Build(),
+			)
+
+			if !in {
+				errCh <- ErrBadResponse
+
+				c.svcLogger.Log(
+					log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+						"id": reqID,
+						"response": log.Field{
+							"ok": in,
+						},
+						"error": ErrBadResponse.Error(),
+					}).Message("failed to write log message").Build(),
+				)
+
+				return
+			}
+		case <-c.done:
+			cancel()
+
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+					"id": reqID,
+				}).Message("received done signal").Build(),
+			)
+
+			return
+
+		case err := <-localErr:
+			if ErrDeadlineRegexp.MatchString(err.Error()) {
+
+				c.svcLogger.Log(
+					log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+						"id":    reqID,
+						"error": err.Error(),
+					}).Message("stream timed-out -- starting a new connection").Build(),
+				)
+
+				go c.stream(errCh)
+
+			} else if ErrEOFRegexp.MatchString(err.Error()) || ErrConnRefusedRegexp.MatchString(err.Error()) {
+
+				// TODO: implement exponential backoff
+				// this is a temp fallback to retry the connection
+				// using a 5 second timer before trying again
+				call, err := defaultStreamBackoff.
+					Increment().
+					Wait()
+
+				if err != nil {
+
+					fmt.Println("localErr listner: ", ErrFailedRetry)
+
 					c.svcLogger.Log(
-						logStreamMessage.Metadata(log.Field{
-							"id": reqID,
-						}).Message("response received from gRPC server").Build(),
+						log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+							"id":         reqID,
+							"error":      err.Error(),
+							"numRetries": defaultStreamBackoff.Counter(),
+						}).Message("closing stream after too many failed attempts to reconnect").Build(),
 					)
-
-					if err != nil {
-						localErr <- err
-
-						c.svcLogger.Log(
-							logStreamMessageWarn.Metadata(log.Field{
-								"id":    reqID,
-								"error": err.Error(),
-							}).Message("issue receiving message from stream").Build(),
-						)
-					}
-
-					respCh <- in.GetOk()
-				}
-			}()
-
-			for {
-				select {
-				case out := <-c.msgCh:
-
-					c.svcLogger.Log(
-						logStreamMessage.Metadata(log.Field{
-							"id": reqID,
-						}).Message("incoming log message to send").Build(),
-					)
-
-					err := stream.Send(out.Proto())
-					if err != nil {
-						localErr <- err
-
-						c.svcLogger.Log(
-							logStreamMessageWarn.Metadata(log.Field{
-								"id":    reqID,
-								"error": err.Error(),
-							}).Message("issue sending log message to gRPC server").Build(),
-						)
-					}
-				case in := <-respCh:
-					c.svcLogger.Log(
-						logStreamMessage.Metadata(log.Field{
-							"id": reqID,
-							"response": log.Field{
-								"ok": in,
-							},
-						}).Message("registering server response").Build(),
-					)
-
-					if !in {
-						errCh <- ErrBadResponse
-
-						c.svcLogger.Log(
-							logStreamMessageWarn.Metadata(log.Field{
-								"id": reqID,
-								"response": log.Field{
-									"ok": in,
-								},
-								"error": ErrBadResponse.Error(),
-							}).Message("failed to write log message").Build(),
-						)
-
-						return
-					}
-				case <-c.done:
+					c.done <- struct{}{}
+					errCh <- ErrFailedRetry
 					cancel()
+					return
 
+				} else {
 					c.svcLogger.Log(
-						logStreamMessage.Metadata(log.Field{
-							"id": reqID,
-						}).Message("received done signal").Build(),
+						log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+							"error":      err,
+							"iterations": defaultStreamBackoff.Counter(),
+							"maxWait":    defaultStreamBackoff.Max(),
+							"curWait":    defaultStreamBackoff.Current(),
+						}).Message("retrying connection").Build(),
 					)
 
+					go call()
 					return
 
-				case err := <-localErr:
-					if ErrDeadlineRegexp.MatchString(err.Error()) {
-
-						c.svcLogger.Log(
-							logStreamMessage.Metadata(log.Field{
-								"id":    reqID,
-								"error": err.Error(),
-							}).Message("stream timed-out -- starting a new connection").Build(),
-						)
-
-						go c.stream(errCh)
-
-					} else if ErrEOFRegexp.MatchString(err.Error()) {
-						c.svcLogger.Log(
-							logStreamMessage.Metadata(log.Field{
-								"id":    reqID,
-								"error": err.Error(),
-							}).Message("received EOF signal from stream -- retrying connection").Build(),
-						)
-
-						// TODO: implement exponential backoff
-						// this is a temp fallback to retry the connection
-						// using a 5 second timer before trying again
-						time.Sleep(time.Second * 5)
-						go c.stream(errCh)
-
-					} else {
-						errCh <- err
-						cancel()
-
-						c.svcLogger.Log(
-							logStreamMessageFatal.Metadata(log.Field{
-								"id":    reqID,
-								"error": err.Error(),
-							}).Message("critical error -- closing stream").Build(),
-						)
-
-					}
-					return
 				}
+
+				// if err != nil {
+				// 	errCh <- err
+				// 	cancel()
+
+				// 	c.svcLogger.Log(
+				// 		log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+				// 			"id":         reqID,
+				// 			"error":      err.Error(),
+				// 			"numRetries": n,
+				// 		}).Message("closing stream after too many failed attempts to reconnect").Build(),
+				// 	)
+				// }
+
+			} else {
+				errCh <- err
+				cancel()
+
+				c.svcLogger.Log(
+					log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+						"id":    reqID,
+						"error": err.Error(),
+					}).Message("critical error -- closing stream").Build(),
+				)
 
 			}
-		}()
+			return
+		}
+
 	}
 }
 

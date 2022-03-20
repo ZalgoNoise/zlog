@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"time"
 
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
@@ -15,7 +16,8 @@ import (
 )
 
 var (
-	DeadlineErrorRegexp = regexp.MustCompile(`rpc error: code = DeadlineExceeded desc = context deadline exceeded`)
+	ErrDeadlineRegexp = regexp.MustCompile(`rpc error: code = DeadlineExceeded desc = context deadline exceeded`)
+	ErrEOFRegexp      = regexp.MustCompile(`rpc error: code = Unavailable desc = error reading from server: EOF`)
 
 	ErrNoAddr      error = errors.New("cannot connect to gRPC server since no addresses were provided")
 	ErrNoConns     error = errors.New("could not establish any successful connection with the provided address(es)")
@@ -150,6 +152,8 @@ func (c GRPCLogClient) connect() error {
 		conn, err := grpc.Dial(remote, c.opts...)
 
 		if err != nil {
+			// conn.Close()
+
 			c.svcLogger.Log(
 				logConnMessageWarn.
 					Metadata(log.Field{
@@ -158,7 +162,6 @@ func (c GRPCLogClient) connect() error {
 					Message("removing address after failed dial attempt").Build(),
 			)
 
-			conn.Close()
 			c.addr.Unset(remote)
 			continue
 		}
@@ -396,7 +399,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 					return
 
 				case err := <-localErr:
-					if DeadlineErrorRegexp.MatchString(err.Error()) {
+					if ErrDeadlineRegexp.MatchString(err.Error()) {
 
 						c.svcLogger.Log(
 							logStreamMessage.Metadata(log.Field{
@@ -405,6 +408,20 @@ func (c GRPCLogClient) stream(errCh chan error) {
 							}).Message("stream timed-out -- starting a new connection").Build(),
 						)
 
+						go c.stream(errCh)
+
+					} else if ErrEOFRegexp.MatchString(err.Error()) {
+						c.svcLogger.Log(
+							logStreamMessage.Metadata(log.Field{
+								"id":    reqID,
+								"error": err.Error(),
+							}).Message("received EOF signal from stream -- retrying connection").Build(),
+						)
+
+						// TODO: implement exponential backoff
+						// this is a temp fallback to retry the connection
+						// using a 5 second timer before trying again
+						time.Sleep(time.Second * 5)
 						go c.stream(errCh)
 
 					} else {

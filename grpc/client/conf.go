@@ -1,6 +1,8 @@
 package client
 
 import (
+	"time"
+
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
@@ -108,4 +110,29 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 
 func (l LSLogger) Apply(ls *GRPCLogClientBuilder) {
 	ls.svcLogger = l.logger
+}
+
+type LSExpBackoff struct {
+	backoff *ExpBackoff
+}
+
+func WithBackoff(t time.Duration) LogClientConfig {
+	// default config
+	if t == 0 {
+		return &LSExpBackoff{
+			backoff: &ExpBackoff{
+				max: defaultRetryTime,
+			},
+		}
+	}
+
+	return &LSExpBackoff{
+		backoff: &ExpBackoff{
+			max: t,
+		},
+	}
+}
+
+func (l LSExpBackoff) Apply(ls *GRPCLogClientBuilder) {
+	ls.expBackoff = l.backoff
 }

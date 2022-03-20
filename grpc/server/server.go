@@ -7,6 +7,7 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 var (
@@ -123,6 +124,9 @@ func (s GRPCLogServer) Serve() {
 
 	s.Server = grpc.NewServer(s.opts...)
 	pb.RegisterLogServiceServer(s.Server, s.LogSv)
+
+	// gRPC reflection
+	reflection.Register(s.Server)
 
 	s.SvcLogger.Log(logServeReadyMessage.Metadata(log.Field{
 		"addr": s.Addr,

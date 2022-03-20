@@ -10,6 +10,8 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const commPrefix string = "gRPC"
+
 var (
 	contextCancelledRegexp = regexp.MustCompile(`rpc error: code = Canceled desc = context canceled`)
 )
@@ -22,11 +24,15 @@ type LogServer struct {
 }
 
 func newComm(level int32, method, message string) *MessageRequest {
+	l := level
+	p := commPrefix
+	s := method
+
 	return &MessageRequest{
 		Time:   timestamppb.New(time.Now()),
-		Prefix: "gRPC",
-		Sub:    method,
-		Level:  level,
+		Prefix: &p,
+		Sub:    &s,
+		Level:  &l,
 		Msg:    message,
 	}
 }

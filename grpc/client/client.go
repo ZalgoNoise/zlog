@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
@@ -43,7 +44,7 @@ type GRPCLogger interface {
 }
 
 type GRPCLogClient struct {
-	addr  *ConnAddr
+	addr  *address.ConnAddr
 	opts  []grpc.DialOption
 	msgCh chan *log.LogMessage
 	done  chan struct{}
@@ -58,7 +59,7 @@ type GRPCLogClient struct {
 }
 
 type GRPCLogClientBuilder struct {
-	addr      *ConnAddr
+	addr      *address.ConnAddr
 	opts      []grpc.DialOption
 	isUnary   bool
 	svcLogger log.Logger
@@ -469,11 +470,10 @@ func (c GRPCLogClient) Output(m *log.LogMessage) (n int, err error) {
 }
 
 func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
-	addr := &ConnAddr{}
+	c.addr.Reset()
 
 	for _, remote := range outs {
-		r, ok := remote.(ConnAddr)
-		if !ok {
+		if r, ok := remote.(*address.ConnAddr); !ok {
 
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLWarn).
@@ -482,35 +482,52 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 					Message("invalid writer warning").Build(),
 			)
 
-			return c
+		} else {
+			c.addr.Add(r.Keys()...)
+
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLDebug).
+					Prefix("gRPC").Sub("SetOuts()").
+					Metadata(log.Field{"addrs": r.Keys()}).
+					Message("added address to connection address map").Build(),
+			)
 		}
-		addr.Add(r.Keys()...)
 	}
 
-	c.addr = addr
+	err := c.connect()
+	if err != nil {
+		return nil
+	}
 
 	return c
 }
 func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
-	addr := &ConnAddr{}
-
 	for _, remote := range outs {
-		r, ok := remote.(ConnAddr)
-		if !ok {
+		if r, ok := remote.(*address.ConnAddr); !ok {
 
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLWarn).
-					Prefix("gRPC").Sub("SetOuts()").
+					Prefix("gRPC").Sub("AddOuts()").
 					Metadata(log.Field{"error": ErrBadWriter.Error()}).
 					Message("invalid writer warning").Build(),
 			)
 
-			return c
+		} else {
+			c.addr.Add(r.Keys()...)
+
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLDebug).
+					Prefix("gRPC").Sub("AddOuts()").
+					Metadata(log.Field{"addrs": r.Keys()}).
+					Message("added address to connection address map").Build(),
+			)
 		}
-		addr.Add(r.Keys()...)
 	}
 
-	c.addr.Add(addr.Keys()...)
+	err := c.connect()
+	if err != nil {
+		return nil
+	}
 
 	return c
 }

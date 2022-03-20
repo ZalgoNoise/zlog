@@ -1,4 +1,4 @@
-package client
+package address
 
 import "google.golang.org/grpc"
 
@@ -16,33 +16,40 @@ func (a *ConnAddr) Keys() []string {
 	return keys
 }
 
-func (a ConnAddr) Get(k string) *grpc.ClientConn {
-	if a == nil || len(a) == 0 {
+func (a *ConnAddr) Get(k string) *grpc.ClientConn {
+	if a == nil || len(*a) == 0 {
 		return nil
 	}
-
-	return a[k]
+	v := *a
+	return v[k]
 }
 
-func (a ConnAddr) Set(k string, conn *grpc.ClientConn) {
-	a[k] = conn
+func (a *ConnAddr) Set(k string, conn *grpc.ClientConn) {
+	v := *a
+	v[k] = conn
+
+	a = &v
 }
 
 func (a *ConnAddr) Len() int {
 	return len(*a)
 }
 
-func (a ConnAddr) Add(addr ...string) {
+func (a *ConnAddr) Add(addr ...string) {
 	if len(addr) == 0 || addr == nil {
 		return
 	}
+
+	v := *a
+
 	for _, address := range addr {
-		if a[address] != nil {
+		if v[address] != nil {
 			continue
 		} else {
-			a[address] = &grpc.ClientConn{}
+			v[address] = &grpc.ClientConn{}
 		}
 	}
+	a = &v
 }
 
 func (a *ConnAddr) Reset() {
@@ -50,16 +57,33 @@ func (a *ConnAddr) Reset() {
 	a = &new
 }
 
-func (a ConnAddr) Unset(addr ...string) {
+func (a *ConnAddr) Unset(addr ...string) {
 	if len(addr) == 0 || addr == nil {
 		return
 	}
+
+	v := *a
+
 	for _, address := range addr {
-		delete(a, address)
+		delete(v, address)
 	}
+
+	a = &v
 }
 
-func (a ConnAddr) Write(p []byte) (n int, err error) {
+func (a *ConnAddr) Write(p []byte) (n int, err error) {
 	a.Add(string(p))
 	return a.Len(), nil
+}
+
+func New(addr ...string) *ConnAddr {
+	if len(addr) == 0 {
+		return nil
+	}
+
+	var a = &ConnAddr{}
+	a.Add(addr...)
+
+	return a
+
 }

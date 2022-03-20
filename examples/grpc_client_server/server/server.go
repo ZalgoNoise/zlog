@@ -19,6 +19,7 @@ func main() {
 				log.ColorTextLevelFirstSpaced,
 			),
 		),
+		server.WithAddr(":9099"),
 	)
 	grpcLogger.Serve()
 

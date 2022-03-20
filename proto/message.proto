@@ -8,12 +8,12 @@ import "google/protobuf/timestamp.proto";
 option go_package = "./message";
 
 message MessageRequest {
-    google.protobuf.Timestamp time = 1;
-    string prefix = 2;
-    string sub = 3;
-    int32 level = 4;
+    optional google.protobuf.Timestamp time = 1;
+    optional string prefix = 2;
+    optional string sub = 3;
+    optional int32 level = 4;
     string msg = 5;
-    google.protobuf.Struct meta = 6;
+    optional google.protobuf.Struct meta = 6;
 }
 
 message MessageResponse {

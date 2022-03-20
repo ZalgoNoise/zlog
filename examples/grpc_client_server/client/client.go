@@ -87,7 +87,7 @@ func main() {
 
 	for {
 		err := <-errCh
-		if client.DeadlineErrorRegexp.MatchString(err.Error()) {
+		if client.ErrDeadlineRegexp.MatchString(err.Error()) {
 			fmt.Println("caught deadline exceeded error")
 		} else {
 			panic(err)

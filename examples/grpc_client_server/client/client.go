@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"time"
 
 	// "time"
 
@@ -18,11 +16,12 @@ func main() {
 
 	grpcLogger, errCh := client.New(
 		client.WithAddr("127.0.0.1:9099"),
-		// client.UnaryRPC(),
+		client.UnaryRPC(),
 		client.WithLogger(
 			logger,
 		),
 	)
+	_, done := grpcLogger.Channels()
 
 	// msgCh, done := logger.Channels()
 
@@ -40,13 +39,16 @@ func main() {
 	// 	CallStack(true).
 	// 	Build()
 
-	msg3 := log.NewMessage().Level(log.LLWarn)
-
 	grpcLogger.Log(msg1)
-	for i := 0; i < 10000; i++ {
-		grpcLogger.Log(msg3.Message(fmt.Sprintf("#%v", i)).Build())
-		time.Sleep(time.Millisecond * 100)
-	}
+	grpcLogger.Log(msg1)
+	grpcLogger.Log(msg1)
+	grpcLogger.Log(msg1)
+
+	// msg3 := log.NewMessage().Level(log.LLWarn)
+	// for i := 0; i < 10000; i++ {
+	// 	grpcLogger.Log(msg3.Message(fmt.Sprintf("#%v", i)).Build())
+	// 	time.Sleep(time.Millisecond * 2000)
+	// }
 
 	// logger <- msg1
 
@@ -81,17 +83,21 @@ func main() {
 	// 	// fmt.Println(n, err)
 	// 	fmt.Println(buf.String())
 
-	// 	done <- struct{}{}
+	done <- struct{}{}
 
 	// }()
 
 	for {
-		err := <-errCh
-		if client.ErrDeadlineRegexp.MatchString(err.Error()) {
-			fmt.Println("caught deadline exceeded error")
-		} else {
+		select {
+		case err := <-errCh:
 			panic(err)
+		case <-done:
+			return
 		}
+		// if client.ErrDeadlineRegexp.MatchString(err.Error()) {
+		// 	fmt.Println("caught deadline exceeded error")
+		// } else {
+		// }
 
 	}
 

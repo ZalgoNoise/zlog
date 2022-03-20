@@ -158,6 +158,7 @@ func (c GRPCLogClient) connect() error {
 					Message("removing address after failed dial attempt").Build(),
 			)
 
+			conn.Close()
 			c.addr.Unset(remote)
 			continue
 		}
@@ -297,6 +298,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 		if err != nil {
 			errCh <- err
+			conn.Close()
 			cancel()
 
 			c.svcLogger.Log(
@@ -427,8 +429,12 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 // implement ChanneledLogger
 func (c GRPCLogClient) Close() {
+	for _, conn := range c.addr.Map() {
+		conn.Close()
+	}
 	c.done <- struct{}{}
 }
+
 func (c GRPCLogClient) Channels() (logCh chan *log.LogMessage, done chan struct{}) {
 	return c.msgCh, c.done
 }

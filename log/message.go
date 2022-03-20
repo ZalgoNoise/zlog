@@ -178,7 +178,7 @@ func (m *LogMessage) Proto() *pb.MessageRequest {
 }
 
 func (m *LogMessage) ToProto() (*pb.MessageRequest, error) {
-	b, err := mapToBytes(m.Metadata)
+	b, err := json.Marshal(m.Metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -195,10 +195,6 @@ func (m *LogMessage) ToProto() (*pb.MessageRequest, error) {
 		Msg:    m.Msg,
 		Meta:   s,
 	}, nil
-}
-
-func mapToBytes(in map[string]interface{}) ([]byte, error) {
-	return json.Marshal(in)
 }
 
 func encodeProto(in []byte) (*structpb.Struct, error) {

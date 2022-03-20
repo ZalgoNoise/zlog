@@ -187,11 +187,13 @@ func (m *LogMessage) ToProto() (*pb.MessageRequest, error) {
 		return nil, err
 	}
 
+	level := int32(LogTypeKeys[m.Level])
+
 	return &pb.MessageRequest{
 		Time:   timestamppb.New(m.Time),
-		Prefix: m.Prefix,
-		Sub:    m.Sub,
-		Level:  int32(LogTypeKeys[m.Level]),
+		Prefix: &m.Prefix,
+		Sub:    &m.Sub,
+		Level:  &level,
 		Msg:    m.Msg,
 		Meta:   s,
 	}, nil
@@ -286,12 +288,37 @@ func (b *MessageBuilder) CallStack(all bool) *MessageBuilder {
 }
 
 func (b *MessageBuilder) FromProto(in *pb.MessageRequest) *MessageBuilder {
-	b.time = in.Time.AsTime()
-	b.level = LogLevel(int(in.Level)).String()
-	b.prefix = in.Prefix
-	b.sub = in.Sub
+	if in.Time == nil {
+		b.time = time.Now()
+	} else {
+		b.time = in.Time.AsTime()
+	}
+
+	if in.Level == nil {
+		b.level = LLInfo.String()
+	} else {
+		b.level = LogLevel(int(*in.Level)).String()
+	}
+
+	if in.Prefix == nil {
+		b.prefix = "log"
+	} else {
+		b.prefix = *in.Prefix
+	}
+
+	if in.Sub == nil {
+		b.sub = ""
+	} else {
+		b.sub = *in.Sub
+	}
+
+	if in.Meta == nil {
+		b.metadata = map[string]interface{}{}
+	} else {
+		b.metadata = in.Meta.AsMap()
+	}
+
 	b.msg = in.Msg
-	b.metadata = in.Meta.AsMap()
 
 	return b
 }

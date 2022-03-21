@@ -50,7 +50,6 @@ type LSOpts struct {
 }
 
 var defaultDialOptions = []grpc.DialOption{
-	grpc.WithTransportCredentials(insecure.NewCredentials()),
 	grpc.FailOnNonTempDialError(true),
 	grpc.WithReturnConnectionError(),
 	grpc.WithDisableRetry(),
@@ -68,6 +67,14 @@ func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
 	}
 	return &LSOpts{opts: defaultDialOptions}
 
+}
+
+func Insecure() LogClientConfig {
+	return &LSOpts{
+		opts: []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+	}
 }
 
 func WithTLS(caPath string, certKeyPair ...string) LogClientConfig {
@@ -101,6 +108,7 @@ func WithTLS(caPath string, certKeyPair ...string) LogClientConfig {
 
 func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials, error) {
 	ca, err := ioutil.ReadFile(caCert)
+
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +120,7 @@ func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials
 	}
 
 	c, err := tls.LoadX509KeyPair(cert, key)
+
 	if err != nil {
 		return nil, err
 	}
@@ -199,23 +208,19 @@ func (l LSLogger) Apply(ls *GRPCLogClientBuilder) {
 }
 
 type LSExpBackoff struct {
-	backoff *ExpBackoff
+	backoff time.Duration
 }
 
 func WithBackoff(t time.Duration) LogClientConfig {
 	// default config
-	if t == 0 {
+	if t == 0 || t == defaultRetryTime {
 		return &LSExpBackoff{
-			backoff: &ExpBackoff{
-				max: defaultRetryTime,
-			},
+			backoff: defaultRetryTime,
 		}
 	}
 
 	return &LSExpBackoff{
-		backoff: &ExpBackoff{
-			max: t,
-		},
+		backoff: t,
 	}
 }
 

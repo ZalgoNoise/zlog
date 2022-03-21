@@ -79,7 +79,7 @@ func newGRPCLogClient(opts ...LogClientConfig) *GRPCLogClientBuilder {
 		WithLogger().Apply(builder)
 	}
 
-	if builder.expBackoff != nil {
+	if builder.expBackoff != defaultRetryTime && builder.expBackoff > 0 {
 		backoff.Time(builder.expBackoff)
 	}
 

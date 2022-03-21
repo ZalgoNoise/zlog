@@ -70,8 +70,22 @@ func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
 
 }
 
-func WithTLS(caPath string) LogClientConfig {
-	cred, err := loadCreds(caPath)
+func WithTLS(caPath string, certKeyPair ...string) LogClientConfig {
+	var cred credentials.TransportCredentials
+	var err error
+
+	if len(certKeyPair) == 0 {
+		cred, err = loadCreds(caPath)
+	} else if len(certKeyPair) > 1 {
+
+		// despite the variatic parameter, only the first two elements are read
+		// this is so it can be fully omitted if it's for server-TLS only
+		cred, err = loadCredsMutual(caPath, certKeyPair[0], certKeyPair[1])
+
+	} else {
+		return nil
+	}
+
 	if err != nil {
 		// panic since the gRPC client shouldn't start
 		// if TLS is requested but invalid / errored
@@ -83,6 +97,31 @@ func WithTLS(caPath string) LogClientConfig {
 			grpc.WithTransportCredentials(cred),
 		},
 	}
+}
+
+func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials, error) {
+	ca, err := ioutil.ReadFile(caCert)
+	if err != nil {
+		return nil, err
+	}
+
+	crtPool := x509.NewCertPool()
+
+	if ok := crtPool.AppendCertsFromPEM(ca); !ok {
+		return nil, ErrCACertAddFailed
+	}
+
+	c, err := tls.LoadX509KeyPair(cert, key)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{c},
+		ClientCAs:    crtPool,
+	}
+
+	return credentials.NewTLS(config), nil
 }
 
 func loadCreds(caCert string) (credentials.TransportCredentials, error) {

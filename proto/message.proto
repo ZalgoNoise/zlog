@@ -7,11 +7,22 @@ import "google/protobuf/timestamp.proto";
 // option go_package = "../log";
 option go_package = "./message";
 
+enum Level {
+    TRACE = 0;
+    DEBUG = 1;
+    INFO = 2;
+    WARNING = 3;
+    ERROR = 4;
+    FATAL = 5;
+    reserved 6 to 8;
+    PANIC = 9;
+}
+
 message MessageRequest {
     optional google.protobuf.Timestamp time = 1;
     optional string prefix = 2;
     optional string sub = 3;
-    optional int32 level = 4;
+    optional Level level = 4;
     string msg = 5;
     optional google.protobuf.Struct meta = 6;
 }

@@ -98,5 +98,9 @@ func WithGRPCOpts(opts ...grpc.ServerOption) LogServerConfig {
 }
 
 func (l LSOpts) Apply(ls *GRPCLogServer) {
-	ls.opts = l.opts
+	if len(ls.opts) == 0 {
+		ls.opts = l.opts
+		return
+	}
+	ls.opts = append(ls.opts, l.opts...)
 }

@@ -1,8 +1,11 @@
 package server
 
 import (
+	"crypto/tls"
+
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type LogServerConfig interface {
@@ -103,4 +106,34 @@ func (l LSOpts) Apply(ls *GRPCLogServer) {
 		return
 	}
 	ls.opts = append(ls.opts, l.opts...)
+}
+
+func WithTLS(certPath, keyPath string) LogServerConfig {
+	cred, err := loadCreds(certPath, keyPath)
+	if err != nil {
+		// panic since the gRPC server shouldn't start
+		// if TLS is requested but invalid / errored
+		panic(err)
+	}
+
+	return &LSOpts{
+		opts: []grpc.ServerOption{
+			grpc.Creds(cred),
+		},
+	}
+
+}
+
+func loadCreds(cert, key string) (credentials.TransportCredentials, error) {
+	c, err := tls.LoadX509KeyPair(cert, key)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{c},
+		ClientAuth:   tls.NoClientCert,
+	}
+
+	return credentials.NewTLS(config), nil
 }

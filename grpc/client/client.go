@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"time"
 
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
@@ -27,7 +28,7 @@ var (
 	ErrBadWriter   error = errors.New("invalid writer -- must be of type client.ConnAddr")
 )
 
-var defaultStreamBackoff = NewBackoff()
+var backoff = NewBackoff()
 
 type GRPCLogger interface {
 	log.Logger
@@ -53,7 +54,7 @@ type GRPCLogClientBuilder struct {
 	addr       *address.ConnAddr
 	opts       []grpc.DialOption
 	isUnary    bool
-	expBackoff *ExpBackoff
+	expBackoff time.Duration
 	svcLogger  log.Logger
 }
 
@@ -69,17 +70,18 @@ func newGRPCLogClient(opts ...LogClientConfig) *GRPCLogClientBuilder {
 		WithAddr("").Apply(builder)
 	}
 
-	if builder.opts == nil {
+	if len(builder.opts) == 0 {
 		WithGRPCOpts().Apply(builder)
+		Insecure().Apply(builder)
 	}
 
 	if builder.svcLogger == nil {
 		WithLogger().Apply(builder)
 	}
 
-	// if builder.expBackoff == nil {
-	// 	WithBackoff(0).Apply(builder)
-	// }
+	if builder.expBackoff != nil {
+		backoff.Time(builder.expBackoff)
+	}
 
 	return builder
 }
@@ -112,7 +114,7 @@ func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 func newUnaryLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 	errCh := make(chan error)
 
-	defaultStreamBackoff.RegisterLog(c.log, errCh).WithDone(&c.done)
+	backoff.RegisterLog(c.log, errCh).WithDone(&c.done)
 
 	go c.listen(errCh)
 
@@ -123,7 +125,7 @@ func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 
 	errCh := make(chan error)
 
-	defaultStreamBackoff.RegisterStream(c.stream, errCh).WithDone(&c.done)
+	backoff.RegisterStream(c.stream, errCh).WithDone(&c.done)
 
 	go c.stream(errCh)
 
@@ -133,7 +135,7 @@ func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 func (c GRPCLogClient) listen(errCh chan error) {
 	for {
 		msg := <-c.msgCh
-		defaultStreamBackoff.AddMessage(msg)
+		backoff.AddMessage(msg)
 		go c.log(msg, errCh)
 	}
 }
@@ -164,19 +166,17 @@ func (c GRPCLogClient) connect() error {
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").Metadata(log.Field{
 					"error":      err,
-					"iterations": defaultStreamBackoff.Counter(),
-					"maxWait":    defaultStreamBackoff.Max(),
-					"curWait":    defaultStreamBackoff.Current(),
+					"iterations": backoff.Counter(),
+					"maxWait":    backoff.Max(),
+					"curWait":    backoff.Current(),
 				}).Message("retrying connection").Build(),
 			)
 
-			if defaultStreamBackoff.IsLocked() {
+			if backoff.IsLocked() {
 				return ErrBackoffLocked
 			} else {
 
-				call, err := defaultStreamBackoff.
-					Increment().
-					Wait()
+				call, err := backoff.Increment().Wait()
 
 				if err != nil {
 					c.svcLogger.Log(
@@ -337,9 +337,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 		if err != nil {
 			if ErrConnRefusedRegexp.MatchString(err.Error()) || ErrEOFRegexp.MatchString(err.Error()) {
 				// conn.Close()
-				call, err := defaultStreamBackoff.
-					Increment().
-					Wait()
+				call, err := backoff.Increment().Wait()
 
 				if err != nil {
 					fmt.Println("stream err listner: ", ErrFailedRetry)
@@ -351,7 +349,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 						log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 							"id":         reqID,
 							"error":      err.Error(),
-							"numRetries": defaultStreamBackoff.Counter(),
+							"numRetries": backoff.Counter(),
 						}).Message("closing stream after too many failed attempts to reconnect").Build(),
 					)
 					return
@@ -361,9 +359,9 @@ func (c GRPCLogClient) stream(errCh chan error) {
 				c.svcLogger.Log(
 					log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 						"error":      err,
-						"iterations": defaultStreamBackoff.Counter(),
-						"maxWait":    defaultStreamBackoff.Max(),
-						"curWait":    defaultStreamBackoff.Current(),
+						"iterations": backoff.Counter(),
+						"maxWait":    backoff.Max(),
+						"curWait":    backoff.Current(),
 					}).Message("retrying connection").Build(),
 				)
 
@@ -521,9 +519,7 @@ func (c GRPCLogClient) handleStreamMessages(
 				// TODO: implement exponential backoff
 				// this is a temp fallback to retry the connection
 				// using a 5 second timer before trying again
-				call, err := defaultStreamBackoff.
-					Increment().
-					Wait()
+				call, err := backoff.Increment().Wait()
 
 				if err != nil {
 
@@ -533,7 +529,7 @@ func (c GRPCLogClient) handleStreamMessages(
 						log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 							"id":         reqID,
 							"error":      err.Error(),
-							"numRetries": defaultStreamBackoff.Counter(),
+							"numRetries": backoff.Counter(),
 						}).Message("closing stream after too many failed attempts to reconnect").Build(),
 					)
 					c.done <- struct{}{}
@@ -545,9 +541,9 @@ func (c GRPCLogClient) handleStreamMessages(
 					c.svcLogger.Log(
 						log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 							"error":      err,
-							"iterations": defaultStreamBackoff.Counter(),
-							"maxWait":    defaultStreamBackoff.Max(),
-							"curWait":    defaultStreamBackoff.Current(),
+							"iterations": backoff.Counter(),
+							"maxWait":    backoff.Max(),
+							"curWait":    backoff.Current(),
 						}).Message("retrying connection").Build(),
 					)
 
@@ -555,19 +551,6 @@ func (c GRPCLogClient) handleStreamMessages(
 					return
 
 				}
-
-				// if err != nil {
-				// 	errCh <- err
-				// 	cancel()
-
-				// 	c.svcLogger.Log(
-				// 		log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				// 			"id":         reqID,
-				// 			"error":      err.Error(),
-				// 			"numRetries": n,
-				// 		}).Message("closing stream after too many failed attempts to reconnect").Build(),
-				// 	)
-				// }
 
 			} else {
 				errCh <- err

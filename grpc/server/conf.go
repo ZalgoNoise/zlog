@@ -2,10 +2,17 @@ package server
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"io/ioutil"
 
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+)
+
+var (
+	ErrCACertAddFailed error = errors.New("failed to add server CA's certificate")
 )
 
 type LogServerConfig interface {
@@ -108,8 +115,21 @@ func (l LSOpts) Apply(ls *GRPCLogServer) {
 	ls.opts = append(ls.opts, l.opts...)
 }
 
-func WithTLS(certPath, keyPath string) LogServerConfig {
-	cred, err := loadCreds(certPath, keyPath)
+func WithTLS(certPath, keyPath string, caPath ...string) LogServerConfig {
+	var cred credentials.TransportCredentials
+	var err error
+
+	if len(caPath) == 0 {
+		cred, err = loadCreds(certPath, keyPath)
+
+		// despite the variatic parameter, only the first element is read
+		// this is so it can be fully omitted if it's for server-TLS only
+	} else if len(caPath) > 0 {
+		cred, err = loadCredsMutual(caPath[0], certPath, keyPath)
+	} else {
+		return nil
+	}
+
 	if err != nil {
 		// panic since the gRPC server shouldn't start
 		// if TLS is requested but invalid / errored
@@ -121,7 +141,6 @@ func WithTLS(certPath, keyPath string) LogServerConfig {
 			grpc.Creds(cred),
 		},
 	}
-
 }
 
 func loadCreds(cert, key string) (credentials.TransportCredentials, error) {
@@ -133,6 +152,32 @@ func loadCreds(cert, key string) (credentials.TransportCredentials, error) {
 	config := &tls.Config{
 		Certificates: []tls.Certificate{c},
 		ClientAuth:   tls.NoClientCert,
+	}
+
+	return credentials.NewTLS(config), nil
+}
+
+func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials, error) {
+	ca, err := ioutil.ReadFile(caCert)
+	if err != nil {
+		return nil, err
+	}
+
+	crtPool := x509.NewCertPool()
+
+	if ok := crtPool.AppendCertsFromPEM(ca); !ok {
+		return nil, ErrCACertAddFailed
+	}
+
+	c, err := tls.LoadX509KeyPair(cert, key)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{c},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    crtPool,
 	}
 
 	return credentials.NewTLS(config), nil

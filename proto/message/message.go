@@ -24,7 +24,7 @@ type LogServer struct {
 }
 
 func newComm(level int32, method, message string) *MessageRequest {
-	l := level
+	l := Level(level)
 	p := commPrefix
 	s := method
 
@@ -38,13 +38,14 @@ func newComm(level int32, method, message string) *MessageRequest {
 }
 
 func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageResponse, error) {
+	fName := "Log"
 
 	reqID := CtxGet(ctx)
-	s.Comm <- newComm(1, "Log", fmt.Sprintf("recv: %s", reqID))
+	s.Comm <- newComm(1, fName, fmt.Sprintf("recv: %s", reqID))
 
 	s.MsgCh <- in
 
-	s.Comm <- newComm(1, "Log", fmt.Sprintf("send: %s", reqID))
+	s.Comm <- newComm(1, fName, fmt.Sprintf("send: %s", reqID))
 	return &MessageResponse{Ok: true}, nil
 }
 
@@ -57,6 +58,8 @@ func NewLogServer() *LogServer {
 }
 
 func (s *LogServer) LogStream(stream LogService_LogStreamServer) error {
+	fName := "LogStream"
+
 	go func() {
 		for {
 			in, err := stream.Recv()
@@ -64,29 +67,29 @@ func (s *LogServer) LogStream(stream LogService_LogStreamServer) error {
 			reqID := CtxGet(ctx)
 
 			if err == io.EOF {
-				s.Comm <- newComm(1, "LogStream", fmt.Sprintf("recv: got EOF from %s", reqID))
+				s.Comm <- newComm(1, fName, fmt.Sprintf("recv: got EOF from %s", reqID))
 				break
 			}
 			if err != nil {
 				if contextCancelledRegexp.MatchString(err.Error()) {
-					s.Comm <- newComm(2, "LogStream", fmt.Sprintf("recv: got context closure from %s :: %s", reqID, err))
+					s.Comm <- newComm(2, fName, fmt.Sprintf("recv: got context closure from %s :: %s", reqID, err))
 					return
 				}
 
-				s.Comm <- newComm(4, "LogStream", fmt.Sprintf("recv: got error from %s :: %s", reqID, err))
+				s.Comm <- newComm(4, fName, fmt.Sprintf("recv: got error from %s :: %s", reqID, err))
 
 				s.ErrCh <- err
 				return
 			}
 
-			s.Comm <- newComm(1, "LogStream", fmt.Sprintf("recv: %s", reqID))
+			s.Comm <- newComm(1, fName, fmt.Sprintf("recv: %s", reqID))
 
 			s.MsgCh <- in
 
-			s.Comm <- newComm(1, "LogStream", fmt.Sprintf("send: %s", reqID))
+			s.Comm <- newComm(1, fName, fmt.Sprintf("send: %s", reqID))
 			err = stream.Send(&MessageResponse{Ok: true})
 			if err != nil {
-				s.Comm <- newComm(4, "LogStream", fmt.Sprintf("send: got error with %s :: %s", reqID, err))
+				s.Comm <- newComm(4, fName, fmt.Sprintf("send: got error with %s :: %s", reqID, err))
 				s.ErrCh <- err
 				return
 			}

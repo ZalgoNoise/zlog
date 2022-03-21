@@ -1,9 +1,10 @@
 package log
 
 import (
-	"bytes"
 	"io"
 	"os"
+
+	"github.com/zalgonoise/zlog/store"
 )
 
 // LoggerConfig interface describes the behavior that a LoggerConfig object should have
@@ -82,11 +83,9 @@ var (
 )
 
 func NilLogger() LoggerConfig {
-	buf := make([]byte, 0)
-
 	return MultiConf(
 		&LCOut{
-			out: bytes.NewBuffer(buf),
+			out: store.EmptyWriter,
 		},
 		NewTextFormat().NoHeaders().NoTimestamp().NoLevel().Build(),
 		&LCSkipExit{},

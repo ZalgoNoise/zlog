@@ -16,7 +16,7 @@ import (
 // relation to its value
 //
 // LogLevel also implements the Stringer interface, used to convey this log level in a message
-type LogLevel int
+type LogLevel int32
 
 const (
 	LLTrace LogLevel = iota
@@ -44,25 +44,27 @@ func (ll LogLevel) Int() int {
 	return int(ll)
 }
 
-var LogTypeVals = map[LogLevel]string{
-	0: "trace",
-	1: "debug",
-	2: "info",
-	3: "warn",
-	4: "error",
-	5: "fatal",
-	9: "panic",
-}
+var (
+	LogTypeVals = map[LogLevel]string{
+		0: "trace",
+		1: "debug",
+		2: "info",
+		3: "warn",
+		4: "error",
+		5: "fatal",
+		9: "panic",
+	}
 
-var LogTypeKeys = map[string]int{
-	"trace": 0,
-	"debug": 1,
-	"info":  2,
-	"warn":  3,
-	"error": 4,
-	"fatal": 5,
-	"panic": 9,
-}
+	LogTypeKeys = map[string]int{
+		"trace": 0,
+		"debug": 1,
+		"info":  2,
+		"warn":  3,
+		"error": 4,
+		"fatal": 5,
+		"panic": 9,
+	}
+)
 
 // Field type is a generic type to build LogMessage Metadata
 type Field map[string]interface{}
@@ -187,7 +189,7 @@ func (m *LogMessage) ToProto() (*pb.MessageRequest, error) {
 		return nil, err
 	}
 
-	level := int32(LogTypeKeys[m.Level])
+	level := pb.Level(LogTypeKeys[m.Level])
 
 	return &pb.MessageRequest{
 		Time:   timestamppb.New(m.Time),

@@ -1,12 +1,21 @@
 package client
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"io/ioutil"
 	"time"
 
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+)
+
+var (
+	ErrCACertAddFailed error = errors.New("failed to add server CA's certificate")
 )
 
 type LogClientConfig interface {
@@ -59,6 +68,40 @@ func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
 	}
 	return &LSOpts{opts: defaultDialOptions}
 
+}
+
+func WithTLS(caPath string) LogClientConfig {
+	cred, err := loadCreds(caPath)
+	if err != nil {
+		// panic since the gRPC client shouldn't start
+		// if TLS is requested but invalid / errored
+		panic(err)
+	}
+
+	return &LSOpts{
+		opts: []grpc.DialOption{
+			grpc.WithTransportCredentials(cred),
+		},
+	}
+}
+
+func loadCreds(caCert string) (credentials.TransportCredentials, error) {
+	ca, err := ioutil.ReadFile(caCert)
+	if err != nil {
+		return nil, err
+	}
+
+	crtPool := x509.NewCertPool()
+
+	if ok := crtPool.AppendCertsFromPEM(ca); !ok {
+		return nil, ErrCACertAddFailed
+	}
+
+	config := &tls.Config{
+		RootCAs: crtPool,
+	}
+
+	return credentials.NewTLS(config), nil
 }
 
 func (l LSOpts) Apply(ls *GRPCLogClientBuilder) {

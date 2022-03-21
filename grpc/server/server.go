@@ -13,16 +13,6 @@ import (
 var (
 	ErrMessageParse error = errors.New("failed to parse message")
 	ErrAddrListen   error = errors.New("failed to listen to input address")
-
-	logCommMessageParseErr *log.LogMessage     = log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(log.Field{"error": ErrMessageParse.Error()}).Build()
-	logListenMessageFatal  *log.MessageBuilder = log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("listen").Message("couldn't listen to input address")
-	logListenMessage       *log.MessageBuilder = log.NewMessage().Level(log.LLInfo).Prefix("gRPC").Sub("listen").Message("gRPC server is listening to connections")
-	logHandlerInitMessage  *log.LogMessage     = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build()
-	logHandlerMessage      *log.LogMessage     = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build()
-	logCloserMessage       *log.LogMessage     = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("received done signal").Build()
-	logServeReadyMessage   *log.MessageBuilder = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("serve").Message("gRPC server is running")
-	logServeErrMessage     *log.MessageBuilder = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("serve").Message("gRPC server crashed with an error")
-	logStopMessage         *log.LogMessage     = log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stop").Message("received done signal").Build()
 )
 
 type GRPCLogServer struct {
@@ -71,7 +61,7 @@ func (s GRPCLogServer) registerComms() {
 	for {
 		msg, ok := <-s.LogSv.Comm
 		if !ok {
-			s.SvcLogger.Log(logCommMessageParseErr)
+			s.SvcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(log.Field{"error": ErrMessageParse.Error()}).Build())
 			continue
 		}
 
@@ -85,7 +75,8 @@ func (s GRPCLogServer) listen() net.Listener {
 	if err != nil {
 		s.ErrCh <- err
 
-		s.SvcLogger.Log(logListenMessageFatal.Metadata(log.Field{
+		s.SvcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("listen").
+			Message("couldn't listen to input address").Metadata(log.Field{
 			"error": err.Error(),
 			"addr":  s.Addr,
 		}).Build())
@@ -93,7 +84,8 @@ func (s GRPCLogServer) listen() net.Listener {
 		return nil
 	}
 
-	s.SvcLogger.Log(logListenMessage.Metadata(log.Field{
+	s.SvcLogger.Log(log.NewMessage().Level(log.LLInfo).Prefix("gRPC").Sub("listen").
+		Message("gRPC server is listening to connections").Metadata(log.Field{
 		"addr": s.Addr,
 	}).Build())
 
@@ -101,7 +93,7 @@ func (s GRPCLogServer) listen() net.Listener {
 }
 
 func (s GRPCLogServer) handleMessages() {
-	s.SvcLogger.Log(logHandlerInitMessage)
+	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
 
 	for {
 		select {
@@ -109,10 +101,10 @@ func (s GRPCLogServer) handleMessages() {
 			logmsg := log.NewMessage().FromProto(msg).Build()
 			s.Logger.Log(logmsg)
 
-			s.SvcLogger.Log(logHandlerMessage)
+			s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
 
 		case <-s.LogSv.Done:
-			s.SvcLogger.Log(logCloserMessage)
+			s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
 			return
 		}
 	}
@@ -120,6 +112,10 @@ func (s GRPCLogServer) handleMessages() {
 
 func (s GRPCLogServer) Serve() {
 	lis := s.listen()
+	if lis == nil {
+		return
+	}
+
 	go s.handleMessages()
 
 	s.Server = grpc.NewServer(s.opts...)
@@ -128,14 +124,16 @@ func (s GRPCLogServer) Serve() {
 	// gRPC reflection
 	reflection.Register(s.Server)
 
-	s.SvcLogger.Log(logServeReadyMessage.Metadata(log.Field{
+	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("serve").
+		Message("gRPC server is running").Metadata(log.Field{
 		"addr": s.Addr,
 	}).Build())
 
 	if err := s.Server.Serve(lis); err != nil {
 		s.ErrCh <- err
 
-		s.SvcLogger.Log(logServeErrMessage.Metadata(log.Field{
+		s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("serve").
+			Message("gRPC server crashed with an error").Metadata(log.Field{
 			"error": err.Error(),
 			"addr":  s.Addr,
 		}).Build())
@@ -148,5 +146,5 @@ func (s GRPCLogServer) Stop() {
 	s.LogSv.Done <- struct{}{}
 	s.Server.Stop()
 
-	s.SvcLogger.Log(logStopMessage)
+	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stop").Message("received done signal").Build())
 }

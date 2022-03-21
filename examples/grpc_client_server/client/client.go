@@ -15,10 +15,16 @@ func main() {
 	)
 
 	grpcLogger, errCh := client.New(
-		client.WithAddr("127.0.0.1:9099"),
+		client.WithAddr("192.168.10.10:9099"),
 		client.UnaryRPC(),
 		client.WithLogger(
 			logger,
+		),
+		client.WithGRPCOpts(),
+		client.WithTLS(
+			"cert/ca/ca-cert.pem",
+			// "cert/client/client-cert.pem",
+			// "cert/client/client-key.pem",
 		),
 	)
 	_, done := grpcLogger.Channels()
@@ -83,7 +89,7 @@ func main() {
 	// 	// fmt.Println(n, err)
 	// 	fmt.Println(buf.String())
 
-	done <- struct{}{}
+	// done <- struct{}{}
 
 	// }()
 

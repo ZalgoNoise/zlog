@@ -19,7 +19,13 @@ func main() {
 				log.ColorTextLevelFirstSpaced,
 			),
 		),
-		server.WithAddr(":9099"),
+		server.WithAddr("192.168.10.10:9099"),
+		server.WithGRPCOpts(),
+		server.WithTLS(
+			"cert/server/server-cert.pem",
+			"cert/server/server-key.pem",
+			// "cert/ca/ca-cert.pem",
+		),
 	)
 	grpcLogger.Serve()
 

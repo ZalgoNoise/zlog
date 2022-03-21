@@ -62,7 +62,11 @@ func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
 }
 
 func (l LSOpts) Apply(ls *GRPCLogClientBuilder) {
-	ls.opts = l.opts
+	if len(ls.opts) == 0 {
+		ls.opts = l.opts
+		return
+	}
+	ls.opts = append(ls.opts, l.opts...)
 }
 
 type LSType struct {

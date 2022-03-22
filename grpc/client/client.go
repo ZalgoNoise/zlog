@@ -9,8 +9,8 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"time"
 
+	"github.com/zalgonoise/zlog/config"
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
@@ -29,6 +29,7 @@ var (
 )
 
 var backoff = NewBackoff()
+var gRPCLogClientBuilderType *GRPCLogClientBuilder = &GRPCLogClientBuilder{}
 
 type GRPCLogger interface {
 	log.Logger
@@ -51,54 +52,78 @@ type GRPCLogClient struct {
 }
 
 type GRPCLogClientBuilder struct {
-	addr       *address.ConnAddr
-	opts       []grpc.DialOption
-	isUnary    bool
-	expBackoff time.Duration
-	svcLogger  log.Logger
+	// addr *address.ConnAddr
+	// opts []grpc.DialOption
+	conf *config.Configs
+	// isUnary    bool
+	// expBackoff time.Duration
+	// svcLogger log.Logger
 }
 
-func newGRPCLogClient(opts ...LogClientConfig) *GRPCLogClientBuilder {
+func newGRPCLogClient(confs ...config.Config) *GRPCLogClientBuilder {
+	cfg := config.NewMap(confs...)
 
-	builder := &GRPCLogClientBuilder{}
-
-	for _, opt := range opts {
-		opt.Apply(builder)
+	builder := &GRPCLogClientBuilder{
+		conf: cfg,
 	}
 
-	if builder.addr.Len() == 0 {
-		WithAddr("").Apply(builder)
+	// type check
+	for _, v := range builder.conf.Map() {
+		if !v.Is(gRPCLogClientBuilderType) {
+			return nil
+		}
 	}
 
-	if len(builder.opts) == 0 {
-		WithGRPCOpts().Apply(builder)
-		Insecure().Apply(builder)
+	// check defaults
+	for _, v := range LogClientConfRequired {
+		if !builder.conf.IsSet(v.String()) {
+			v.Default().Apply(builder.conf)
+		}
 	}
 
-	if builder.svcLogger == nil {
-		WithLogger().Apply(builder)
-	}
+	// for _, opt := range opts {
+	// 	opt.Apply(builder)
+	// }
 
-	if builder.expBackoff != defaultRetryTime && builder.expBackoff > 0 {
-		backoff.Time(builder.expBackoff)
-	}
+	// if builder.addr.Len() == 0 {
+	// 	WithAddr("").Apply(builder)
+	// }
+
+	// if len(builder.opts) == 0 {
+	// 	WithGRPCOpts().Apply(builder)
+	// 	Insecure().Apply(builder)
+	// }
+
+	// if builder.svcLogger == nil {
+	// 	WithLogger().Apply(builder)
+	// }
+
+	// if builder.expBackoff != defaultRetryTime && builder.expBackoff > 0 {
+	// 	backoff.Time(builder.expBackoff)
+	// }
 
 	return builder
 }
 
 // factory
-func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
+func New(opts ...config.Config) (GRPCLogger, chan error) {
 	builder := newGRPCLogClient(opts...)
 
+	opt := builder.conf.Get(LSGRPCOpts.String()).([]grpc.DialOption)
+	tls := builder.conf.Get(LSTLS.String()).([]grpc.DialOption)
+	grpcOpts := []grpc.DialOption{}
+	grpcOpts = append(grpcOpts, opt...)
+	grpcOpts = append(grpcOpts, tls...)
+
 	client := &GRPCLogClient{
-		addr:      builder.addr,
-		opts:      builder.opts,
+		addr:      builder.conf.Get(LSAddress.String()).(*address.ConnAddr),
+		opts:      grpcOpts,
 		msgCh:     make(chan *log.LogMessage),
 		done:      make(chan struct{}),
-		svcLogger: builder.svcLogger,
+		svcLogger: builder.conf.Get(LSLogging.String()).(log.Logger),
 	}
 
-	if !builder.isUnary {
+	if !builder.conf.IsSet("unary") {
 
 		client.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Stream gRPC client").Build())
 		return newStreamLogger(client)

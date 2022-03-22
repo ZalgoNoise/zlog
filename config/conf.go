@@ -31,6 +31,14 @@ type configuration struct {
 	value  interface{} // value of the configuration
 }
 
+func NewMap(config ...Config) *Configs {
+	c := &Configs{}
+	for _, conf := range config {
+		conf.Apply(c)
+	}
+	return c
+}
+
 // New function will create a new, empty Config, based on the input name string (the key),
 // and a parent (type) which this config should be associated to
 func New(name string, parent interface{}) Config {
@@ -60,6 +68,12 @@ func (c *Configs) Get(key string) interface{} {
 	cfg := *c
 	return cfg[key].(*configuration).value
 
+}
+
+func (c *Configs) IsSet(key string) bool {
+	cfg := *c
+	_, ok := cfg[key].(*configuration)
+	return ok
 }
 
 // Name method will return the Config name (string) to identify this configuration for

@@ -149,7 +149,61 @@ func TestWithValueConfiguration(t *testing.T) {
 	}
 }
 
-func TestConfigs(t *testing.T) {
+func TestConfigsIsSet(t *testing.T) {
+	module := "Configs"
+	function := "Mapping"
+
+	logger := log.New()
+	chLogger := log.NewLogCh(logger)
+
+	tests := []struct {
+		name   string
+		parent interface{}
+		isSet  bool
+	}{
+		{
+			name:   "prefix",
+			parent: logger,
+			isSet:  true,
+		},
+		{
+			name:   "sub",
+			parent: chLogger,
+			isSet:  true,
+		},
+		{
+			name:   "whatever",
+			parent: nil,
+			isSet:  false,
+		},
+	}
+
+	target := &Configs{}
+
+	for _, test := range tests {
+		if test.isSet {
+			cfg := New(test.name, test.parent)
+			cfg.Apply(target)
+		}
+	}
+
+	for id, test := range tests {
+		if target.IsSet(test.name) != test.isSet {
+			t.Errorf(
+				"#%v -- FAILED -- [%s][%s] -- isSet mismatch: wanted %v ; got %v",
+				id,
+				module,
+				function,
+				test.isSet,
+				target.IsSet(test.name),
+			)
+			return
+		}
+
+	}
+}
+
+func TestConfigsGet(t *testing.T) {
 	module := "Configs"
 	function := "Mapping"
 

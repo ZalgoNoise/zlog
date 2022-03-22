@@ -28,7 +28,7 @@ var (
 	ErrBadWriter   error = errors.New("invalid writer -- must be of type client.ConnAddr")
 )
 
-var backoff = NewBackoff()
+var backoff *ExpBackoff
 var gRPCLogClientBuilderType *GRPCLogClientBuilder = &GRPCLogClientBuilder{}
 
 type GRPCLogger interface {
@@ -52,12 +52,7 @@ type GRPCLogClient struct {
 }
 
 type GRPCLogClientBuilder struct {
-	// addr *address.ConnAddr
-	// opts []grpc.DialOption
 	conf *config.Configs
-	// isUnary    bool
-	// expBackoff time.Duration
-	// svcLogger log.Logger
 }
 
 func newGRPCLogClient(confs ...config.Config) *GRPCLogClientBuilder {
@@ -81,26 +76,9 @@ func newGRPCLogClient(confs ...config.Config) *GRPCLogClientBuilder {
 		}
 	}
 
-	// for _, opt := range opts {
-	// 	opt.Apply(builder)
-	// }
-
-	// if builder.addr.Len() == 0 {
-	// 	WithAddr("").Apply(builder)
-	// }
-
-	// if len(builder.opts) == 0 {
-	// 	WithGRPCOpts().Apply(builder)
-	// 	Insecure().Apply(builder)
-	// }
-
-	// if builder.svcLogger == nil {
-	// 	WithLogger().Apply(builder)
-	// }
-
-	// if builder.expBackoff != defaultRetryTime && builder.expBackoff > 0 {
-	// 	backoff.Time(builder.expBackoff)
-	// }
+	// temp -- backoff handler
+	// TODO: move conf logic to gRPC client struct
+	backoff = builder.conf.Get(LSBackoff.String()).(*ExpBackoff)
 
 	return builder
 }
@@ -123,7 +101,7 @@ func New(opts ...config.Config) (GRPCLogger, chan error) {
 		svcLogger: builder.conf.Get(LSLogging.String()).(log.Logger),
 	}
 
-	if !builder.conf.IsSet("unary") {
+	if builder.conf.Get(LSType.String()).(string) == "stream" {
 
 		client.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Stream gRPC client").Build())
 		return newStreamLogger(client)

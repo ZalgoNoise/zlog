@@ -41,8 +41,7 @@ const (
 )
 
 var (
-	LogClientConfRequired = []LogClientConf{0, 1, 2, 3, 4, 5}
-	LogClientConfKeys     = map[string]LogClientConf{
+	LogClientConfKeys = map[string]LogClientConf{
 		"addr":     0,
 		"type":     1,
 		"logging":  2,
@@ -59,33 +58,6 @@ var (
 		4: "backoff",
 		5: "grpcopts",
 	}
-	addrCfg    = config.New(LSAddress.String(), gRPCLogClientBuilderType)
-	typeCfg    = config.New(LSType.String(), gRPCLogClientBuilderType)
-	logCfg     = config.New(LSLogging.String(), gRPCLogClientBuilderType)
-	tlsCfg     = config.New(LSTLS.String(), gRPCLogClientBuilderType)
-	optsCfg    = config.New(LSGRPCOpts.String(), gRPCLogClientBuilderType)
-	backoffCfg = config.New(LSBackoff.String(), gRPCLogClientBuilderType)
-
-	LogClientDefaults = map[LogClientConf]config.Config{
-		0: config.WithDefault(addrCfg, func() config.Config {
-			return WithAddr("")
-		}),
-		1: config.WithDefault(typeCfg, func() config.Config {
-			return StreamRPC()
-		}),
-		2: config.WithDefault(logCfg, func() config.Config {
-			return WithLogger()
-		}),
-		3: config.WithDefault(tlsCfg, func() config.Config {
-			return Insecure()
-		}),
-		4: config.WithDefault(backoffCfg, func() config.Config {
-			return WithBackoff(0)
-		}),
-		5: config.WithDefault(optsCfg, func() config.Config {
-			return WithGRPCOpts()
-		}),
-	}
 )
 
 func (c LogClientConf) Int32() int32 {
@@ -95,12 +67,21 @@ func (c LogClientConf) Int32() int32 {
 func (c LogClientConf) String() string {
 	return LogClientConfVals[c.Int32()]
 }
-func (c LogClientConf) Default() config.Config {
-	return LogClientDefaults[c].Default()
+
+func gRPCLogClientDefaults() *config.Configs {
+	return config.NewMap(
+		WithAddr(""),
+		StreamRPC(),
+		WithLogger(),
+		Insecure(),
+		WithBackoff(0),
+		WithGRPCOpts(),
+	)
 }
 
 func WithAddr(addr ...string) config.Config {
 	var connAddr address.ConnAddr = map[string]*grpc.ClientConn{}
+	var addrCfg = config.New(LSAddress.String(), gRPCLogClientBuilderType)
 
 	if len(addr) == 0 || addr == nil {
 		connAddr.Add(":9099")
@@ -111,20 +92,36 @@ func WithAddr(addr ...string) config.Config {
 	return config.WithValue(addrCfg, &connAddr)
 }
 
-func WithGRPCOpts(opts ...grpc.DialOption) config.Config {
-	if len(opts) == 0 {
-		// enforce defaults
-		return config.WithValue(optsCfg, defaultDialOptions)
+func StreamRPC() config.Config {
+	var typeCfg = config.New(LSType.String(), gRPCLogClientBuilderType)
+	return config.WithValue(typeCfg, "stream")
+}
+
+func UnaryRPC() config.Config {
+	var typeCfg = config.New(LSType.String(), gRPCLogClientBuilderType)
+	return config.WithValue(typeCfg, "unary")
+}
+
+func WithLogger(loggers ...log.Logger) config.Config {
+	var logCfg = config.New(LSLogging.String(), gRPCLogClientBuilderType)
+	if len(loggers) == 1 {
+		return config.WithValue(logCfg, loggers[0])
 	}
 
-	return config.WithValue(optsCfg, opts)
+	if len(loggers) > 1 {
+		return config.WithValue(logCfg, log.MultiLogger(loggers...))
+	}
+
+	return config.WithValue(logCfg, log.New(log.NilConfig))
 }
 
 func Insecure() config.Config {
+	var tlsCfg = config.New(LSTLS.String(), gRPCLogClientBuilderType)
 	return config.WithValue(tlsCfg, insecureDialOptions)
 }
 
 func WithTLS(caPath string, certKeyPair ...string) config.Config {
+	var tlsCfg = config.New(LSTLS.String(), gRPCLogClientBuilderType)
 	var cred credentials.TransportCredentials
 	var err error
 
@@ -197,27 +194,8 @@ func loadCreds(caCert string) (credentials.TransportCredentials, error) {
 	return credentials.NewTLS(config), nil
 }
 
-func StreamRPC() config.Config {
-	return config.WithValue(typeCfg, "stream")
-}
-
-func UnaryRPC() config.Config {
-	return config.WithValue(typeCfg, "unary")
-}
-
-func WithLogger(loggers ...log.Logger) config.Config {
-	if len(loggers) == 1 {
-		return config.WithValue(logCfg, loggers[0])
-	}
-
-	if len(loggers) > 1 {
-		return config.WithValue(logCfg, log.MultiLogger(loggers...))
-	}
-
-	return config.WithValue(logCfg, log.New(log.NilConfig))
-}
-
 func WithBackoff(t time.Duration) config.Config {
+	var backoffCfg = config.New(LSBackoff.String(), gRPCLogClientBuilderType)
 	b := NewBackoff()
 
 	// default config
@@ -226,4 +204,15 @@ func WithBackoff(t time.Duration) config.Config {
 	}
 
 	return config.WithValue(backoffCfg, b.Time(t))
+}
+
+func WithGRPCOpts(opts ...grpc.DialOption) config.Config {
+	var optsCfg = config.New(LSGRPCOpts.String(), gRPCLogClientBuilderType)
+
+	if len(opts) == 0 {
+		// enforce defaults
+		return config.WithValue(optsCfg, defaultDialOptions)
+	}
+
+	return config.WithValue(optsCfg, opts)
 }

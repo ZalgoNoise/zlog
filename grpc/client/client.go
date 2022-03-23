@@ -56,23 +56,20 @@ type GRPCLogClientBuilder struct {
 }
 
 func newGRPCLogClient(confs ...config.Config) *GRPCLogClientBuilder {
-	cfg := config.NewMap(confs...)
-
+	// enforce defaults on builder
 	builder := &GRPCLogClientBuilder{
-		conf: cfg,
+		conf: gRPCLogClientDefaults(),
 	}
 
-	// type check
-	for _, v := range builder.conf.Map() {
-		if !v.Is(gRPCLogClientBuilderType) {
+	// apply input configs
+	for _, config := range confs {
+		config.Apply(builder.conf)
+	}
+
+	// type check configs
+	for _, config := range builder.conf.Map() {
+		if !config.Is(gRPCLogClientBuilderType) {
 			return nil
-		}
-	}
-
-	// check defaults
-	for _, v := range LogClientConfRequired {
-		if !builder.conf.IsSet(v.String()) {
-			v.Default().Apply(builder.conf)
 		}
 	}
 
@@ -87,8 +84,10 @@ func newGRPCLogClient(confs ...config.Config) *GRPCLogClientBuilder {
 func New(opts ...config.Config) (GRPCLogger, chan error) {
 	builder := newGRPCLogClient(opts...)
 
+	// join []grpc.DialOption
 	opt := builder.conf.Get(LSGRPCOpts.String()).([]grpc.DialOption)
 	tls := builder.conf.Get(LSTLS.String()).([]grpc.DialOption)
+
 	grpcOpts := []grpc.DialOption{}
 	grpcOpts = append(grpcOpts, opt...)
 	grpcOpts = append(grpcOpts, tls...)

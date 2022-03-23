@@ -10,10 +10,124 @@ import (
 // - Its `Apply(*Configs)` method will sync this Config with the Configs map
 // - Its `Is(interface{}) bool` method will allow type comparisons to scope different
 // types of Config
+// - Its `Default() Config` method is a (preset) function set via WithDefault(), as
+// a helper to ensure required configs are set
 type Config interface {
+	// `Name()` method returns a config name, to identify it for debugging
+	//
+	// Also, it may be used to call a Configs' key with its Get method,
+	// without explicitly writing it:
+	//
+	//     type Object struct {
+	//         conf *config.Configs
+	//         (...)
+	//     }
+	//
+	//     var (
+	//         objectType    = &Object{}
+	//         nameKey       = "name"
+	//         nameConf      = config.New(nameKey, objectType)
+	//     )
+	//
+	//     name := nameConf.Name() // returns "name"
+	//
 	Name() string
+	// `Apply(*Configs)` method will sync this Config with the Configs map
+	//
+	// This is the general method used to parse a set of options into a struct
+	//
+	//     type Object struct {
+	//         conf *config.Configs
+	//         (...)
+	//     }
+	//
+	//     func New(configs ...config.Config) *Object {
+	//         new := &Object{ conf: &config.Configs{} }
+	//
+	//         for _, conf := range configs {
+	//             conf.Apply(new.conf)
+	//         }
+	//         return new
+	//     }
+	//
 	Apply(confs *Configs)
+	// `Is(interface{}) bool` method will allow type comparisons to scope different
+	// types of config.
+	//
+	// Considering that this is a general-purpose package, it's assumed that we don't
+	// want to apply invalid configurations to objects.
+	//
+	// Those types of comparisons can be made with Is(), by passing in a (generic) target
+	// type:
+	//
+	//     type Object struct {
+	//         conf *config.Configs
+	//         (...)
+	//     }
+	//
+	//     var objectType = &Object{}
+	//
+	//     func New(configs ...config.Config) (*Object, error) {
+	//         new := &Object{ conf: &config.Configs{} }
+	//
+	//         for _, conf := range configs {
+	//             if !conf.Is(objectType) {
+	//                 return nil, errors.New("invalid config type")
+	//             }
+	//             conf.Apply(new.conf)
+	//         }
+	//         return new
+	//     }
 	Is(interface{}) bool
+	// `Default() Config` method is a (preset) function set via WithDefault(), as
+	// a helper to ensure required configs are set
+	//
+	// When creating a default Configs object with required Config, the DefaultFunc is
+	// set via WithDefault() by passing in a Config and a DefaultFunc (a function that
+	// takes no arguments and returns a Config).
+	//
+	// The defaults can be applied by calling the Default() method of each Config, chained
+	// with an Apply() method targetting a pointer to a Configs object.
+	//
+	//     type Object struct {
+	//         conf *config.Configs
+	//         (...)
+	//     }
+	//
+	//     var (
+	//         objectType    = &Object{}
+	//         nameKey       = "name"
+	//         nameConf      = config.New(nameKey, objectType)
+	//         defaultConfig = config.NewMap(nameConf)
+	//     )
+	//
+	//     func New(configs ...config.Config) (*Object, error) {
+	//         new := &Object{ conf: &config.Configs{} }
+	//
+	//         for _, conf := range configs {
+	//             if !conf.Is(objectType) {
+	//                 return nil, errors.New("invalid config type")
+	//             }
+	//             conf.Apply(new.conf)
+	//         }
+	//
+	//         // option A - check against each default config defined
+	//         if !new.conf.IsSet(nameKey) {
+	//             nameConf.Apply(new.conf)
+	//         }
+	//
+	//         // option B - map comparison (manual)
+	//         for key, config := range defaultConfig.Map() {
+	//             if !new.conf.IsSet(key) {
+	//                 config.Apply(new.conf)
+	//             }
+	//         }
+	//
+	//         // option C - map comparison (method)
+	//         defaultConfig.Default(new.conf)
+	//
+	//         return new
+	//     }
 	Default() Config
 }
 

@@ -35,8 +35,14 @@ type configuration struct {
 	def    DefaultFunc // default function to execute if the field is required, and if unset
 }
 
+// DefaultFunc type represents a one-shot function that retuns a Config
+//
+// This type is used with the WithDefault function, to help building default Configs for
+// different services
 type DefaultFunc func() Config
 
+// NewMap function will build a Configs object based on the input list of Config,
+// and return a pointer to the resulting Configs
 func NewMap(config ...Config) *Configs {
 	c := &Configs{}
 	for _, conf := range config {
@@ -62,6 +68,10 @@ func WithValue(c Config, v interface{}) Config {
 	return c
 }
 
+// WithDefault function will take in a Config and set its DefaultFunc to the input func f.
+// This is done separately so that the interface and New() function signature is not overloaded.
+//
+// The DefaultFunc can be executed directly, or by comparison of Configs with Configs.Default()
 func WithDefault(c Config, f DefaultFunc) Config {
 	c.(*configuration).def = f
 	return c
@@ -70,6 +80,18 @@ func WithDefault(c Config, f DefaultFunc) Config {
 // Map method will allow easier conversion of a Configs type into a map[string]Config type
 func (c *Configs) Map() map[string]Config {
 	return *c
+}
+
+// Default method allows applying Config to input Configs, in case they are unset
+func (c *Configs) Default(input *Configs) {
+	in := *input
+
+	for k, v := range *c {
+		if !input.IsSet(k) {
+			in[k] = v.Default()
+		}
+	}
+	input = &in
 }
 
 // Get method will take in an input key string and return its value from the Configs map.
@@ -110,13 +132,7 @@ func (c *configuration) Is(v interface{}) bool {
 	return p == t
 }
 
-// func (c *configuration) required() bool {
-// 	if c.def == nil {
-// 		return false
-// 	}
-// 	return true
-// }
-
+// Default method will return the execution of the Config's DefaultFunc if not nil
 func (c *configuration) Default() Config {
 	if c.def == nil {
 		return c

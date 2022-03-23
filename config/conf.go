@@ -1,6 +1,8 @@
 package config
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // Config interface describes what a single configuration should be able to do
 //
@@ -12,6 +14,7 @@ type Config interface {
 	Name() string
 	Apply(confs *Configs)
 	Is(interface{}) bool
+	Default() Config
 }
 
 // Configs type is a placeholder map to store Config, which are referenced by their name
@@ -29,7 +32,10 @@ type configuration struct {
 	name   string      // name to identify the config, for debugging
 	parent interface{} // parent type to constrain implementations
 	value  interface{} // value of the configuration
+	def    DefaultFunc // default function to execute if the field is required, and if unset
 }
+
+type DefaultFunc func() Config
 
 func NewMap(config ...Config) *Configs {
 	c := &Configs{}
@@ -53,6 +59,11 @@ func New(name string, parent interface{}) Config {
 // for added simplicity on nil-value configs (toggles).
 func WithValue(c Config, v interface{}) Config {
 	c.(*configuration).value = v
+	return c
+}
+
+func WithDefault(c Config, f DefaultFunc) Config {
+	c.(*configuration).def = f
 	return c
 }
 
@@ -97,4 +108,18 @@ func (c *configuration) Is(v interface{}) bool {
 	t := reflect.TypeOf(v)
 
 	return p == t
+}
+
+// func (c *configuration) required() bool {
+// 	if c.def == nil {
+// 		return false
+// 	}
+// 	return true
+// }
+
+func (c *configuration) Default() Config {
+	if c.def == nil {
+		return c
+	}
+	return c.def()
 }

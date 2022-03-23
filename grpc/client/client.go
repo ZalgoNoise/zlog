@@ -29,7 +29,6 @@ var (
 )
 
 var backoff *ExpBackoff
-var gRPCLogClientBuilderType *GRPCLogClientBuilder = &GRPCLogClientBuilder{}
 
 type GRPCLogger interface {
 	log.Logger
@@ -63,18 +62,11 @@ func newGRPCLogClient(confs ...config.Config) *GRPCLogClientBuilder {
 
 	// apply input configs
 	for _, config := range confs {
-		config.Apply(builder.conf)
-	}
-
-	// type check configs
-	for _, config := range builder.conf.Map() {
-		if !config.Is(gRPCLogClientBuilderType) {
-			return nil
+		if config.Is(gRPCLogClientBuilderType) {
+			config.Apply(builder.conf)
 		}
 	}
 
-	// temp -- backoff handler
-	// TODO: move conf logic to gRPC client struct
 	backoff = builder.conf.Get(LSBackoff.String()).(*ExpBackoff)
 
 	return builder
@@ -88,7 +80,7 @@ func New(opts ...config.Config) (GRPCLogger, chan error) {
 	opt := builder.conf.Get(LSGRPCOpts.String()).([]grpc.DialOption)
 	tls := builder.conf.Get(LSTLS.String()).([]grpc.DialOption)
 
-	grpcOpts := []grpc.DialOption{}
+	var grpcOpts = []grpc.DialOption{}
 	grpcOpts = append(grpcOpts, opt...)
 	grpcOpts = append(grpcOpts, tls...)
 

@@ -18,6 +18,8 @@ import (
 var (
 	ErrCACertAddFailed error = errors.New("failed to add server CA's certificate")
 
+	gRPCLogClientBuilderType = &GRPCLogClientBuilder{}
+
 	defaultDialOptions = []grpc.DialOption{
 		grpc.FailOnNonTempDialError(true),
 		grpc.WithReturnConnectionError(),

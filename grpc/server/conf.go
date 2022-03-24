@@ -21,6 +21,26 @@ var (
 			WithServiceLogger(),
 		},
 	}
+
+	LogServerConfigs = map[int]LogServerConfig{
+		0: defaultConfig,
+		1: WithServiceLogger(log.New()),
+		2: WithServiceLogger(log.New(log.NilConfig)),
+		3: WithServiceLogger(log.New(log.ColorTextLevelFirst)),
+		4: WithServiceLogger(log.New(log.JSONFormat)),
+		5: WithLogger(),
+		6: WithLogger(log.New(log.ColorTextLevelFirst)),
+		7: WithLogger(log.New(log.JSONFormat)),
+	}
+
+	DefaultCfg        LogServerConfig = LogServerConfigs[0] // placeholder for an intialized default LogServerConfig
+	ServiceLogDefault LogServerConfig = LogServerConfigs[1] // placeholder for an initialzed default logger as service logger
+	ServiceLogNil     LogServerConfig = LogServerConfigs[2] // placeholder for an initialzed nil-service-logger LogServerConfig
+	ServiceLogColor   LogServerConfig = LogServerConfigs[3] // placeholder for an initialized colored, level-first, service logger
+	ServiceLogJSON    LogServerConfig = LogServerConfigs[4] // placeholder for an initialized JSON service logger
+	LoggerDefault     LogServerConfig = LogServerConfigs[5] // placeholder for an initialized default logger
+	LoggerColor       LogServerConfig = LogServerConfigs[6] // placeholder for an initialized colored, level-first logger
+	LoggerJSON        LogServerConfig = LogServerConfigs[7] // placeholder for an initialized JSON logger
 )
 
 type LogServerConfig interface {

@@ -15,7 +15,7 @@ func main() {
 	)
 
 	grpcLogger, errCh := client.New(
-		client.WithAddr("192.168.10.10:9099"),
+		client.WithAddr("127.0.0.1:9099"),
 		client.UnaryRPC(),
 		client.WithLogger(
 			logger,

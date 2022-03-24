@@ -57,6 +57,7 @@ type GRPCLogClientBuilder struct {
 func newGRPCLogClient(confs ...LogClientConfig) *GRPCLogClientBuilder {
 	builder := &GRPCLogClientBuilder{}
 
+	// enforce defaults
 	defaultConfig.Apply(builder)
 
 	// apply input configs
@@ -317,7 +318,6 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 		if err != nil {
 			if ErrConnRefusedRegexp.MatchString(err.Error()) || ErrEOFRegexp.MatchString(err.Error()) {
-				// conn.Close()
 				call, err := backoff.Increment().Wait()
 
 				if err != nil {
@@ -497,9 +497,6 @@ func (c GRPCLogClient) handleStreamMessages(
 
 			} else if ErrEOFRegexp.MatchString(err.Error()) || ErrConnRefusedRegexp.MatchString(err.Error()) {
 
-				// TODO: implement exponential backoff
-				// this is a temp fallback to retry the connection
-				// using a 5 second timer before trying again
 				call, err := backoff.Increment().Wait()
 
 				if err != nil {
@@ -564,15 +561,9 @@ func (c GRPCLogClient) Channels() (logCh chan *log.LogMessage, done chan struct{
 }
 
 // implement Logger
-
 func (c GRPCLogClient) Output(m *log.LogMessage) (n int, err error) {
-	// if c.levelFilter > log.LogTypeKeys[m.Level] {
-	// 	return 0, nil
-	// }
-
 	c.msgCh <- m
 	return 1, nil
-
 }
 
 func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
@@ -607,6 +598,7 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 
 	return c
 }
+
 func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 	for _, remote := range outs {
 		if r, ok := remote.(*address.ConnAddr); !ok {
@@ -681,7 +673,7 @@ func (c GRPCLogClient) Fields(fields map[string]interface{}) log.Logger {
 }
 
 func (c GRPCLogClient) IsSkipExit() bool {
-	return true
+	return c.svcLogger.IsSkipExit()
 }
 
 func (c GRPCLogClient) Log(m ...*log.LogMessage) {
@@ -740,10 +732,6 @@ func (c GRPCLogClient) Panic(v ...interface{}) {
 			Metadata(c.meta).
 			Build(),
 	)
-
-	// if !c.skipExit {
-	// 	panic(body)
-	// }
 }
 
 func (c GRPCLogClient) Panicln(v ...interface{}) {
@@ -758,10 +746,6 @@ func (c GRPCLogClient) Panicln(v ...interface{}) {
 			Metadata(c.meta).
 			Build(),
 	)
-
-	// if !c.skipExit {
-	// 	panic(body)
-	// }
 }
 
 func (c GRPCLogClient) Panicf(format string, v ...interface{}) {
@@ -776,10 +760,6 @@ func (c GRPCLogClient) Panicf(format string, v ...interface{}) {
 			Metadata(c.meta).
 			Build(),
 	)
-
-	// if !c.skipExit {
-	// 	panic(body)
-	// }
 }
 
 func (c GRPCLogClient) Fatal(v ...interface{}) {
@@ -792,10 +772,6 @@ func (c GRPCLogClient) Fatal(v ...interface{}) {
 			Metadata(c.meta).
 			Build(),
 	)
-
-	// if !c.skipExit {
-	// 	os.Exit(1)
-	// }
 }
 
 func (c GRPCLogClient) Fatalln(v ...interface{}) {
@@ -809,10 +785,6 @@ func (c GRPCLogClient) Fatalln(v ...interface{}) {
 			Metadata(c.meta).
 			Build(),
 	)
-
-	// if !c.skipExit {
-	// 	os.Exit(1)
-	// }
 }
 
 func (c GRPCLogClient) Fatalf(format string, v ...interface{}) {
@@ -826,10 +798,6 @@ func (c GRPCLogClient) Fatalf(format string, v ...interface{}) {
 			Metadata(c.meta).
 			Build(),
 	)
-
-	// if !c.skipExit {
-	// 	os.Exit(1)
-	// }
 }
 
 func (c GRPCLogClient) Error(v ...interface{}) {

@@ -32,6 +32,17 @@ var (
 			WithBackoff(0),
 		},
 	}
+
+	LogClientConfigs = map[int]LogClientConfig{
+		0: defaultConfig,
+		1: WithBackoff(0),
+		2: WithBackoff(time.Second * 30),
+	}
+
+	DefaultCfg     LogClientConfig = LogClientConfigs[0] // placeholder for an initialized default LogClientConfig
+	BackoffFiveMin LogClientConfig = LogClientConfigs[1] // placeholder for a backoff config with 5-minute deadline
+	BackoffHalfMin LogClientConfig = LogClientConfigs[2] // placeholder for a backoff config with 30-second deadline
+
 )
 
 type LogClientConfig interface {

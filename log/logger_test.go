@@ -201,7 +201,7 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 	os.Stdout = w
 
 	// forcing this override of os.Stdout so that we can read from it
-	logger := New(WithOut(os.Stdout))
+	logger := New(WithOut(os.Stdout), FormatText)
 
 	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
 
@@ -626,7 +626,7 @@ func TestLoggerWrite(t *testing.T) {
 		},
 	}
 
-	logger := New(JSONCfg, WithOut(mockBuffer))
+	logger := New(FormatJSON, WithOut(mockBuffer))
 
 	var verify = func(id int, test test, buf []byte) {
 

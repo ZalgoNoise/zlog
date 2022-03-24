@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net"
 
-	"github.com/zalgonoise/zlog/config"
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
@@ -26,45 +25,18 @@ type GRPCLogServer struct {
 	Server    *grpc.Server
 }
 
-type GRPCLogServerBuilder struct {
-	conf *config.Configs
-}
-
-func newGRPCLogServer(confs ...config.Config) *GRPCLogServerBuilder {
-	// enforce defaults on builder
-	builder := &GRPCLogServerBuilder{
-		conf: gRPCLogServerDefaults(),
+func New(confs ...LogServerConfig) *GRPCLogServer {
+	server := &GRPCLogServer{
+		ErrCh: make(chan error),
+		LogSv: pb.NewLogServer(),
 	}
+
+	// enforce defaults
+	defaultConfig.Apply(server)
 
 	// apply input configs
 	for _, config := range confs {
-		if config.Is(gRPCLogServerBuilderType) {
-			config.Apply(builder.conf)
-		}
-	}
-
-	return builder
-}
-
-// factory
-func New(confs ...config.Config) *GRPCLogServer {
-	builder := newGRPCLogServer(confs...)
-
-	// grpc options (already initialized)
-	opt := builder.conf.Get(LSOpts.String()).([]grpc.ServerOption)
-	tls := builder.conf.Get(LSTLS.String()).([]grpc.ServerOption)
-
-	var grpcOpts []grpc.ServerOption
-	grpcOpts = append(grpcOpts, opt...)
-	grpcOpts = append(grpcOpts, tls...)
-
-	server := &GRPCLogServer{
-		Addr:      builder.conf.Get(LSAddress.String()).(string),
-		opts:      grpcOpts,
-		Logger:    builder.conf.Get(LSLogger.String()).(log.Logger),
-		SvcLogger: builder.conf.Get(LSSvcLogger.String()).(log.Logger),
-		ErrCh:     make(chan error),
-		LogSv:     pb.NewLogServer(),
+		config.Apply(server)
 	}
 
 	go server.registerComms()

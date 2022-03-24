@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/zalgonoise/zlog/config"
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
@@ -18,112 +17,176 @@ import (
 var (
 	ErrCACertAddFailed error = errors.New("failed to add server CA's certificate")
 
-	gRPCLogClientBuilderType = &GRPCLogClientBuilder{}
-
 	defaultDialOptions = []grpc.DialOption{
 		grpc.FailOnNonTempDialError(true),
 		grpc.WithReturnConnectionError(),
 		grpc.WithDisableRetry(),
 	}
 
-	insecureDialOptions = []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	defaultConfig LogClientConfig = &multiconf{
+		confs: []LogClientConfig{
+			WithAddr(""),
+			WithGRPCOpts(),
+			Insecure(),
+			WithLogger(),
+			WithBackoff(0),
+		},
 	}
 )
 
-type LogClientConf int32
+type LogClientConfig interface {
+	Apply(ls *GRPCLogClientBuilder)
+}
 
-const (
-	LSAddress LogClientConf = iota
-	LSType
-	LSLogging
-	LSTLS
-	LSBackoff
-	LSGRPCOpts
-)
+type multiconf struct {
+	confs []LogClientConfig
+}
 
-var (
-	LogClientConfKeys = map[string]LogClientConf{
-		"addr":     0,
-		"type":     1,
-		"logging":  2,
-		"tls":      3,
-		"backoff":  4,
-		"grpcopts": 5,
+// MultiConf function is a wrapper for multiple configs to be bundled (and executed) in one shot.
+//
+// Similar to io.MultiWriter, it will iterate through all set LogClientConfig and run the same method
+// on each of them.
+func MultiConf(conf ...LogClientConfig) LogClientConfig {
+	if len(conf) == 0 {
+		return defaultConfig
 	}
 
-	LogClientConfVals = map[int32]string{
-		0: "addr",
-		1: "type",
-		2: "logging",
-		3: "tls",
-		4: "backoff",
-		5: "grpcopts",
+	allConf := make([]LogClientConfig, 0, len(conf))
+	allConf = append(allConf, conf...)
+
+	return &multiconf{allConf}
+}
+
+// Apply method will make a multiconf-type of LogClientConfig iterate through all its objects and
+// run the Apply method on the input pointer to a GRPCLogClient
+func (m multiconf) Apply(lb *GRPCLogClientBuilder) {
+	for _, c := range m.confs {
+		c.Apply(lb)
 	}
-)
-
-func (c LogClientConf) Int32() int32 {
-	return int32(c)
 }
 
-func (c LogClientConf) String() string {
-	return LogClientConfVals[c.Int32()]
+type LSAddr struct {
+	addr address.ConnAddr
 }
 
-func gRPCLogClientDefaults() *config.Configs {
-	return config.NewMap(
-		WithAddr(""),
-		StreamRPC(),
-		WithLogger(),
-		Insecure(),
-		WithBackoff(0),
-		WithGRPCOpts(),
-	)
+type LSOpts struct {
+	opts []grpc.DialOption
 }
 
-func WithAddr(addr ...string) config.Config {
-	var connAddr address.ConnAddr = map[string]*grpc.ClientConn{}
-	var addrCfg = config.New(LSAddress.String(), gRPCLogClientBuilderType)
+type LSType struct {
+	isUnary bool
+}
+
+type LSLogger struct {
+	logger log.Logger
+}
+
+type LSExpBackoff struct {
+	backoff *ExpBackoff
+}
+
+func (l LSAddr) Apply(ls *GRPCLogClientBuilder) {
+	ls.addr = &l.addr
+}
+
+func (l LSOpts) Apply(ls *GRPCLogClientBuilder) {
+	ls.opts = append(ls.opts, l.opts...)
+}
+
+func (l LSType) Apply(ls *GRPCLogClientBuilder) {
+	ls.isUnary = l.isUnary
+}
+
+func (l LSLogger) Apply(ls *GRPCLogClientBuilder) {
+	ls.svcLogger = l.logger
+}
+
+func (l LSExpBackoff) Apply(ls *GRPCLogClientBuilder) {
+	ls.expBackoff = l.backoff
+}
+
+func WithAddr(addr ...string) LogClientConfig {
+	a := &LSAddr{
+		addr: map[string]*grpc.ClientConn{},
+	}
 
 	if len(addr) == 0 || addr == nil {
-		connAddr.Add(":9099")
-		return config.WithValue(addrCfg, &connAddr)
+		a.addr.Add(":9099")
+		return a
 	}
 
-	connAddr.Add(addr...)
-	return config.WithValue(addrCfg, &connAddr)
+	a.addr.Add(addr...)
+
+	return a
 }
 
-func StreamRPC() config.Config {
-	var typeCfg = config.New(LSType.String(), gRPCLogClientBuilderType)
-	return config.WithValue(typeCfg, "stream")
+func StreamRPC() LogClientConfig {
+	return &LSType{
+		isUnary: false,
+	}
+
 }
 
-func UnaryRPC() config.Config {
-	var typeCfg = config.New(LSType.String(), gRPCLogClientBuilderType)
-	return config.WithValue(typeCfg, "unary")
+func UnaryRPC() LogClientConfig {
+	return &LSType{
+		isUnary: true,
+	}
 }
 
-func WithLogger(loggers ...log.Logger) config.Config {
-	var logCfg = config.New(LSLogging.String(), gRPCLogClientBuilderType)
+func WithLogger(loggers ...log.Logger) LogClientConfig {
 	if len(loggers) == 1 {
-		return config.WithValue(logCfg, loggers[0])
+		return &LSLogger{
+			logger: loggers[0],
+		}
 	}
 
 	if len(loggers) > 1 {
-		return config.WithValue(logCfg, log.MultiLogger(loggers...))
+		return &LSLogger{
+			logger: log.MultiLogger(loggers...),
+		}
 	}
 
-	return config.WithValue(logCfg, log.New(log.NilConfig))
+	return &LSLogger{
+		logger: log.New(log.NilConfig),
+	}
 }
 
-func Insecure() config.Config {
-	var tlsCfg = config.New(LSTLS.String(), gRPCLogClientBuilderType)
-	return config.WithValue(tlsCfg, insecureDialOptions)
+func WithBackoff(t time.Duration) LogClientConfig {
+	// default config
+	if t == 0 || t == defaultRetryTime {
+		return &LSExpBackoff{
+			backoff: NewBackoff().Time(defaultRetryTime),
+		}
+	}
+
+	return &LSExpBackoff{
+		backoff: NewBackoff().Time(t),
+	}
 }
 
-func WithTLS(caPath string, certKeyPair ...string) config.Config {
-	var tlsCfg = config.New(LSTLS.String(), gRPCLogClientBuilderType)
+func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
+	if opts != nil {
+		// enforce defaults
+		if len(opts) == 0 {
+			return &LSOpts{opts: defaultDialOptions}
+		}
+		return &LSOpts{
+			opts: opts,
+		}
+	}
+	return &LSOpts{opts: defaultDialOptions}
+
+}
+
+func Insecure() LogClientConfig {
+	return &LSOpts{
+		opts: []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		},
+	}
+}
+
+func WithTLS(caPath string, certKeyPair ...string) LogClientConfig {
 	var cred credentials.TransportCredentials
 	var err error
 
@@ -145,9 +208,11 @@ func WithTLS(caPath string, certKeyPair ...string) config.Config {
 		panic(err)
 	}
 
-	return config.WithValue(tlsCfg, []grpc.DialOption{
-		grpc.WithTransportCredentials(cred),
-	})
+	return &LSOpts{
+		opts: []grpc.DialOption{
+			grpc.WithTransportCredentials(cred),
+		},
+	}
 }
 
 func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials, error) {
@@ -194,27 +259,4 @@ func loadCreds(caCert string) (credentials.TransportCredentials, error) {
 	}
 
 	return credentials.NewTLS(config), nil
-}
-
-func WithBackoff(t time.Duration) config.Config {
-	var backoffCfg = config.New(LSBackoff.String(), gRPCLogClientBuilderType)
-	b := NewBackoff()
-
-	// default config
-	if t == 0 || t == defaultRetryTime {
-		return config.WithValue(backoffCfg, b.Time(defaultRetryTime))
-	}
-
-	return config.WithValue(backoffCfg, b.Time(t))
-}
-
-func WithGRPCOpts(opts ...grpc.DialOption) config.Config {
-	var optsCfg = config.New(LSGRPCOpts.String(), gRPCLogClientBuilderType)
-
-	if len(opts) == 0 {
-		// enforce defaults
-		return config.WithValue(optsCfg, defaultDialOptions)
-	}
-
-	return config.WithValue(optsCfg, opts)
 }

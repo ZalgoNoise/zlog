@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io/ioutil"
 
-	"github.com/zalgonoise/zlog/config"
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -15,147 +14,139 @@ import (
 var (
 	ErrCACertAddFailed error = errors.New("failed to add server CA's certificate")
 
-	gRPCLogServerBuilderType *GRPCLogServerBuilder = &GRPCLogServerBuilder{}
-)
-
-type LogServerConf int32
-
-const (
-	LSAddress LogServerConf = iota
-	LSOpts
-	LSLogger
-	LSSvcLogger
-	LSTLS
-)
-
-var (
-	LogServerConfKeys = map[string]LogServerConf{
-		"addr":   0,
-		"opts":   1,
-		"logger": 2,
-		"svclog": 3,
-		"tls":    4,
-	}
-	LogServerConfVals = map[int32]string{
-		0: "addr",
-		1: "opts",
-		2: "logger",
-		3: "svclog",
-		4: "tls",
+	defaultConfig LogServerConfig = &multiconf{
+		confs: []LogServerConfig{
+			WithAddr(""),
+			WithLogger(),
+			WithServiceLogger(),
+		},
 	}
 )
 
-func (c LogServerConf) Int32() int32 {
-	return int32(c)
+type LogServerConfig interface {
+	Apply(ls *GRPCLogServer)
 }
 
-func (c LogServerConf) String() string {
-	return LogServerConfVals[c.Int32()]
+type multiconf struct {
+	confs []LogServerConfig
 }
 
-func gRPCLogServerDefaults() *config.Configs {
-	return config.NewMap(
-		WithAddr(""),
-		WithLogger(),
-		WithServiceLogger(),
-		WithGRPCOpts(),
-		noTLS(),
-	)
+// MultiConf function is a wrapper for multiple configs to be bundled (and executed) in one shot.
+//
+// Similar to io.MultiWriter, it will iterate through all set LogServerConfig and run the same method
+// on each of them.
+func MultiConf(conf ...LogServerConfig) LogServerConfig {
+	if len(conf) == 0 {
+		return defaultConfig
+	}
+
+	allConf := make([]LogServerConfig, 0, len(conf))
+	allConf = append(allConf, conf...)
+
+	return &multiconf{allConf}
 }
 
-// type LogServerConfig interface {
-// 	Apply(ls *GRPCLogServer)
-// }
+// Apply method will make a multiconf-type of LogServerConfig iterate through all its objects and
+// run the Apply method on the input pointer to a GRPCLogServer
+func (m multiconf) Apply(lb *GRPCLogServer) {
+	for _, c := range m.confs {
+		c.Apply(lb)
+	}
+}
 
-// type LSAddr struct {
-// 	addr string
-// }
+type LSAddr struct {
+	addr string
+}
 
-func WithAddr(addr string) config.Config {
-	var cfg = config.New(LSAddress.String(), gRPCLogServerBuilderType)
+type LSLogger struct {
+	logger log.Logger
+}
 
+type LSServiceLogger struct {
+	logger log.Logger
+}
+
+type LSOpts struct {
+	opts []grpc.ServerOption
+}
+
+func (l LSAddr) Apply(ls *GRPCLogServer) {
+	ls.Addr = l.addr
+}
+
+func (l LSLogger) Apply(ls *GRPCLogServer) {
+	ls.Logger = l.logger
+}
+
+func (l LSServiceLogger) Apply(ls *GRPCLogServer) {
+	ls.SvcLogger = l.logger
+}
+
+func (l LSOpts) Apply(ls *GRPCLogServer) {
+	ls.opts = append(ls.opts, l.opts...)
+}
+
+func WithAddr(addr string) LogServerConfig {
 	// enforce defaults
 	if addr == "" || addr == ":" {
 		addr = ":9099"
 	}
 
-	return config.WithValue(cfg, addr)
+	return &LSAddr{
+		addr: addr,
+	}
 }
 
-// func (l LSAddr) Apply(ls *GRPCLogServer) {
-// 	ls.Addr = l.addr
-// }
-
-// type LSLogger struct {
-// 	logger log.Logger
-// }
-
-func WithLogger(loggers ...log.Logger) config.Config {
-	var cfg = config.New(LSLogger.String(), gRPCLogServerBuilderType)
-
+func WithLogger(loggers ...log.Logger) LogServerConfig {
 	if len(loggers) == 1 {
-		return config.WithValue(cfg, loggers[0])
+		return &LSLogger{
+			logger: loggers[0],
+		}
 	}
 
 	if len(loggers) > 1 {
-		return config.WithValue(cfg, log.MultiLogger(loggers...))
+		return &LSLogger{
+			logger: log.MultiLogger(loggers...),
+		}
 	}
 
-	return config.WithValue(cfg, log.New())
+	return &LSLogger{
+		logger: log.New(),
+	}
 }
 
-// func (l LSLogger) Apply(ls *GRPCLogServer) {
-// 	ls.Logger = l.logger
-// }
-
-// type LSServiceLogger struct {
-// 	logger log.Logger
-// }
-
-func WithServiceLogger(loggers ...log.Logger) config.Config {
-	var cfg = config.New(LSSvcLogger.String(), gRPCLogServerBuilderType)
+func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
 
 	if len(loggers) == 1 {
-		return config.WithValue(cfg, loggers[0])
+		return &LSServiceLogger{
+			logger: loggers[0],
+		}
 	}
 
 	if len(loggers) > 1 {
-		return config.WithValue(cfg, log.MultiLogger(loggers...))
+		return &LSServiceLogger{
+			logger: log.MultiLogger(loggers...),
+		}
 	}
 
-	return config.WithValue(cfg, log.New(log.NilConfig))
+	return &LSServiceLogger{
+		logger: log.New(log.NilConfig),
+	}
 }
 
-// func (l LSServiceLogger) Apply(ls *GRPCLogServer) {
-// 	ls.SvcLogger = l.logger
-// }
-
-// type LSOpts struct {
-// 	opts []grpc.ServerOption
-// }
-
-func WithGRPCOpts(opts ...grpc.ServerOption) config.Config {
-	var cfg = config.New(LSOpts.String(), gRPCLogServerBuilderType)
-
+func WithGRPCOpts(opts ...grpc.ServerOption) LogServerConfig {
 	if opts != nil {
-		return config.WithValue(cfg, opts)
+		return &LSOpts{
+			opts: opts,
+		}
 	}
-
-	return config.WithValue(cfg, []grpc.ServerOption{})
+	return &LSOpts{
+		opts: []grpc.ServerOption{},
+	}
 
 }
 
-// func (l LSOpts) Apply(ls *GRPCLogServer) {
-// 	if len(ls.opts) == 0 {
-// 		ls.opts = l.opts
-// 		return
-// 	}
-// 	ls.opts = append(ls.opts, l.opts...)
-// }
-
-func WithTLS(certPath, keyPath string, caPath ...string) config.Config {
-	var cfg = config.New(LSTLS.String(), gRPCLogServerBuilderType)
-
+func WithTLS(certPath, keyPath string, caPath ...string) LogServerConfig {
 	var cred credentials.TransportCredentials
 	var err error
 
@@ -176,15 +167,11 @@ func WithTLS(certPath, keyPath string, caPath ...string) config.Config {
 		panic(err)
 	}
 
-	return config.WithValue(cfg, []grpc.ServerOption{
-		grpc.Creds(cred),
-	})
-
-}
-
-func noTLS() config.Config {
-	var cfg = config.New(LSTLS.String(), gRPCLogServerBuilderType)
-	return config.WithValue(cfg, []grpc.ServerOption{})
+	return &LSOpts{
+		opts: []grpc.ServerOption{
+			grpc.Creds(cred),
+		},
+	}
 }
 
 func loadCreds(cert, key string) (credentials.TransportCredentials, error) {

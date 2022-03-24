@@ -33,11 +33,11 @@ func main() {
 
 		log.New(
 			log.WithPrefix("alpha-log"),
-			log.TextCfg,
+			log.FormatText,
 		),
 		log.New(
 			log.WithPrefix("beta-log"),
-			log.JSONCfg,
+			log.FormatJSON,
 			log.WithOut(
 				logFile1, logFile2, customLog,
 			)),
@@ -119,7 +119,7 @@ func main() {
 		log.WithPrefix("multi-conf"),
 		log.WithOut(os.Stdout, newBuf),
 		log.NewTextFormat().Time(log.LTRubyDate).LevelFirst().DoubleSpace().Color().Upper().Build(),
-		log.SkipExitCfg,
+		log.SkipExit,
 	)
 
 	newLogger.Log(log.NewMessage().Level(log.LLPanic).Prefix("color").Sub("logger-service").Message("hello universe!").Build())
@@ -146,7 +146,7 @@ func main() {
 		log.WithPrefix("csv-logger"),
 		log.WithOut(os.Stdout),
 		log.CSVFormat,
-		log.SkipExitCfg,
+		log.SkipExit,
 	)
 
 	csvLogger.Log(log.NewMessage().Sub("CSV").Message("hello from CSV!").Build())
@@ -173,7 +173,7 @@ func main() {
 		log.WithPrefix("xml-logger"),
 		log.WithOut(os.Stdout),
 		log.XMLFormat,
-		log.SkipExitCfg,
+		log.SkipExit,
 	)
 
 	xmlLogger.Log(log.NewMessage().Sub("XML").Message("hello from XML!").Build())
@@ -200,7 +200,7 @@ func main() {
 		log.WithPrefix("filtered-logger"),
 		log.WithOut(os.Stdout),
 		log.NewTextFormat().LevelFirst().Color().Upper().Build(),
-		log.SkipExitCfg,
+		log.SkipExit,
 		log.WithFilter(log.LLError),
 	)
 
@@ -224,8 +224,8 @@ func main() {
 	filteredLogger.Log(stackMessage)
 
 	jsonLogger := log.New(
-		log.JSONCfg,
-		log.SkipExitCfg,
+		log.FormatJSON,
+		log.SkipExit,
 		log.WithOut(os.Stdout),
 	)
 

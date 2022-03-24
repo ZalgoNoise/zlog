@@ -16,14 +16,14 @@ func main() {
 
 	stdLogger := log.New(
 		log.WithOut(buf),
-		log.SkipExitCfg,
+		log.SkipExit,
 		log.ColorText,
 	)
 
 	grpcSvcLogger := log.New(
-		log.JSONCfg,
+		log.FormatJSON,
 		log.ColorTextLevelFirst,
-		log.SkipExitCfg,
+		log.SkipExit,
 	)
 
 	grpcLogger, errCh := client.New(

@@ -56,19 +56,10 @@ type LoggerBuilder struct {
 func New(confs ...LoggerConfig) Logger {
 	builder := &LoggerBuilder{}
 
+	// enforce defaults
+	defaultConfig.Apply(builder)
+
 	MultiConf(confs...).Apply(builder)
-
-	if builder.out == nil {
-		StdOutCfg.Apply(builder)
-	}
-
-	if builder.fmt == nil {
-		TextCfg.Apply(builder)
-	}
-
-	if builder.prefix == "" {
-		DefPrefixCfg.Apply(builder)
-	}
 
 	return &logger{
 		out:         builder.out,

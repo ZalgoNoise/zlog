@@ -504,7 +504,7 @@ func TestNewLogChMultiEntry(t *testing.T) {
 
 			l := New(
 				WithPrefix(prefix),
-				TextCfg,
+				FormatText,
 				WithOut(w...),
 			)
 			logs = append(logs, l)

@@ -25,7 +25,7 @@ func TestMultiConf(t *testing.T) {
 			},
 		},
 		{
-			conf: MultiConf(SkipExitCfg, JSONCfg, StdOutCfg),
+			conf: MultiConf(SkipExit, FormatJSON, StdOut),
 			want: &LoggerBuilder{
 				out:         os.Stdout,
 				prefix:      "",
@@ -36,7 +36,7 @@ func TestMultiConf(t *testing.T) {
 			},
 		},
 		{
-			conf: MultiConf(SkipExitCfg, InfoFilter, WithPrefix("test")),
+			conf: MultiConf(SkipExit, FilterInfo, WithPrefix("test")),
 			want: &LoggerBuilder{
 				out:         nil,
 				prefix:      "test",
@@ -298,7 +298,7 @@ func TestLCSkipExit(t *testing.T) {
 
 	tests := []test{
 		{
-			conf: SkipExitCfg,
+			conf: SkipExit,
 			want: &LoggerBuilder{
 				skipExit: true,
 			},
@@ -369,19 +369,19 @@ func TestLCFilter(t *testing.T) {
 			},
 		},
 		{
-			conf: InfoFilter,
+			conf: FilterInfo,
 			want: &LoggerBuilder{
 				levelFilter: 2,
 			},
 		},
 		{
-			conf: WarnFilter,
+			conf: FilterWarn,
 			want: &LoggerBuilder{
 				levelFilter: 3,
 			},
 		},
 		{
-			conf: ErrorFilter,
+			conf: FilterError,
 			want: &LoggerBuilder{
 				levelFilter: 4,
 			},

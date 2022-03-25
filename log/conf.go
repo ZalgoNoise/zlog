@@ -46,6 +46,7 @@ func (m multiconf) Apply(lb *LoggerBuilder) {
 }
 
 var (
+	// default configuration for a Logger
 	defaultConfig LoggerConfig = &multiconf{
 		confs: []LoggerConfig{
 			ColorTextLevelFirst,
@@ -134,6 +135,8 @@ func (c LCFilter) Apply(lb *LoggerBuilder) {
 	lb.levelFilter = c.l.Int()
 }
 
+// NilLogger function will create a minimal LoggerConfig with an empty writer, and that does not
+// comply with exit (os.Exit(1) and panic()) signals
 func NilLogger() LoggerConfig {
 	return MultiConf(
 		&LCOut{

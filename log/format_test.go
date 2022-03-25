@@ -96,7 +96,8 @@ func TestTextFmtFormat(t *testing.T) {
 }
 
 func TestTextFmtFmtMetadata(t *testing.T) {
-	type test struct {
+
+	type mapTest struct {
 		obj map[string]interface{}
 		rgx *regexp.Regexp
 	}
@@ -108,136 +109,139 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 	// [ values = [ a = 1 ; b = 2 ; c = 3 ] ]
 	// [ a-map = [ a = 1 ] ; b-map = [ b = 2 ] ]
 	// [ a = "one" ; b = "two" ; c = "three" ; d = "four" ]
-	var testSimpleObjects = []map[string]interface{}{
+	var mapTests = []mapTest{
 		{
-			"simple-test": 0,
-			"passing":     true,
-			"tool":        "zlog",
-		},
-		{
-			"simpler-test": "yes",
-		},
-		{
-			"cascaded-test": true,
-			"metadata": map[string]interface{}{
-				"nest-level": 1,
-				"data":       "this is inner-level content",
+			obj: map[string]interface{}{
+				"simple-test": 0,
+				"passing":     true,
+				"tool":        "zlog",
 			},
+			rgx: regexp.MustCompile(`\[ ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) \]`),
 		},
 		{
-			"objList": []map[string]interface{}{
-				{
-					"test": true,
-				},
-				{
-					"another": true,
-				},
-				{
-					"third": "yes",
-				},
-				{
-					"fourth": "ok",
+			obj: map[string]interface{}{
+				"simpler-test": "yes",
+			},
+			rgx: regexp.MustCompile(`\[ simpler-test = "yes" \]`),
+		},
+		{
+			obj: map[string]interface{}{
+				"cascaded-test": true,
+				"metadata": map[string]interface{}{
+					"nest-level": 1,
+					"data":       "this is inner-level content",
 				},
 			},
-			"small": []map[string]interface{}{
-				{"a": 1}, {"b": 2}, {"c": 3},
-			},
+			rgx: regexp.MustCompile(`\[ ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) ; ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) \]`),
 		},
 		{
-			"values": map[string]interface{}{
-				"a": 1,
-				"b": 2,
-				"c": 3,
+			obj: map[string]interface{}{
+				"objList": []map[string]interface{}{
+					{
+						"test": true,
+					},
+					{
+						"another": true,
+					},
+					{
+						"third": "yes",
+					},
+					{
+						"fourth": "ok",
+					},
+				},
+				"small": []map[string]interface{}{
+					{"a": 1}, {"b": 2}, {"c": 3},
+				},
 			},
+			rgx: regexp.MustCompile(`\[ ((objList = \[ ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) \])|(small = \[ ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) \])) ; ((objList = \[ ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) \])|(small = \[ ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) \])) \]`),
 		},
 		{
-			"a-map": map[string]interface{}{
-				"a": 1,
+			obj: map[string]interface{}{
+				"values": map[string]interface{}{
+					"a": 1,
+					"b": 2,
+					"c": 3,
+				},
 			},
-			"b-map": map[string]interface{}{
-				"b": 2,
-			},
+			rgx: regexp.MustCompile(`\[ values = \[ ((a = 1)|(b = 2)|(c = 3)) ; ((a = 1)|(b = 2)|(c = 3)) ; ((a = 1)|(b = 2)|(c = 3)) \] \]`),
 		},
 		{
-			"a": "one",
-			"b": "two",
-			"c": "three",
-			"d": "four",
+			obj: map[string]interface{}{
+				"a-map": map[string]interface{}{
+					"a": 1,
+				},
+				"b-map": map[string]interface{}{
+					"b": 2,
+				},
+			},
+			rgx: regexp.MustCompile(`\[ ((a-map = \[ a = 1 \])|(b-map = \[ b = 2 \])) ; ((a-map = \[ a = 1 \])|(b-map = \[ b = 2 \])) \]`),
+		},
+		{
+			obj: map[string]interface{}{
+				"a": "one",
+				"b": "two",
+				"c": "three",
+				"d": "four",
+			},
+			rgx: regexp.MustCompile(`\[ ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) \]`),
+		},
+		{
+			obj: map[string]interface{}{},
+			rgx: regexp.MustCompile(``),
 		},
 	}
 
-	var rgxSimpleObjects = []*regexp.Regexp{
-		regexp.MustCompile(`\[ ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) ; ((simple-test = 0)|(passing = true)|(tool = "zlog")) \]`),
-		regexp.MustCompile(`\[ simpler-test = "yes" \]`),
-		regexp.MustCompile(`\[ ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) ; ((cascaded-test = true)|(metadata = \[ ((nest-level = 1)|(data = "this is inner-level content")) ; ((nest-level = 1)|(data = "this is inner-level content")) \])) \]`),
-		regexp.MustCompile(`\[ ((objList = \[ ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) \])|(small = \[ ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) \])) ; ((objList = \[ ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) ; ((\[ test = true \])|(\[ another = true \])|(\[ third = "yes" \])|(\[ fourth = "ok" \])) \])|(small = \[ ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])|(\[ c = 3 \])) \])) \]`),
-		regexp.MustCompile(`\[ values = \[ ((a = 1)|(b = 2)|(c = 3)) ; ((a = 1)|(b = 2)|(c = 3)) ; ((a = 1)|(b = 2)|(c = 3)) \] \]`),
-		regexp.MustCompile(`\[ ((a-map = \[ a = 1 \])|(b-map = \[ b = 2 \])) ; ((a-map = \[ a = 1 \])|(b-map = \[ b = 2 \])) \]`),
-		regexp.MustCompile(`\[ ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) ; ((a = "one")|(b = "two")|(c = "three")|(d = "four")) \]`),
+	type fieldTest struct {
+		obj Field
+		rgx *regexp.Regexp
 	}
 
 	// [ a-map = [ b = 2 ; a = 1 ] ; b-map = [ a = 1 ; b = 2 ] ]
 	// [ objList = [ [ a = 1 ] ; [ b = 2 ] ] ; same = [ [ a = 1 ] ; [ b = 2 ] ] ]
-	var testFieldObjects = []Field{
+	var fieldTests = []fieldTest{
 		{
-			"a-map": Field{
-				"a": 1,
-				"b": 2,
-			},
-			"b-map": Field{
-				"a": 1,
-				"b": 2,
-			},
-		},
-		{
-			"objList": []Field{
-				{
+			obj: Field{
+				"a-map": Field{
 					"a": 1,
+					"b": 2,
 				},
-				{
+				"b-map": Field{
+					"a": 1,
 					"b": 2,
 				},
 			},
-			"same": []Field{
-				{
-					"a": 1,
+			rgx: regexp.MustCompile(`\[ ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) ; ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) \]`),
+		},
+		{
+			obj: Field{
+				"objList": []Field{
+					{
+						"a": 1,
+					},
+					{
+						"b": 2,
+					},
 				},
-				{
-					"b": 2,
+				"same": []Field{
+					{
+						"a": 1,
+					},
+					{
+						"b": 2,
+					},
 				},
 			},
+			rgx: regexp.MustCompile(`\[ ((objList = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])|(same = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((objList = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])|(same = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
 		},
 	}
 
-	var rgxFieldObjects = []*regexp.Regexp{
-		regexp.MustCompile(`\[ ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) ; ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) \]`),
-		regexp.MustCompile(`\[ ((objList = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])|(same = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((objList = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])|(same = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
-	}
-
-	var tests []test
-
-	for a := 0; a < len(testSimpleObjects); a++ {
-		obj := test{
-			obj: testSimpleObjects[a],
-			rgx: rgxSimpleObjects[a],
-		}
-		tests = append(tests, obj)
-	}
-
-	for a := 0; a < len(testFieldObjects); a++ {
-		obj := test{
-			obj: testFieldObjects[a],
-			rgx: rgxFieldObjects[a],
-		}
-		tests = append(tests, obj)
-	}
-
-	var verify = func(id int, test test, result string) {
-		if !test.rgx.MatchString(result) {
+	var verify = func(id int, rgx *regexp.Regexp, result string) {
+		if !rgx.MatchString(result) {
 			t.Errorf(
 				"#%v -- FAILED -- [TextFormat] fmtMetadata(map[string]interface{}) -- log message mismatch, expected output to match regex %s -- %s",
 				id,
-				test.rgx,
+				rgx,
 				result,
 			)
 			return
@@ -251,13 +255,20 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 
 	}
 
-	for id, test := range tests {
+	for id, test := range mapTests {
 		txt := &TextFmt{}
 
 		result := txt.fmtMetadata(test.obj)
 
-		verify(id, test, result)
+		verify(id, test.rgx, result)
+	}
 
+	for id, test := range fieldTests {
+		txt := &TextFmt{}
+
+		result := txt.fmtMetadata(test.obj)
+
+		verify(id, test.rgx, result)
 	}
 
 }
@@ -381,6 +392,7 @@ func TestNewTextFormatter(t *testing.T) {
 
 	var msg = NewMessage().Prefix("formatter-tests").Level(LLInfo).Message("test content").Build()
 	var msgSub = NewMessage().Prefix("formatter-tests").Sub("fmt").Level(LLInfo).Message("test content").Build()
+	var msgMeta = NewMessage().Prefix("formatter-tests").Sub("fmt").Level(LLInfo).Message("test content").Metadata(Field{"a": 0}).Build()
 
 	tests := []test{
 		{
@@ -436,6 +448,54 @@ func TestNewTextFormatter(t *testing.T) {
 			msg:  msg,
 			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().Build(),
 			rgx:  regexp.MustCompile(`^\[info\]\s*\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "level first double-space",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().DoubleSpace().Build(),
+			rgx:  regexp.MustCompile(`^\[info\]\s*\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "no level",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).NoLevel().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "no level: override level-first",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().NoLevel().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "no level: override level-first inverse",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).NoLevel().LevelFirst().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "no level: override color",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).Color().NoLevel().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "no level: override color inverse",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).NoLevel().Color().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
+		},
+		{
+			desc: "no headers",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).NoHeaders().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*test content`),
+		},
+		{
+			desc: "no level / no headers: override uppercase",
+			msg:  msg,
+			fmt:  NewTextFormat().Time(LTUnixNano).NoHeaders().NoLevel().Upper().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*test content`),
 		},
 		{
 			desc: "double space",
@@ -526,6 +586,18 @@ func TestNewTextFormatter(t *testing.T) {
 			msg:  msgSub,
 			fmt:  NewTextFormat().Time(LTUnixNano).Upper().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[INFO\]\s*\[FORMATTER-TESTS\]\s*\[FMT\]\s*test content`),
+		},
+		{
+			desc: "w/sub-prefix + metadata",
+			msg:  msgMeta,
+			fmt:  NewTextFormat().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content\s*\[ a = 0 \]`),
+		},
+		{
+			desc: "w/sub-prefix + metadata + double-spaced",
+			msg:  msgMeta,
+			fmt:  NewTextFormat().DoubleSpace().Build(),
+			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content\s*\[ a = 0 \]`),
 		},
 	}
 

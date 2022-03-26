@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/zalgonoise/zlog/store"
 )
 
 func TestTextFormatLogger(t *testing.T) {
@@ -255,137 +258,170 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 }
 
 func TestLoggerSetOuts(t *testing.T) {
-	type test struct {
-		prefix string
-		format LoggerConfig
-		outs   []io.Writer
-		bufs   []*bytes.Buffer
+	module := "Logger"
+	funcname := "SetOuts()"
+
+	tlogger := New(
+		WithPrefix("test-new-logger"),
+		TextFormat,
+	)
+
+	var tests = []struct {
+		name  string
+		input []io.Writer
+		wants io.Writer
+	}{
+		{
+			name:  "switching to buffer #0",
+			input: []io.Writer{mockBufs[0]},
+			wants: io.MultiWriter(mockBufs[0]),
+		},
+		{
+			name:  "switching to os.Stdout",
+			input: []io.Writer{os.Stdout},
+			wants: io.MultiWriter(os.Stdout),
+		},
+		{
+			name:  "switching to multi-buffer #0",
+			input: []io.Writer{mockBufs[0], mockBufs[1], mockBufs[3]},
+			wants: io.MultiWriter(mockBufs[0], mockBufs[1], mockBufs[3]),
+		},
+		{
+			name:  "switching to default writer with zero arguments",
+			input: nil,
+			wants: os.Stdout,
+		},
+		{
+			name:  "switching to default writer with nil writers",
+			input: []io.Writer{nil, nil, nil},
+			wants: os.Stdout,
+		},
+		{
+			name:  "ensure the empty writer works",
+			input: []io.Writer{store.EmptyWriter},
+			wants: io.MultiWriter(store.EmptyWriter),
+		},
 	}
 
-	var tests []test
+	var verify = func(id int, logw, w io.Writer) {
 
-	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
-	regx := regexp.MustCompile(regxStr)
-
-	prefix := "test-new-logger"
-	format := TextFormat
-	msg := "test content"
-
-	for i := 0; i < 5; i++ {
-		var writters []io.Writer
-		var buffers []*bytes.Buffer
-
-		for b := 0; b <= i; b++ {
-			var buf bytes.Buffer
-			writters = append(writters, &buf)
-			buffers = append(buffers, &buf)
-		}
-
-		tests = append(tests, test{
-			prefix: prefix,
-			format: format,
-			outs:   writters,
-			bufs:   buffers,
-		})
-	}
-
-	for _, test := range tests {
-		logger := New(
-			WithPrefix(test.prefix),
-			test.format,
-		)
-		logger.SetOuts(test.outs...)
-		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
-
-		logger.Log(logMessage)
-
-		for id, buf := range test.bufs {
-			if !regx.MatchString(buf.String()) {
-				t.Errorf(
-					"#%v [Logger] SetOuts().Info(%s) -- message mismatch",
-					id,
-					msg,
-				)
-			}
-
-			t.Logf(
-				"#%v -- TESTED -- [Logger] SetOuts().Info(%s) over %v buffers",
+		if !reflect.DeepEqual(logw, w) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v",
 				id,
-				msg,
-				len(test.bufs),
+				module,
+				funcname,
+				w,
+				logw,
 			)
+			return
 		}
 
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
 	}
 
+	for id, test := range tests {
+		if test.input != nil {
+			tlogger.SetOuts(test.input...)
+		} else {
+			tlogger.SetOuts()
+		}
+
+		logw := tlogger.(*logger).out
+
+		verify(id, logw, test.wants)
+
+	}
 }
 
-// func TestLoggerSetEmptyOuts(t *testing.T) {
-
-// }
-
 func TestLoggerAddOuts(t *testing.T) {
-	type test struct {
-		prefix string
-		format LoggerConfig
-		outs   []io.Writer
-		bufs   []*bytes.Buffer
+	module := "Logger"
+	funcname := "AddOuts()"
+
+	tlogger := New(
+		WithPrefix("test-new-logger"),
+		WithOut(mockBufs[5]),
+		TextFormat,
+	)
+
+	var tests = []struct {
+		name  string
+		input []io.Writer
+		wants io.Writer
+	}{
+		{
+			name:  "adding buffer #0",
+			input: []io.Writer{mockBufs[0]},
+			wants: io.MultiWriter(mockBufs[0], mockBufs[5]),
+		},
+		{
+			name:  "adding os.Stdout",
+			input: []io.Writer{os.Stdout},
+			wants: io.MultiWriter(os.Stdout, mockBufs[5]),
+		},
+		{
+			name:  "adding multi-buffer #0",
+			input: []io.Writer{mockBufs[0], mockBufs[1], mockBufs[3]},
+			wants: io.MultiWriter(mockBufs[0], mockBufs[1], mockBufs[3], mockBufs[5]),
+		},
+		{
+			name:  "adding default writer with zero arguments",
+			input: nil,
+			wants: io.MultiWriter(mockBufs[5]),
+		},
+		{
+			name:  "adding default writer with nil writers",
+			input: []io.Writer{nil, nil, nil},
+			wants: io.MultiWriter(mockBufs[5]),
+		},
+		{
+			name:  "ensure the empty writer works",
+			input: []io.Writer{store.EmptyWriter},
+			wants: io.MultiWriter(store.EmptyWriter, mockBufs[5]),
+		},
 	}
 
-	var tests []test
+	var verify = func(id int, logw, w io.Writer) {
 
-	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
-	regx := regexp.MustCompile(regxStr)
-
-	prefix := "test-new-logger"
-	format := TextFormat
-	msg := "test content"
-
-	for i := 1; i < 5; i++ {
-		var writters []io.Writer
-		var buffers []*bytes.Buffer
-
-		for b := 0; b <= i; b++ {
-			var buf bytes.Buffer
-			writters = append(writters, &buf)
-			buffers = append(buffers, &buf)
-		}
-
-		tests = append(tests, test{
-			prefix: prefix,
-			format: format,
-			outs:   writters,
-			bufs:   buffers,
-		})
-	}
-
-	for _, test := range tests {
-		logger := New(
-			WithPrefix(test.prefix),
-			test.format,
-			WithOut(test.outs[0]),
-		)
-		logger.AddOuts(test.outs[1:]...)
-		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
-
-		logger.Log(logMessage)
-
-		for id, buf := range test.bufs {
-			if !regx.MatchString(buf.String()) {
-				t.Errorf(
-					"#%v [Logger] AddOuts().Info(%s) -- message mismatch",
-					id,
-					msg,
-				)
-			}
-
-			t.Logf(
-				"#%v -- TESTED -- [Logger] AddOuts().Info(%s) over %v buffers",
+		if !reflect.DeepEqual(logw, w) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v",
 				id,
-				msg,
-				len(test.bufs),
+				module,
+				funcname,
+				w,
+				logw,
 			)
+			return
 		}
+
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
+	}
+
+	for id, test := range tests {
+
+		if test.input != nil {
+			tlogger.AddOuts(test.input...)
+		} else {
+			tlogger.AddOuts()
+		}
+
+		logw := tlogger.(*logger).out
+
+		verify(id, logw, test.wants)
+
+		// reset
+		tlogger.SetOuts(mockBufs[5])
 
 	}
 }

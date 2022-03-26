@@ -663,6 +663,7 @@ func TestLoggerFields(t *testing.T) {
 	}
 
 	for id, test := range tests {
+		// reset
 		tlogger.Fields(nil)
 
 		tlogger.Fields(test.input)
@@ -671,6 +672,7 @@ func TestLoggerFields(t *testing.T) {
 
 		verify(id, m, test.wants, test.name)
 
+		// reset
 		tlogger.Fields(nil)
 	}
 

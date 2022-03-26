@@ -189,6 +189,11 @@ func (l *logger) Fields(fields map[string]interface{}) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	if fields == nil {
+		l.meta = map[string]interface{}{}
+		return l
+	}
+
 	l.meta = fields
 
 	return l

@@ -42,6 +42,8 @@ func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
 	for _, out := range outs {
 		if addr, ok := out.(*address.ConnAddr); ok {
 			addrMap = append(addrMap, addr)
+		} else if out == nil {
+			continue
 		} else {
 			writers = append(writers, out)
 		}
@@ -76,6 +78,8 @@ func (l *multiLogger) AddOuts(outs ...io.Writer) Logger {
 	for _, out := range outs {
 		if addr, ok := out.(*address.ConnAddr); ok {
 			addrMap = append(addrMap, addr)
+		} else if out == nil {
+			continue
 		} else {
 			writers = append(writers, out)
 		}

@@ -93,12 +93,21 @@ type logger struct {
 func (l *logger) SetOuts(outs ...io.Writer) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if len(outs) == 0 {
+
+	var newouts []io.Writer
+
+	for i := 0; i < len(outs); i++ {
+		if outs[i] != nil {
+			newouts = append(newouts, outs[i])
+		}
+	}
+
+	if len(newouts) == 0 {
 		l.out = stdout
 		return l
 	}
 
-	l.out = io.MultiWriter(outs...)
+	l.out = io.MultiWriter(newouts...)
 
 	return l
 }
@@ -112,9 +121,21 @@ func (l *logger) AddOuts(outs ...io.Writer) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	var writers []io.Writer = outs
-	writers = append(writers, l.out)
-	l.out = io.MultiWriter(writers...)
+	var newouts []io.Writer
+
+	for i := 0; i < len(outs); i++ {
+		if outs[i] != nil {
+			newouts = append(newouts, outs[i])
+		}
+	}
+
+	if len(newouts) == 0 {
+		return l
+	}
+
+	newouts = append(newouts, l.out)
+
+	l.out = io.MultiWriter(newouts...)
 
 	return l
 }

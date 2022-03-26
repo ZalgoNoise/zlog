@@ -791,3 +791,208 @@ func TestLoggerWrite(t *testing.T) {
 		verify(id, test, mockBuffer.Bytes())
 	}
 }
+
+// func (l *nilLogger) Write(p []byte) (n int, err error)           { return 0, nil }
+func TestNilLoggerWrite(t *testing.T) {
+	module := "NilLogger"
+	funcname := "Write()"
+
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input []byte
+		n     int
+		err   error
+	}{
+		{
+			input: []byte("abc"),
+			n:     0,
+			err:   nil,
+		},
+		{
+			input: []byte("123"),
+			n:     0,
+			err:   nil,
+		},
+		{
+			input: []byte("!@#"),
+			n:     0,
+			err:   nil,
+		},
+	}
+
+	for id, test := range tests {
+		n, err := nillog.Write(test.input)
+
+		if n != test.n {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] bytes written mismatch: wanted %v ; got %v",
+				id,
+				module,
+				funcname,
+				test.n,
+				n,
+			)
+			return
+
+		}
+
+		if err != test.err {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] returning error mismatch: wanted %v ; got %v",
+				id,
+				module,
+				funcname,
+				test.err,
+				err,
+			)
+			return
+		}
+	}
+}
+
+// func (l *nilLogger) SetOuts(outs ...io.Writer) Logger            { return l }
+func TestNilLoggerSetOuts(t *testing.T) {
+	// module := "NilLogger"
+	// funcname := "Write()"
+
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input []io.Writer
+	}{
+		{
+			input: []io.Writer{mockBufs[0]},
+		},
+		{
+			input: []io.Writer{mockBufs[0], mockBufs[1]},
+		},
+		{
+			input: []io.Writer{},
+		},
+	}
+
+	for _, test := range tests {
+		nillog.SetOuts(test.input...)
+	}
+}
+
+// func (l *nilLogger) AddOuts(outs ...io.Writer) Logger            { return l }
+func TestNilLoggerAddOuts(t *testing.T) {
+	// module := "NilLogger"
+	// funcname := "Write()"
+
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input []io.Writer
+	}{
+		{
+			input: []io.Writer{mockBufs[0]},
+		},
+		{
+			input: []io.Writer{mockBufs[0], mockBufs[1]},
+		},
+		{
+			input: []io.Writer{},
+		},
+	}
+
+	for _, test := range tests {
+		nillog.AddOuts(test.input...)
+	}
+}
+
+// func (l *nilLogger) Prefix(prefix string) Logger                 { return l }
+func TestNilLoggerPrefix(t *testing.T) {
+	// module := "NilLogger"
+	// funcname := "Write()"
+
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Prefix(test.input)
+	}
+}
+
+// func (l *nilLogger) Sub(sub string) Logger                       { return l }
+func TestNilLoggerSub(t *testing.T) {
+	// module := "NilLogger"
+	// funcname := "Write()"
+
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Sub(test.input)
+	}
+}
+
+// func (l *nilLogger) Fields(fields map[string]interface{}) Logger { return l }
+func TestNilLoggerFields(t *testing.T) {
+	// module := "NilLogger"
+	// funcname := "Write()"
+
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input map[string]interface{}
+	}{
+		{
+			input: map[string]interface{}{"a": 0},
+		},
+		{
+			input: map[string]interface{}{"a": "b"},
+		},
+		{
+			input: map[string]interface{}{},
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Fields(test.input)
+	}
+}
+
+// func (l *nilLogger) IsSkipExit() bool                            { return true }
+func TestNilLoggerIsSkipExit(t *testing.T) {
+	module := "NilLogger"
+	funcname := "IsSkipExit()"
+
+	nillog := New(NilConfig)
+
+	if !nillog.IsSkipExit() {
+		t.Errorf(
+			"-- FAILED -- [%s] [%s] nilLogger should be set as skipping exit",
+			module,
+			funcname,
+		)
+	}
+}

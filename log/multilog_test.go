@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"testing"
+
+	"github.com/zalgonoise/zlog/grpc/address"
+	"github.com/zalgonoise/zlog/store"
 )
 
 var mockMultiPrefixes = []string{
@@ -303,644 +307,201 @@ func TestMultiLoggerOutput(t *testing.T) {
 }
 
 func TestMultiLoggerSetOuts(t *testing.T) {
-	// setup a single logger in a multilogger for these tests
-	//
-	// since setting / adding outs to a multilogger affects
-	// all configured loggers, for testing purposes this is done with
-	// a multilogger containing only one logger.
-	//
-	// the multilogger should be only a wrapper for using
-	// several loggers and configs, and these methods are only
-	// present to satisfy the Logger
-	var simpleMultiLogger = struct {
-		log Logger
-		buf *bytes.Buffer
-	}{
-		log: MultiLogger(mockLoggers[0]),
-		buf: mockBufs[0],
-	}
+	module := "MultiLogger"
+	funcname := "SetOuts()"
+
+	t1logger := New(
+		WithPrefix("test-new-logger"),
+		TextFormat,
+		WithOut(mockBufs[5]),
+	)
+	t2logger := New(
+		WithPrefix("test-new-logger-2"),
+		TextFormat,
+		WithOut(mockBufs[4]),
+	)
+	innerML := MultiLogger(t2logger)
+
+	nilLogger := New(EmptyConfig)
+
+	ml := MultiLogger(t1logger, innerML, nilLogger)
 
 	type test struct {
-		msg *LogMessage
-		out []io.Writer
-		buf []*bytes.Buffer
+		name  string
+		input []io.Writer
+		wants io.Writer
 	}
 
-	newBuffers := []*bytes.Buffer{
-		{},
-		{},
-		{},
-		{},
-		{},
-		{},
+	var tests = []test{
+		{
+			name:  "switching to buffer #0",
+			input: []io.Writer{mockBufs[0]},
+			wants: io.MultiWriter(mockBufs[0]),
+		},
+		{
+			name:  "switching to multi-buffer #0",
+			input: []io.Writer{mockBufs[0], mockBufs[1], mockBufs[3]},
+			wants: io.MultiWriter(mockBufs[0], mockBufs[1], mockBufs[3]),
+		},
+		{
+			name:  "ConnAddr flow test",
+			input: []io.Writer{mockBufs[0], &address.ConnAddr{}},
+			wants: io.MultiWriter(mockBufs[0]),
+		},
+		{
+			name:  "switching to default writer with zero arguments",
+			input: nil,
+			wants: os.Stdout,
+		},
+		{
+			name:  "switching to default writer with nil writers",
+			input: []io.Writer{nil, nil, nil},
+			wants: os.Stdout,
+		},
+		{
+			name:  "ensure the empty writer works",
+			input: []io.Writer{store.EmptyWriter},
+			wants: io.MultiWriter(store.EmptyWriter),
+		},
 	}
 
-	newWriters := []io.Writer{
-		newBuffers[0],
-		newBuffers[1],
-		newBuffers[2],
-		newBuffers[3],
-		newBuffers[4],
-		newBuffers[5],
-	}
-
-	var testAllObjects []map[string]interface{}
-	testAllObjects = append(testAllObjects, testObjects...)
-	testAllObjects = append(testAllObjects, testEmptyObjects...)
-
-	var testAllMessages []string
-	testAllMessages = append(testAllMessages, mockMessages...)
-	for _, fmtMsg := range mockFmtMessages {
-		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
-	}
-
-	var tests []test
-
-	for a := 1; a <= len(newBuffers); a++ {
-
-		for b := 0; b < len(mockLogLevelsOK); b++ {
-
-			for c := 0; c < len(mockPrefixes); c++ {
-
-				for d := 0; d < len(testAllMessages); d++ {
-
-					for e := 0; e < len(testAllObjects); e++ {
-
-						tests = append(tests, test{
-							msg: NewMessage().
-								Level(mockLogLevelsOK[b]).
-								Prefix(mockPrefixes[c]).
-								Message(testAllMessages[d]).
-								Metadata(testAllObjects[e]).
-								Build(),
-							buf: newBuffers[:a],
-							out: newWriters[:a],
-						})
-					}
-				}
-			}
-		}
-	}
-
-	var verify = func(id int, test test) {
-		defer func() {
-			for _, b := range test.buf {
-				b.Reset()
-			}
-			for _, b := range mockBufs {
-				b.Reset()
-			}
-		}()
-
-		pass := [2]bool{
-			false,
-			false,
-		}
-
-		for bufID, buf := range test.buf {
-
-			logEntry := &LogMessage{}
-
-			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- unmarshal error: %s",
-					id,
-					bufID,
-					err,
-				)
-
-				buf.Reset()
-				return
-			}
-
-			if logEntry.Msg != test.msg.Msg {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- message mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Msg,
-					logEntry.Msg,
-				)
-				buf.Reset()
-				return
-			}
-
-			if logEntry.Level != test.msg.Level {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- log level mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Level,
-					logEntry.Level,
-				)
-				buf.Reset()
-				return
-			}
-
-			if logEntry.Prefix != test.msg.Prefix {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- prefix mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Prefix,
-					logEntry.Prefix,
-				)
-				buf.Reset()
-				return
-			}
-
-			if len(logEntry.Metadata) != len(test.msg.Metadata) {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- retrieved empty metadata object: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Metadata,
-					logEntry.Metadata,
-				)
-				buf.Reset()
-				return
-			}
-
-			if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) > 0 {
-				for k, v := range logEntry.Metadata {
-					if v != nil && test.msg.Metadata[k] == nil {
-						t.Errorf(
-							"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
-							id,
-							bufID,
-							k,
-							k,
-						)
-						buf.Reset()
-						return
-					}
-				}
-
-				if len(logEntry.Metadata) != len(test.msg.Metadata) {
-					t.Errorf(
-						"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- metadata length mismatch -- wanted %v, got %v",
-						id,
-						bufID,
-						len(test.msg.Metadata),
-						len(logEntry.Metadata),
-					)
-					buf.Reset()
-					return
-				}
-			}
-
-			pass[0] = true
-
-			t.Logf(
-				"#%v -- PASSED TARGET TEST -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- %s",
-				id,
-				bufID,
-				buf.String(),
-			)
-		}
-
-		for bufID, buf := range mockBufs {
-			// SetOuts() will override original writers,
-			// these should be found empty
-
-			if buf.Len() > 0 {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- replaced writer was still written to -- expected empty, got %s",
-					id,
-					bufID,
-					buf.String(),
-				)
-				buf.Reset()
-				return
-			}
-
-			pass[1] = true
-
-			t.Logf(
-				"#%v -- PASSED SOURCE TEST -- [MultiLogger] MultiLogger(...Logger[%v]).SetOuts(...io.Writer) -- %s",
-				id,
-				bufID,
-				buf.String(),
-			)
-		}
-
-		if pass[0] && pass[1] {
-			t.Logf(
-				"#%v -- PASSED -- [MultiLogger] MultiLogger(...Logger).SetOuts(...io.Writer)",
-				id,
-			)
-			return
-		} else if !pass[0] {
+	var verify = func(id int, logw, w io.Writer, action string) {
+		if !reflect.DeepEqual(logw, w) {
 			t.Errorf(
-				"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger).SetOuts(...io.Writer) -- failed target buffer tests",
+				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v -- action: %s",
 				id,
-			)
-			return
-		} else if !pass[1] {
-			t.Errorf(
-				"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger).SetOuts(...io.Writer) -- failed source buffer tests",
-				id,
+				module,
+				funcname,
+				w,
+				logw,
+				action,
 			)
 			return
 		}
 
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
 	}
 
 	for id, test := range tests {
-		for _, b := range test.buf {
-			b.Reset()
-		}
-		for _, b := range mockBufs {
-			b.Reset()
+		if test.input != nil {
+			ml.SetOuts(test.input...)
+		} else {
+			ml.SetOuts()
 		}
 
-		simpleMultiLogger.log.SetOuts(test.out...)
-		simpleMultiLogger.log.Output(test.msg)
+		for _, l := range ml.(*multiLogger).loggers {
+			if _, ok := l.(*logger); ok {
+				logw := l.(*logger).out
+				verify(id, logw, test.wants, test.name)
+			}
+		}
 
-		verify(id, test)
 	}
 
 }
 
 func TestMultiLoggerAddOuts(t *testing.T) {
+
+	module := "MultiLogger"
+	funcname := "AddOuts()"
+
+	t1logger := New(
+		WithPrefix("test-new-logger"),
+		TextFormat,
+		WithOut(mockBufs[5]),
+	)
+	t2logger := New(
+		WithPrefix("test-new-logger-2"),
+		TextFormat,
+		WithOut(mockBufs[4]),
+	)
+	innerML := MultiLogger(t2logger)
+
+	nilLogger := New(EmptyConfig)
+
+	ml := MultiLogger(t1logger, innerML, nilLogger)
+
 	type test struct {
-		msg *LogMessage
-		buf []*bytes.Buffer
+		name  string
+		input []io.Writer
+		wants io.Writer
 	}
 
-	var testAllObjects []map[string]interface{}
-	testAllObjects = append(testAllObjects, testObjects...)
-	testAllObjects = append(testAllObjects, testEmptyObjects...)
-
-	var testAllMessages []string
-	testAllMessages = append(testAllMessages, mockMessages...)
-	for _, fmtMsg := range mockFmtMessages {
-		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
+	var tests = []test{
+		{
+			name:  "adding buffer #0",
+			input: []io.Writer{mockBufs[0]},
+			wants: io.MultiWriter(mockBufs[0], mockBufs[5]),
+		},
+		{
+			name:  "adding multi-buffer #0",
+			input: []io.Writer{mockBufs[0], mockBufs[1], mockBufs[3]},
+			wants: io.MultiWriter(mockBufs[0], mockBufs[1], mockBufs[3], mockBufs[5]),
+		},
+		{
+			name:  "ConnAddr flow test",
+			input: []io.Writer{mockBufs[0], &address.ConnAddr{}},
+			wants: io.MultiWriter(mockBufs[0], mockBufs[5]),
+		},
+		{
+			name:  "adding default writer with zero arguments",
+			input: nil,
+			wants: io.MultiWriter(mockBufs[5]),
+		},
+		{
+			name:  "adding default writer with nil writers",
+			input: []io.Writer{nil, nil, nil},
+			wants: io.MultiWriter(mockBufs[5]),
+		},
+		{
+			name:  "ensure the empty writer works",
+			input: []io.Writer{store.EmptyWriter},
+			wants: io.MultiWriter(store.EmptyWriter, mockBufs[5]),
+		},
 	}
 
-	var tests []test
-
-	for a := 1; a <= 6; a++ {
-
-		for b := 0; b < len(mockLogLevelsOK); b++ {
-
-			for c := 0; c < len(mockPrefixes); c++ {
-
-				for d := 0; d < len(testAllMessages); d++ {
-
-					for e := 0; e < len(testAllObjects); e++ {
-						var bufs []*bytes.Buffer
-						for f := 0; f <= a; f++ {
-							bufs = append(bufs, &bytes.Buffer{})
-						}
-
-						tests = append(tests, test{
-							msg: NewMessage().
-								Level(mockLogLevelsOK[b]).
-								Prefix(mockPrefixes[c]).
-								Message(testAllMessages[d]).
-								Metadata(testAllObjects[e]).
-								Build(),
-							buf: bufs,
-						})
-					}
-				}
-			}
-		}
-	}
-
-	var verify = func(id int, test test) {
-		defer func() {
-			for _, b := range test.buf {
-				b.Reset()
-			}
-			for _, b := range mockBufs {
-				b.Reset()
-			}
-		}()
-
-		for bufID, buf := range test.buf {
-
-			logEntry := &LogMessage{}
-
-			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- unmarshal error: %s",
-					id,
-					bufID,
-					err,
-				)
-
-				buf.Reset()
-				return
-			}
-
-			if logEntry.Msg != test.msg.Msg {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- message mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Msg,
-					logEntry.Msg,
-				)
-				buf.Reset()
-				return
-			}
-
-			if logEntry.Level != test.msg.Level {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- log level mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Level,
-					logEntry.Level,
-				)
-				buf.Reset()
-				return
-			}
-
-			if logEntry.Prefix != test.msg.Prefix {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- prefix mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Prefix,
-					logEntry.Prefix,
-				)
-				buf.Reset()
-				return
-			}
-
-			if len(logEntry.Metadata) == 0 && len(test.msg.Metadata) > 0 {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- retrieved empty metadata object: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Metadata,
-					logEntry.Metadata,
-				)
-				buf.Reset()
-				return
-			} else if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) == 0 {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- retrieved unexpected metadata object: wanted %s ; got %s",
-					id,
-					bufID,
-					test.msg.Metadata,
-					logEntry.Metadata,
-				)
-				buf.Reset()
-				return
-			}
-
-			if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) > 0 {
-				for k, v := range logEntry.Metadata {
-					if v != nil && test.msg.Metadata[k] == nil {
-						t.Errorf(
-							"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
-							id,
-							bufID,
-							k,
-							k,
-						)
-						buf.Reset()
-						return
-					}
-				}
-
-				if len(logEntry.Metadata) != len(test.msg.Metadata) {
-					t.Errorf(
-						"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- metadata length mismatch -- wanted %v, got %v",
-						id,
-						bufID,
-						len(test.msg.Metadata),
-						len(logEntry.Metadata),
-					)
-					buf.Reset()
-					return
-				}
-			}
-
-			t.Logf(
-				"#%v -- PASSED -- [MultiLogger] MultiLogger(...Logger[%v]).AddOuts(...io.Writer) -- %s",
+	var verify = func(id int, logw, w io.Writer, action string) {
+		if !reflect.DeepEqual(logw, w) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v -- action: %s",
 				id,
-				bufID,
-				buf.String(),
+				module,
+				funcname,
+				w,
+				logw,
+				action,
 			)
+			return
 		}
 
-	}
-
-	for id, test := range tests {
-		for _, b := range test.buf {
-			b.Reset()
-		}
-		for _, b := range mockBufs {
-			b.Reset()
-		}
-
-		multi := MultiLogger(
-			New(
-				WithPrefix("test-logger"),
-				JSONFormat,
-				WithOut(test.buf[0]),
-			),
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
 		)
-
-		if len(test.buf) > 1 {
-			for i := 1; i < len(test.buf); i++ {
-				multi.AddOuts(test.buf[i])
-			}
-		}
-
-		multi.Output(test.msg)
-
-		verify(id, test)
-	}
-}
-
-func TestMultiLoggerPrefix(t *testing.T) {
-
-	type ml struct {
-		log Logger
-		buf []*bytes.Buffer
-	}
-
-	type test struct {
-		msg    *LogMessage
-		ml     ml
-		prefix string
-	}
-
-	var newPrefixes = []string{
-		"Prefix()",
-		"new prefix",
-		"awesome service",
-		"alert!!",
-		"@whatever",
-		"01101001101",
-	}
-
-	var testAllObjects []map[string]interface{}
-	testAllObjects = append(testAllObjects, testObjects...)
-	testAllObjects = append(testAllObjects, testEmptyObjects...)
-
-	var testAllMessages []string
-	testAllMessages = append(testAllMessages, mockMessages...)
-	for _, fmtMsg := range mockFmtMessages {
-		testAllMessages = append(testAllMessages, fmt.Sprintf(fmtMsg.format, fmtMsg.v...))
-	}
-
-	var tests []test
-
-	for a := 0; a < len(newPrefixes); a++ {
-		for b := 0; b < len(testAllMessages); b++ {
-			for c := 0; c < len(testAllObjects); c++ {
-
-				var bufs []*bytes.Buffer
-				var logs []Logger
-				for d := 0; d < len(mockMultiPrefixes); d++ {
-					buf := &bytes.Buffer{}
-					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[d]), JSONFormat, WithOut(buf)))
-				}
-				mlogger := MultiLogger(logs...)
-
-				obj := test{
-					prefix: newPrefixes[a],
-					ml: ml{
-						log: mlogger,
-						buf: bufs,
-					},
-					msg: NewMessage().
-						Message(testAllMessages[b]).
-						Metadata(testAllObjects[c]).
-						Build(),
-				}
-
-				tests = append(tests, obj)
-			}
-
-		}
-
-	}
-
-	var verify = func(id int, test test) {
-		defer func() {
-			for _, b := range test.ml.buf {
-				b.Reset()
-			}
-		}()
-
-		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
-
-			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Prefix(%s) -- unmarshal error: %s",
-					id,
-					bufID,
-					test.prefix,
-					err,
-				)
-				return
-			}
-
-			if logEntry.Prefix != test.prefix {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Prefix(%s) -- prefix mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.prefix,
-					test.prefix,
-					logEntry.Prefix,
-				)
-				return
-			}
-
-			if logEntry.Level != LLInfo.String() {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Prefix(%s) -- log level mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.prefix,
-					LLInfo.String(),
-					logEntry.Level,
-				)
-				return
-			}
-
-			if logEntry.Msg != test.msg.Msg {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Prefix(%s) -- message mismatch: wanted %s ; got %s",
-					id,
-					bufID,
-					test.prefix,
-					test.msg.Msg,
-					logEntry.Msg,
-				)
-				return
-			}
-
-			if len(logEntry.Metadata) != len(test.msg.Metadata) {
-				t.Errorf(
-					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Prefix(%s) -- retrieved empty metadata object: wanted %s ; got %s",
-					id,
-					bufID,
-					test.prefix,
-					test.msg.Metadata,
-					logEntry.Metadata,
-				)
-				return
-			}
-
-			if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) > 0 {
-				for k, v := range logEntry.Metadata {
-					if v != nil && test.msg.Metadata[k] == nil {
-						t.Errorf(
-							"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Prefix(%s) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
-							id,
-							bufID,
-							test.prefix,
-							k,
-							k,
-						)
-						return
-					}
-				}
-
-				if len(logEntry.Metadata) != len(test.msg.Metadata) {
-					t.Errorf(
-						"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Prefix(%s) -- metadata length mismatch -- wanted %v, got %v",
-						id,
-						bufID,
-						test.prefix,
-						len(test.msg.Metadata),
-						len(logEntry.Metadata),
-					)
-					return
-				}
-			}
-
-			t.Logf(
-				"#%v -- PASSED -- [MultiLogger] MultiLogger(...Logger[%v]).Prefix(%s) -- %s",
-				id,
-				bufID,
-				test.prefix,
-				buf.String(),
-			)
-		}
-
 	}
 
 	for id, test := range tests {
-		for _, b := range test.ml.buf {
-			b.Reset()
+		if test.input != nil {
+			ml.AddOuts(test.input...)
+		} else {
+			ml.AddOuts()
 		}
-		test.ml.log.Prefix(test.prefix).Fields(test.msg.Metadata)
-		test.ml.log.Info(test.msg.Msg)
 
-		verify(id, test)
+		for _, l := range ml.(*multiLogger).loggers {
+			if _, ok := l.(*logger); ok {
+				logw := l.(*logger).out
+				verify(id, logw, test.wants, test.name)
+			}
+		}
+		// reset
+		ml.SetOuts(mockBufs[5])
 
 	}
 }

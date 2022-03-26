@@ -303,16 +303,17 @@ func TestLoggerSetOuts(t *testing.T) {
 		},
 	}
 
-	var verify = func(id int, logw, w io.Writer) {
+	var verify = func(id int, logw, w io.Writer, action string) {
 
 		if !reflect.DeepEqual(logw, w) {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v",
+				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v -- action: %s",
 				id,
 				module,
 				funcname,
 				w,
 				logw,
+				action,
 			)
 			return
 		}
@@ -334,7 +335,7 @@ func TestLoggerSetOuts(t *testing.T) {
 
 		logw := tlogger.(*logger).out
 
-		verify(id, logw, test.wants)
+		verify(id, logw, test.wants, test.name)
 
 	}
 }
@@ -386,16 +387,17 @@ func TestLoggerAddOuts(t *testing.T) {
 		},
 	}
 
-	var verify = func(id int, logw, w io.Writer) {
+	var verify = func(id int, logw, w io.Writer, action string) {
 
 		if !reflect.DeepEqual(logw, w) {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v",
+				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v -- action: %s",
 				id,
 				module,
 				funcname,
 				w,
 				logw,
+				action,
 			)
 			return
 		}
@@ -418,7 +420,7 @@ func TestLoggerAddOuts(t *testing.T) {
 
 		logw := tlogger.(*logger).out
 
-		verify(id, logw, test.wants)
+		verify(id, logw, test.wants, test.name)
 
 		// reset
 		tlogger.SetOuts(mockBufs[5])
@@ -427,86 +429,70 @@ func TestLoggerAddOuts(t *testing.T) {
 }
 
 func TestLoggerPrefix(t *testing.T) {
-	type test struct {
-		prefix string
-		format LoggerConfig
-		outs   []io.Writer
-		bufs   []*bytes.Buffer
+	module := "Logger"
+	funcname := "Prefix()"
+
+	tlogger := New(
+		WithPrefix("test-new-logger"),
+		WithOut(mockBufs[0]),
+		TextFormat,
+	)
+
+	var tests = []struct {
+		name  string
+		input string
+		wants string
+	}{
+		{
+			name:  "switch logger prefixes",
+			input: "logger-prefix",
+			wants: "logger-prefix",
+		},
+		{
+			name:  "switch logger prefixes",
+			input: "logger-test",
+			wants: "logger-test",
+		},
+		{
+			name:  "switch logger prefixes",
+			input: "logger-new",
+			wants: "logger-new",
+		},
+		{
+			name:  "switch to defaults",
+			input: "",
+			wants: "log",
+		},
 	}
 
-	var tests []test
-
-	var testPrefixes = []string{
-		"logger-prefix",
-		"logger-test",
-		"logger-new",
-		"logger-changed",
-		"logger-done",
-	}
-
-	regxStr := `^\[.*\]\s*\[info\]\s*\[(.*)\]\s*test content\s*$`
-	regx := regexp.MustCompile(regxStr)
-
-	format := TextFormat
-	msg := "test content"
-
-	for _, p := range testPrefixes {
-		buf := &bytes.Buffer{}
-		tests = append(tests, test{
-			prefix: p,
-			format: format,
-			outs:   []io.Writer{buf},
-			bufs:   []*bytes.Buffer{buf},
-		})
+	var verify = func(id int, p, wants, action string) {
+		if p != wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %s ; got %s -- action: %s",
+				id,
+				module,
+				funcname,
+				p,
+				wants,
+				action,
+			)
+			return
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
 	}
 
 	for id, test := range tests {
-		logger := New(
-			WithPrefix("old"),
-			test.format,
-			WithOut(test.outs...),
-		)
-		logger.Prefix(test.prefix)
-		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+		tlogger.Prefix(test.input)
 
-		logger.Log(logMessage)
+		p := tlogger.(*logger).prefix
 
-		for _, buf := range test.bufs {
-			if !regx.MatchString(buf.String()) {
-				t.Errorf(
-					"#%v [Logger] Prefix().Info(%s) -- message regex mismatch: %s",
-					id,
-					msg,
-					regxStr,
-				)
-			}
+		verify(id, p, test.wants, test.name)
 
-			match := regx.FindStringSubmatch(buf.String())
-
-			var ok bool
-			for _, v := range match {
-				ok = false
-				if v == test.prefix {
-					ok = true
-					break
-				}
-			}
-			if !ok {
-				t.Errorf(
-					"#%v [Logger] Prefix().Info(%s) -- unexpected prefix -- wanted %s",
-					id,
-					msg,
-					test.prefix,
-				)
-			}
-
-			t.Logf(
-				"#%v -- TESTED -- [Logger] Prefix().Info(%s) -- finding prefix %s",
-				id,
-				msg,
-				test.prefix,
-			)
-		}
 	}
 
 }

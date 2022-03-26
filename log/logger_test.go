@@ -468,7 +468,7 @@ func TestLoggerPrefix(t *testing.T) {
 	var verify = func(id int, p, wants, action string) {
 		if p != wants {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %s ; got %s -- action: %s",
+				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s -- action: %s",
 				id,
 				module,
 				funcname,
@@ -498,125 +498,180 @@ func TestLoggerPrefix(t *testing.T) {
 }
 
 func TestLoggerSub(t *testing.T) {
-	type test struct {
-		sub    string
-		format LoggerConfig
-		outs   []io.Writer
-		bufs   []*bytes.Buffer
+	module := "Logger"
+	funcname := "Sub()"
+
+	tlogger := New(
+		WithPrefix("test-new-logger"),
+		WithOut(mockBufs[0]),
+		TextFormat,
+	)
+
+	var tests = []struct {
+		name  string
+		input string
+		wants string
+	}{
+		{
+			name:  "switch logger sub-prefixes",
+			input: "logger-subprefix",
+			wants: "logger-subprefix",
+		},
+		{
+			name:  "switch logger sub-prefixes",
+			input: "logger-test",
+			wants: "logger-test",
+		},
+		{
+			name:  "switch logger sub-prefixes",
+			input: "logger-new",
+			wants: "logger-new",
+		},
+		{
+			name:  "switch to defaults",
+			input: "",
+			wants: "",
+		},
 	}
 
-	var tests []test
-
-	var testSubPrefixes = []string{
-		"logger-prefix",
-		"logger-test",
-		"logger-new",
-		"logger-changed",
-		"logger-done",
-	}
-
-	regxStr := `^\[.*\]\s*\[info\]\s*\[log\]\s*\[(.*)\]\s*test content\s*$`
-	regx := regexp.MustCompile(regxStr)
-
-	format := TextFormat
-	msg := "test content"
-
-	for _, s := range testSubPrefixes {
-		buf := &bytes.Buffer{}
-		tests = append(tests, test{
-			sub:    s,
-			format: format,
-			outs:   []io.Writer{buf},
-			bufs:   []*bytes.Buffer{buf},
-		})
+	var verify = func(id int, s, wants, action string) {
+		if s != wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] subprefix mismatch: wanted %s ; got %s -- action: %s",
+				id,
+				module,
+				funcname,
+				s,
+				wants,
+				action,
+			)
+			return
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
 	}
 
 	for id, test := range tests {
-		logger := New(
-			WithSub("old"),
-			test.format,
-			WithOut(test.outs...),
-		)
-		logger.Sub(test.sub)
-		logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+		tlogger.Sub("")
 
-		logger.Log(logMessage)
+		tlogger.Sub(test.input)
 
-		for _, buf := range test.bufs {
-			if !regx.MatchString(buf.String()) {
-				t.Errorf(
-					"#%v [Logger] FAILED -- Sub().Info(%s) -- message regex mismatch: %s",
-					id,
-					msg,
-					regxStr,
-				)
-			}
+		s := tlogger.(*logger).sub
 
-			match := regx.FindStringSubmatch(buf.String())
+		verify(id, s, test.wants, test.name)
 
-			var ok bool
-			for _, v := range match {
-				ok = false
-				if v == test.sub {
-					ok = true
-					break
-				}
-			}
-			if !ok {
-				t.Errorf(
-					"#%v [Logger] FAILED -- Sub().Info(%s) -- unexpected subprefix -- got %s ; wanted %s",
-					id,
-					msg,
-					buf.String(),
-					test.sub,
-				)
-			}
-
-			t.Logf(
-				"#%v -- TESTED -- [Logger] Prefix().Info(%s) -- finding prefix %s",
-				id,
-				msg,
-				test.sub,
-			)
-		}
+		tlogger.Sub("")
 	}
 
 }
 
 func TestLoggerFields(t *testing.T) {
+	module := "Logger"
+	funcname := "Fields()"
 
-	prefix := "test-new-logger"
-	format := JSONFormat
-	msg := "test content"
+	tlogger := New(
+		WithPrefix("test-new-logger"),
+		WithOut(mockBufs[0]),
+		TextFormat,
+	)
 
-	for id, obj := range testObjects {
-		buf := &bytes.Buffer{}
-		logEntry := &LogMessage{}
+	var tests = []struct {
+		name  string
+		input map[string]interface{}
+		wants map[string]interface{}
+	}{
+		{
+			name:  "switch logger metadata",
+			input: testObjects[0],
+			wants: testObjects[0],
+		},
+		{
+			name:  "switch logger metadata",
+			input: testObjects[1],
+			wants: testObjects[1],
+		},
+		{
+			name:  "switch logger metadata",
+			input: testObjects[2],
+			wants: testObjects[2],
+		},
+		{
+			name:  "switch logger metadata",
+			input: testObjects[3],
+			wants: testObjects[3],
+		},
+		{
+			name:  "switch to defaults",
+			input: map[string]interface{}{},
+			wants: map[string]interface{}{},
+		},
+		{
+			name:  "nil input check",
+			input: nil,
+			wants: map[string]interface{}{},
+		},
+	}
 
-		logger := New(
-			WithPrefix(prefix),
-			format,
-			WithOut(buf),
-		)
-
-		logger.Fields(obj).Info(msg)
-
-		if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
+	var verify = func(id int, m, wants map[string]interface{}, action string) {
+		if len(m) != len(wants) {
 			t.Errorf(
-				"#%v [Logger] [json-fmt] Fields().Info(%s) -- unmarshal error: %s",
+				"#%v -- FAILED -- [%s] [%s] metadata length mismatch: wanted %v ; got %v -- action: %s",
 				id,
-				msg,
-				err,
+				module,
+				funcname,
+				len(m),
+				len(wants),
+				action,
 			)
+			return
+		}
+
+		// empty content expected, exit successfully
+		if len(m) == 0 && len(wants) == 0 {
+			t.Logf(
+				"#%v -- PASSED -- [%s] [%s]",
+				id,
+				module,
+				funcname,
+			)
+			return
+		}
+
+		if !reflect.DeepEqual(m, wants) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] metadata content mismatch: wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				m,
+				wants,
+				action,
+			)
+			return
 		}
 
 		t.Logf(
-			"#%v -- TESTED -- [Logger] [json-fmt] Fields().Info(%s) : %s",
+			"#%v -- PASSED -- [%s] [%s]",
 			id,
-			msg,
-			buf.String(),
+			module,
+			funcname,
 		)
+	}
 
+	for id, test := range tests {
+		tlogger.Fields(nil)
+
+		tlogger.Fields(test.input)
+
+		m := tlogger.(*logger).meta
+
+		verify(id, m, test.wants, test.name)
+
+		tlogger.Fields(nil)
 	}
 
 }

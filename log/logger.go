@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"sync"
+
+	"github.com/zalgonoise/zlog/store"
 )
 
 // Logger interface defines the general behavior of a Logger object
@@ -60,6 +62,10 @@ func New(confs ...LoggerConfig) Logger {
 	defaultConfig.Apply(builder)
 
 	MultiConf(confs...).Apply(builder)
+
+	if builder.out == store.EmptyWriter && builder.skipExit {
+		return &nilLogger{}
+	}
 
 	return &logger{
 		out:         builder.out,
@@ -243,3 +249,41 @@ func (l *logger) Write(p []byte) (n int, err error) {
 	return l.Output(m)
 
 }
+
+// nilLogger struct describes an empty Logger, set as a separate type
+// mostly for prototyping or testing
+type nilLogger struct{}
+
+func (l *nilLogger) Write(p []byte) (n int, err error)           { return 0, nil }
+func (l *nilLogger) SetOuts(outs ...io.Writer) Logger            { return l }
+func (l *nilLogger) AddOuts(outs ...io.Writer) Logger            { return l }
+func (l *nilLogger) Prefix(prefix string) Logger                 { return l }
+func (l *nilLogger) Sub(sub string) Logger                       { return l }
+func (l *nilLogger) Fields(fields map[string]interface{}) Logger { return l }
+func (l *nilLogger) IsSkipExit() bool                            { return true }
+func (l *nilLogger) Output(m *LogMessage) (n int, err error)     { return 0, nil }
+func (l *nilLogger) Log(m ...*LogMessage)                        {}
+func (l *nilLogger) Print(v ...interface{})                      {}
+func (l *nilLogger) Println(v ...interface{})                    {}
+func (l *nilLogger) Printf(format string, v ...interface{})      {}
+func (l *nilLogger) Panic(v ...interface{})                      {}
+func (l *nilLogger) Panicln(v ...interface{})                    {}
+func (l *nilLogger) Panicf(format string, v ...interface{})      {}
+func (l *nilLogger) Fatal(v ...interface{})                      {}
+func (l *nilLogger) Fatalln(v ...interface{})                    {}
+func (l *nilLogger) Fatalf(format string, v ...interface{})      {}
+func (l *nilLogger) Error(v ...interface{})                      {}
+func (l *nilLogger) Errorln(v ...interface{})                    {}
+func (l *nilLogger) Errorf(format string, v ...interface{})      {}
+func (l *nilLogger) Warn(v ...interface{})                       {}
+func (l *nilLogger) Warnln(v ...interface{})                     {}
+func (l *nilLogger) Warnf(format string, v ...interface{})       {}
+func (l *nilLogger) Info(v ...interface{})                       {}
+func (l *nilLogger) Infoln(v ...interface{})                     {}
+func (l *nilLogger) Infof(format string, v ...interface{})       {}
+func (l *nilLogger) Debug(v ...interface{})                      {}
+func (l *nilLogger) Debugln(v ...interface{})                    {}
+func (l *nilLogger) Debugf(format string, v ...interface{})      {}
+func (l *nilLogger) Trace(v ...interface{})                      {}
+func (l *nilLogger) Traceln(v ...interface{})                    {}
+func (l *nilLogger) Tracef(format string, v ...interface{})      {}

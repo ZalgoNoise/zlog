@@ -3,7 +3,10 @@ package log
 import (
 	"bytes"
 	"os"
+	"reflect"
 	"testing"
+
+	"github.com/zalgonoise/zlog/store"
 )
 
 func TestMultiConf(t *testing.T) {
@@ -124,6 +127,98 @@ func TestMultiConf(t *testing.T) {
 
 	}
 
+}
+
+func TestNilLogger(t *testing.T) {
+	module := "LoggerConfig"
+	funcname := "NilLogger()"
+
+	type test struct {
+		input []LoggerConfig
+		wants Logger
+	}
+
+	var tests = []test{
+		{
+			input: []LoggerConfig{
+				WithOut(),
+				WithPrefix("test"),
+				WithSub("new"),
+				JSONFormat,
+			},
+			wants: &logger{
+				out:         os.Stdout,
+				prefix:      "test",
+				sub:         "new",
+				fmt:         JSONFormat,
+				skipExit:    false,
+				levelFilter: 0,
+			},
+		},
+		{
+			input: []LoggerConfig{
+				NilLogger(),
+			},
+			wants: &nilLogger{},
+		},
+	}
+
+	var verify = func(id int, test test, input Logger) {
+		switch v := input.(type) {
+		case *logger:
+			if !reflect.DeepEqual(v, test.wants.(*logger)) {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] -- logger mismatch: wanted %v ; got %v",
+					id,
+					module,
+					funcname,
+					test.wants.(*logger),
+					v,
+				)
+				return
+			}
+
+		case *nilLogger:
+			var checkWriter bool = false
+			var checkExit bool = false
+			var isNil bool = false
+
+			for _, v := range test.input {
+				if multi, ok := v.(*multiconf); ok {
+					for _, conf := range multi.confs {
+						if out, ok := conf.(*LCOut); ok && out.out == store.EmptyWriter {
+							checkWriter = true
+						}
+						if _, ok := conf.(*LCSkipExit); ok {
+							checkExit = true
+						}
+					}
+				}
+			}
+
+			_, isNil = input.(*nilLogger)
+
+			if !checkWriter || !checkExit || !isNil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] -- nilLogger checks failed: check writer: %v ; check exit: %v ; check nilLogger type: %v",
+					id,
+					module,
+					funcname,
+					checkWriter,
+					checkExit,
+					isNil,
+				)
+				return
+			}
+		}
+	}
+
+	for id, test := range tests {
+		logger := New(test.input...)
+
+		verify(id, test, logger)
+
+	}
 }
 
 func TestLCPrefix(t *testing.T) {

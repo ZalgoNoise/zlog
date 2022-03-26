@@ -9914,3 +9914,640 @@ func TestTracef(t *testing.T) {
 
 	std = oldstd
 }
+
+// func (l *nilLogger) Output(m *LogMessage) (n int, err error)     { return 0, nil }
+func TestNilLoggerOutput(t *testing.T) {
+	module := "NilLogger"
+	funcname := "Output()"
+
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input *LogMessage
+		n     int
+		err   error
+	}{
+		{
+			input: NewMessage().Message("test").Build(),
+			n:     0,
+			err:   nil,
+		},
+		{
+			input: NewMessage().Message("for").Build(),
+			n:     0,
+			err:   nil,
+		},
+		{
+			input: NewMessage().Message("nothing").Build(),
+			n:     0,
+			err:   nil,
+		},
+	}
+
+	for id, test := range tests {
+		n, err := nillog.Output(test.input)
+
+		if n != test.n {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] bytes written mismatch: wanted %v ; got %v",
+				id,
+				module,
+				funcname,
+				test.n,
+				n,
+			)
+			return
+
+		}
+
+		if err != test.err {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] returning error mismatch: wanted %v ; got %v",
+				id,
+				module,
+				funcname,
+				test.err,
+				err,
+			)
+			return
+		}
+	}
+}
+
+// func (l *nilLogger) Log(m ...*LogMessage)                        {}
+func TestNilLoggerLog(t *testing.T) {
+	// module := "NilLogger"
+	// funcname := "Log()"
+
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input *LogMessage
+	}{
+		{
+			input: NewMessage().Message("test").Build(),
+		},
+		{
+			input: NewMessage().Message("for").Build(),
+		},
+		{
+			input: NewMessage().Message("nothing").Build(),
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Log(test.input)
+	}
+}
+
+// func (l *nilLogger) Print(v ...interface{})                      {}
+func TestNilLoggerPrint(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Print(test.input)
+	}
+}
+
+// func (l *nilLogger) Println(v ...interface{})                    {}
+func TestNilLoggerPrintln(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Println(test.input)
+	}
+}
+
+// func (l *nilLogger) Printf(format string, v ...interface{})      {}
+func TestNilLoggerPrintf(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Printf("%s", test.input)
+	}
+}
+
+// func (l *nilLogger) Panic(v ...interface{})                      {}
+func TestNilLoggerPanic(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Panic(test.input)
+	}
+}
+
+// func (l *nilLogger) Panicln(v ...interface{})                    {}
+func TestNilLoggerPanicln(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Panicln(test.input)
+	}
+}
+
+// func (l *nilLogger) Panicf(format string, v ...interface{})      {}
+func TestNilLoggerPanicf(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Panicf("%s", test.input)
+	}
+}
+
+// func (l *nilLogger) Fatal(v ...interface{})                      {}
+func TestNilLoggerFatal(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Fatal(test.input)
+	}
+}
+
+// func (l *nilLogger) Fatalln(v ...interface{})                    {}
+func TestNilLoggerFatalln(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Fatalln(test.input)
+	}
+}
+
+// func (l *nilLogger) Fatalf(format string, v ...interface{})      {}
+func TestNilLoggerFatalf(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Fatalf("%s", test.input)
+	}
+}
+
+// func (l *nilLogger) Error(v ...interface{})                      {}
+func TestNilLoggerError(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Error(test.input)
+	}
+}
+
+// func (l *nilLogger) Errorln(v ...interface{})                    {}
+func TestNilLoggerErrorln(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Errorln(test.input)
+	}
+}
+
+// func (l *nilLogger) Errorf(format string, v ...interface{})      {}
+func TestNilLoggerErrorf(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Errorf("%s", test.input)
+	}
+}
+
+// func (l *nilLogger) Warn(v ...interface{})                       {}
+func TestNilLoggerWarn(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Warn(test.input)
+	}
+}
+
+// func (l *nilLogger) Warnln(v ...interface{})                     {}
+func TestNilLoggerWarnln(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Warnln(test.input)
+	}
+}
+
+// func (l *nilLogger) Warnf(format string, v ...interface{})       {}
+func TestNilLoggerWarnf(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Warnf("%s", test.input)
+	}
+}
+
+// func (l *nilLogger) Info(v ...interface{})                       {}
+func TestNilLoggerInfo(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Info(test.input)
+	}
+}
+
+// func (l *nilLogger) Infoln(v ...interface{})                     {}
+func TestNilLoggerInfoln(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Infoln(test.input)
+	}
+}
+
+// func (l *nilLogger) Infof(format string, v ...interface{})       {}
+func TestNilLoggerInfof(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Infof("%s", test.input)
+	}
+}
+
+// func (l *nilLogger) Debug(v ...interface{})                      {}
+func TestNilLoggerDebug(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Debug(test.input)
+	}
+}
+
+// func (l *nilLogger) Debugln(v ...interface{})                    {}
+func TestNilLoggerDebugln(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Debugln(test.input)
+	}
+}
+
+// func (l *nilLogger) Debugf(format string, v ...interface{})      {}
+func TestNilLoggerDebugf(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Debugf("%s", test.input)
+	}
+}
+
+// func (l *nilLogger) Trace(v ...interface{})                      {}
+func TestNilLoggerTrace(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Trace(test.input)
+	}
+}
+
+// func (l *nilLogger) Traceln(v ...interface{})                    {}
+func TestNilLoggerTraceln(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Traceln(test.input)
+	}
+}
+
+// func (l *nilLogger) Tracef(format string, v ...interface{})      {}
+func TestNilLoggerTracef(t *testing.T) {
+	nillog := New(NilConfig)
+
+	var tests = []struct {
+		input string
+	}{
+		{
+			input: "test",
+		},
+		{
+			input: "for",
+		},
+		{
+			input: "nothing",
+		},
+	}
+
+	for _, test := range tests {
+		nillog.Tracef("%s", test.input)
+	}
+}

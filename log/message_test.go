@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
+
+	pb "github.com/zalgonoise/zlog/proto/message"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var mockBuffer = &bytes.Buffer{}
@@ -1075,5 +1079,536 @@ func TestLoggerOutput(t *testing.T) {
 
 		verify(id, test, logEntry)
 
+	}
+}
+
+func TestMessageToProto(t *testing.T) {
+	module := "Message"
+	funcname := "ToProto()"
+
+	type test struct {
+		name       string
+		input      *LogMessage
+		wantLevel  string
+		wantPrefix string
+		wantSub    string
+		wantMsg    string
+		wantMeta   []byte
+	}
+
+	var tests = []test{
+		{
+			name:       "simple message",
+			input:      NewMessage().Message("hello world").Build(),
+			wantLevel:  "INFO",
+			wantPrefix: "log",
+			wantSub:    "",
+			wantMsg:    "hello world",
+			wantMeta:   []byte("{}"),
+		},
+		{
+			name:       "complete message",
+			input:      NewMessage().Level(LLWarn).Prefix("proto").Sub("conv").Message("hello world").Build(),
+			wantLevel:  "WARNING",
+			wantPrefix: "proto",
+			wantSub:    "conv",
+			wantMsg:    "hello world",
+			wantMeta:   []byte("{}"),
+		},
+		{
+			name:       "complete message w/meta",
+			input:      NewMessage().Level(LLWarn).Prefix("proto").Sub("conv").Message("hello world").Metadata(Field{"a": 0}).Build(),
+			wantLevel:  "WARNING",
+			wantPrefix: "proto",
+			wantSub:    "conv",
+			wantMsg:    "hello world",
+			wantMeta:   []byte(`{"a":0}`),
+		},
+	}
+
+	var verify = func(id int, test test, pb *pb.MessageRequest) {
+		if pb.GetLevel().String() != test.wantLevel {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] level mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.wantLevel,
+				pb.GetLevel().String(),
+			)
+			return
+		}
+
+		if pb.GetPrefix() != test.wantPrefix {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.wantPrefix,
+				pb.GetPrefix(),
+			)
+			return
+		}
+
+		if pb.GetSub() != test.wantSub {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.wantSub,
+				pb.GetSub(),
+			)
+			return
+		}
+
+		if pb.GetMsg() != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] message mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.wantMsg,
+				pb.GetMsg(),
+			)
+			return
+		}
+
+		meta, err := pb.GetMeta().MarshalJSON()
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] failed to convert metadata to bytes: %s",
+				id,
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if !reflect.DeepEqual(meta, test.wantMeta) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] metadata mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				string(test.wantMeta),
+				string(meta),
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
+
+	}
+
+	for id, test := range tests {
+		proto, err := test.input.ToProto()
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] error during conversion: %s",
+				id,
+				module,
+				funcname,
+				err,
+			)
+			continue
+		}
+
+		verify(id, test, proto)
+	}
+
+}
+
+func TestMessageProto(t *testing.T) {
+	module := "Message"
+	funcname := "Proto()"
+
+	type test struct {
+		name       string
+		input      *LogMessage
+		wantLevel  string
+		wantPrefix string
+		wantSub    string
+		wantMsg    string
+		wantMeta   []byte
+	}
+
+	var tests = []test{
+		{
+			name:       "simple message",
+			input:      NewMessage().Message("hello world").Build(),
+			wantLevel:  "INFO",
+			wantPrefix: "log",
+			wantSub:    "",
+			wantMsg:    "hello world",
+			wantMeta:   []byte("{}"),
+		},
+		{
+			name:       "complete message",
+			input:      NewMessage().Level(LLWarn).Prefix("proto").Sub("conv").Message("hello world").Build(),
+			wantLevel:  "WARNING",
+			wantPrefix: "proto",
+			wantSub:    "conv",
+			wantMsg:    "hello world",
+			wantMeta:   []byte("{}"),
+		},
+		{
+			name:       "complete message w/meta",
+			input:      NewMessage().Level(LLWarn).Prefix("proto").Sub("conv").Message("hello world").Metadata(Field{"a": 0}).Build(),
+			wantLevel:  "WARNING",
+			wantPrefix: "proto",
+			wantSub:    "conv",
+			wantMsg:    "hello world",
+			wantMeta:   []byte(`{"a":0}`),
+		},
+	}
+
+	var verify = func(id int, test test, pb *pb.MessageRequest) {
+		if pb.GetLevel().String() != test.wantLevel {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] level mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.wantLevel,
+				pb.GetLevel().String(),
+			)
+			return
+		}
+
+		if pb.GetPrefix() != test.wantPrefix {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.wantPrefix,
+				pb.GetPrefix(),
+			)
+			return
+		}
+
+		if pb.GetSub() != test.wantSub {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.wantSub,
+				pb.GetSub(),
+			)
+			return
+		}
+
+		if pb.GetMsg() != test.wantMsg {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] message mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.wantMsg,
+				pb.GetMsg(),
+			)
+			return
+		}
+
+		meta, err := pb.GetMeta().MarshalJSON()
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] failed to convert metadata to bytes: %s",
+				id,
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if !reflect.DeepEqual(meta, test.wantMeta) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] metadata mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				string(test.wantMeta),
+				string(meta),
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
+
+	}
+
+	for id, test := range tests {
+		proto := test.input.Proto()
+
+		verify(id, test, proto)
+	}
+
+}
+
+func TestMessageFromProto(t *testing.T) {
+	module := "Message"
+	funcname := "FromProto()"
+
+	type test struct {
+		name        string
+		want        *LogMessage
+		inputLevel  int32
+		inputPrefix string
+		inputSub    string
+		inputMsg    string
+		inputMeta   []byte
+	}
+
+	var tests = []test{
+		{
+			name:        "simple message",
+			want:        NewMessage().Message("hello world").Build(),
+			inputLevel:  2,
+			inputPrefix: "log",
+			inputSub:    "",
+			inputMsg:    "hello world",
+			inputMeta:   []byte("{}"),
+		},
+		{
+			name:        "complete message",
+			want:        NewMessage().Level(LLWarn).Prefix("proto").Sub("conv").Message("hello world").Build(),
+			inputLevel:  3,
+			inputPrefix: "proto",
+			inputSub:    "conv",
+			inputMsg:    "hello world",
+			inputMeta:   []byte("{}"),
+		},
+		{
+			name:        "complete message w/meta",
+			want:        NewMessage().Level(LLWarn).Prefix("proto").Sub("conv").Message("hello world").Metadata(Field{"a": 0}).Build(),
+			inputLevel:  3,
+			inputPrefix: "proto",
+			inputSub:    "conv",
+			inputMsg:    "hello world",
+			inputMeta:   []byte(`{"a":0}`),
+		},
+		{
+			name:        "all nil values",
+			want:        NewMessage().Message("hi").Build(),
+			inputLevel:  -1,
+			inputPrefix: "",
+			inputSub:    "",
+			inputMsg:    "hi",
+			inputMeta:   []byte(`{}`),
+		},
+	}
+
+	var verify = func(id int, test test, msg *LogMessage) {
+
+		if msg.Level != test.want.Level {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] level mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.want.Level,
+				msg.Level,
+			)
+			return
+		}
+
+		if msg.Prefix != test.want.Prefix {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.want.Prefix,
+				msg.Prefix,
+			)
+			return
+		}
+
+		if msg.Sub != test.want.Sub {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.want.Sub,
+				msg.Sub,
+			)
+			return
+		}
+
+		if msg.Msg != test.want.Msg {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] message mismatch: wanted %s ; got %s",
+				id,
+				module,
+				funcname,
+				test.want.Msg,
+				msg.Msg,
+			)
+			return
+		}
+
+		if len(msg.Metadata) == 0 && len(test.want.Metadata) == 0 {
+			t.Logf(
+				"#%v -- PASSED -- [%s] [%s]",
+				id,
+				module,
+				funcname,
+			)
+			return
+		}
+
+		for k, v := range msg.Metadata {
+			if wantV, ok := test.want.Metadata[k]; !ok {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] metadata mismatch: key %s isn't originally set",
+					id,
+					module,
+					funcname,
+					k,
+				)
+				return
+
+			} else if v == nil && wantV != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] metadata mismatch: resulting object's %s value was nil, when it shouldn't be",
+					id,
+					module,
+					funcname,
+					k,
+				)
+				return
+
+			} else if v != nil && wantV == nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] metadata mismatch: resulting object's %s value wasn't nil, when it should be",
+					id,
+					module,
+					funcname,
+					k,
+				)
+			}
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
+
+	}
+
+	for id, test := range tests {
+		var proto *pb.MessageRequest
+
+		if test.inputLevel < 0 {
+			faketime := timestamppb.Timestamp{
+				Seconds: 0,
+			}
+
+			proto = &pb.MessageRequest{
+				Time:   &faketime,
+				Level:  nil,
+				Prefix: nil,
+				Sub:    nil,
+				Msg:    test.inputMsg,
+				Meta:   nil,
+			}
+
+		} else {
+			level := pb.Level(test.inputLevel)
+
+			meta, err := encodeProto(test.inputMeta)
+			if err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] error during conversion: %s",
+					id,
+					module,
+					funcname,
+					err,
+				)
+				continue
+			}
+
+			proto = &pb.MessageRequest{
+				Level:  &level,
+				Prefix: &test.inputPrefix,
+				Sub:    &test.inputSub,
+				Msg:    test.inputMsg,
+				Meta:   meta,
+			}
+
+		}
+
+		msg := NewMessage().FromProto(proto).Build()
+
+		verify(id, test, msg)
+	}
+
+}
+
+func TestEncodeProtoErr(t *testing.T) {
+	module := "Message"
+	funcname := "encodeProto()"
+
+	var tests = []struct {
+		input []byte
+		ok    bool
+	}{
+		{
+			input: []byte(`{}`),
+			ok:    true,
+		},
+		{
+			input: []byte(`{"a":0}`),
+			ok:    true,
+		},
+		{
+			input: []byte(`{"a":"b"}`),
+			ok:    true,
+		},
+		{
+			input: []byte(`{"a":{"a":"b"}}`),
+			ok:    true,
+		},
+		{
+			input: []byte(`{"a":"b`),
+			ok:    false,
+		},
+	}
+
+	for id, test := range tests {
+		_, err := encodeProto(test.input)
+		if err != nil && test.ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected conversion error: %s",
+				id,
+				module,
+				funcname,
+				err,
+			)
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
 	}
 }

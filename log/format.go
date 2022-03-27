@@ -73,9 +73,9 @@ type LogFormatter interface {
 // and not a list for manual ordering, spacing and manipulation of preset entries
 var LogFormatters = map[int]LogFormatter{
 	0:  NewTextFormat().Build(),
-	1:  &JSONFmt{},
-	2:  &CSVFmt{},
-	3:  &XMLFmt{},
+	1:  &FmtJSON{},
+	2:  &FmtCSV{},
+	3:  &FmtXML{},
 	5:  NewTextFormat().Time(LTRFC3339).Build(),
 	6:  NewTextFormat().Time(LTRFC822Z).Build(),
 	7:  NewTextFormat().Time(LTRubyDate).Build(),
@@ -115,9 +115,9 @@ var (
 	ColorTextUpperNoTimestamp LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp and uppercase headers
 )
 
-// TextFmt struct describes the different manipulations and processing that a
+// FmtText struct describes the different manipulations and processing that a
 // Text LogFormatter can apply to a LogMessage
-type TextFmt struct {
+type FmtText struct {
 	timeFormat  string
 	levelFirst  bool
 	doubleSpace bool
@@ -128,12 +128,12 @@ type TextFmt struct {
 	noLevel     bool
 }
 
-// TextFmtBuilder struct will define the base of a custom TextFmt object,
+// FmtTextBuilder struct will define the base of a custom FmtText object,
 // which will take in different options in the form of methods that will define its
 // configuration.
 //
-// Then, the Build() method can be called to return a TextFmt object
-type TextFmtBuilder struct {
+// Then, the Build() method can be called to return a FmtText object
+type FmtTextBuilder struct {
 	timeFormat  LogTimestamp
 	levelFirst  bool
 	doubleSpace bool
@@ -144,71 +144,71 @@ type TextFmtBuilder struct {
 	noLevel     bool
 }
 
-// NewTextFormat function will initialize a TextFmtBuilder
-func NewTextFormat() *TextFmtBuilder {
-	return &TextFmtBuilder{}
+// NewTextFormat function will initialize a FmtTextBuilder
+func NewTextFormat() *FmtTextBuilder {
+	return &FmtTextBuilder{}
 }
 
-// Time method will set a TextFmtBuilder's timeFormat, and return itself
+// Time method will set a FmtTextBuilder's timeFormat, and return itself
 // to allow method chaining
-func (b *TextFmtBuilder) Time(t LogTimestamp) *TextFmtBuilder {
+func (b *FmtTextBuilder) Time(t LogTimestamp) *FmtTextBuilder {
 	b.timeFormat = t
 	return b
 }
 
-// LevelFirst method will set a TextFmtBuilder's levelFirst element to true,
+// LevelFirst method will set a FmtTextBuilder's levelFirst element to true,
 // and return itself to allow method chaining
-func (b *TextFmtBuilder) LevelFirst() *TextFmtBuilder {
+func (b *FmtTextBuilder) LevelFirst() *FmtTextBuilder {
 	b.levelFirst = true
 	return b
 }
 
-// DoubleSpace method will set a TextFmtBuilder's doubleSpace element to true,
+// DoubleSpace method will set a FmtTextBuilder's doubleSpace element to true,
 // and return itself to allow method chaining
-func (b *TextFmtBuilder) DoubleSpace() *TextFmtBuilder {
+func (b *FmtTextBuilder) DoubleSpace() *FmtTextBuilder {
 	b.doubleSpace = true
 	return b
 }
 
-// Color method will set a TextFmtBuilder's colored element to true,
+// Color method will set a FmtTextBuilder's colored element to true,
 // and return itself to allow method chaining
-func (b *TextFmtBuilder) Color() *TextFmtBuilder {
+func (b *FmtTextBuilder) Color() *FmtTextBuilder {
 	b.colored = true
 	return b
 }
 
-// Upper method will set a TextFmtBuilder's upper element to true,
+// Upper method will set a FmtTextBuilder's upper element to true,
 // and return itself to allow method chaining
-func (b *TextFmtBuilder) Upper() *TextFmtBuilder {
+func (b *FmtTextBuilder) Upper() *FmtTextBuilder {
 	b.upper = true
 	return b
 }
 
-// NoTimestamp method will set a TextFmtBuilder's noTimestamp element to true,
+// NoTimestamp method will set a FmtTextBuilder's noTimestamp element to true,
 // and return itself to allow method chaining
-func (b *TextFmtBuilder) NoTimestamp() *TextFmtBuilder {
+func (b *FmtTextBuilder) NoTimestamp() *FmtTextBuilder {
 	b.noTimestamp = true
 	return b
 }
 
-// NoHeaders method will set a TextFmtBuilder's noHeaders element to true,
+// NoHeaders method will set a FmtTextBuilder's noHeaders element to true,
 // and return itself to allow method chaining
-func (b *TextFmtBuilder) NoHeaders() *TextFmtBuilder {
+func (b *FmtTextBuilder) NoHeaders() *FmtTextBuilder {
 	b.noHeaders = true
 	return b
 }
 
-// NoLevel method will set a TextFmtBuilder's noLevel element to true,
+// NoLevel method will set a FmtTextBuilder's noLevel element to true,
 // and return itself to allow method chaining
-func (b *TextFmtBuilder) NoLevel() *TextFmtBuilder {
+func (b *FmtTextBuilder) NoLevel() *FmtTextBuilder {
 	b.noLevel = true
 	return b
 }
 
-// Build method will ensure the mandatory elements of TextFmt are set
+// Build method will ensure the mandatory elements of FmtText are set
 // and set them as default if otherwise, returning a pointer to a
-// (custom) TextFmt object
-func (b *TextFmtBuilder) Build() *TextFmt {
+// (custom) FmtText object
+func (b *FmtTextBuilder) Build() *FmtText {
 	if b.timeFormat == "" {
 		b.timeFormat = LTRFC3339Nano
 	}
@@ -225,7 +225,7 @@ func (b *TextFmtBuilder) Build() *TextFmt {
 		b.upper = false
 	}
 
-	return &TextFmt{
+	return &FmtText{
 		timeFormat:  b.timeFormat.String(),
 		levelFirst:  b.levelFirst,
 		doubleSpace: b.doubleSpace,
@@ -240,7 +240,7 @@ func (b *TextFmtBuilder) Build() *TextFmt {
 // Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
 //
 // This method will process the input LogMessage and marshal it according to this LogFormatter
-func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
+func (f *FmtText) Format(log *LogMessage) (buf []byte, err error) {
 	var sb strings.Builder
 
 	// [info] (...)
@@ -307,7 +307,7 @@ func (f *TextFmt) Format(log *LogMessage) (buf []byte, err error) {
 	return
 }
 
-func (f *TextFmt) fmtTime(t time.Time) string {
+func (f *FmtText) fmtTime(t time.Time) string {
 	switch f.timeFormat {
 	case LTUnixNano.String():
 		return strconv.Itoa(int(t.Unix()))
@@ -320,14 +320,14 @@ func (f *TextFmt) fmtTime(t time.Time) string {
 	}
 }
 
-func (f *TextFmt) colorize(level string) string {
+func (f *FmtText) colorize(level string) string {
 	if f.colored && runtime.GOOS != "windows" {
 		return levelColorMap[level] + f.capitalize(level) + colorReset
 	}
 	return f.capitalize(level)
 }
 
-func (f *TextFmt) capitalize(s string) string {
+func (f *FmtText) capitalize(s string) string {
 	if f.upper {
 		return strings.ToUpper(s)
 	}
@@ -335,7 +335,7 @@ func (f *TextFmt) capitalize(s string) string {
 
 }
 
-func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
+func (f *FmtText) fmtMetadata(data map[string]interface{}) string {
 	size := len(data)
 	count := 0
 
@@ -409,20 +409,20 @@ func (f *TextFmt) fmtMetadata(data map[string]interface{}) string {
 	return meta
 }
 
-// Apply method implements the LoggerConfig interface, allowing a TextFmt object to be passed on as an
+// Apply method implements the LoggerConfig interface, allowing a FmtText object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a Text LogFormatter
-func (f *TextFmt) Apply(lb *LoggerBuilder) {
+func (f *FmtText) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }
 
-// JSONFmt struct describes the different manipulations and processing that a JSON LogFormatter
+// FmtJSON struct describes the different manipulations and processing that a JSON LogFormatter
 // can apply to a LogMessage
-type JSONFmt struct{}
+type FmtJSON struct{}
 
 // Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
 //
 // This method will process the input LogMessage and marshal it according to this LogFormatter
-func (f *JSONFmt) Format(log *LogMessage) (buf []byte, err error) {
+func (f *FmtJSON) Format(log *LogMessage) (buf []byte, err error) {
 	// remove trailing newline on JSON format
 	if log.Msg[len(log.Msg)-1] == 10 {
 		log.Msg = log.Msg[:len(log.Msg)-1]
@@ -431,25 +431,25 @@ func (f *JSONFmt) Format(log *LogMessage) (buf []byte, err error) {
 	return json.Marshal(log)
 }
 
-// Apply method implements the LoggerConfig interface, allowing a JSONFmt object to be passed on as an
+// Apply method implements the LoggerConfig interface, allowing a FmtJSON object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a JSON LogFormatter
-func (f *JSONFmt) Apply(lb *LoggerBuilder) {
+func (f *FmtJSON) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }
 
-// CSVFmt struct describes the different manipulations and processing that a CSV LogFormatter
+// FmtCSV struct describes the different manipulations and processing that a CSV LogFormatter
 // can apply to a LogMessage
-type CSVFmt struct{}
+type FmtCSV struct{}
 
 // Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
 //
 // This method will process the input LogMessage and marshal it according to this LogFormatter
-func (f *CSVFmt) Format(log *LogMessage) (buf []byte, err error) {
+func (f *FmtCSV) Format(log *LogMessage) (buf []byte, err error) {
 	b := bytes.NewBuffer(buf)
 	w := csv.NewWriter(b)
 
-	// use TextFmt to marshal the metadata
-	t := &TextFmt{}
+	// use FmtText to marshal the metadata
+	t := &FmtText{}
 
 	var record []string
 
@@ -489,20 +489,20 @@ func (f *CSVFmt) Format(log *LogMessage) (buf []byte, err error) {
 
 }
 
-// Apply method implements the LoggerConfig interface, allowing a CSVFmt object to be passed on as an
+// Apply method implements the LoggerConfig interface, allowing a FmtCSV object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a CSV LogFormatter
-func (f *CSVFmt) Apply(lb *LoggerBuilder) {
+func (f *FmtCSV) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }
 
-// XMLFmt struct describes the different manipulations and processing that a XML LogFormatter
+// FmtXML struct describes the different manipulations and processing that a XML LogFormatter
 // can apply to a LogMessage
-type XMLFmt struct{}
+type FmtXML struct{}
 
 // Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
 //
 // This method will process the input LogMessage and marshal it according to this LogFormatter
-func (f *XMLFmt) Format(log *LogMessage) (buf []byte, err error) {
+func (f *FmtXML) Format(log *LogMessage) (buf []byte, err error) {
 	// remove trailing newline on XML format
 	if log.Msg[len(log.Msg)-1] == 10 {
 		log.Msg = log.Msg[:len(log.Msg)-1]
@@ -530,8 +530,8 @@ func (f *XMLFmt) Format(log *LogMessage) (buf []byte, err error) {
 
 }
 
-// Apply method implements the LoggerConfig interface, allowing a XMLFmt object to be passed on as an
+// Apply method implements the LoggerConfig interface, allowing a FmtXML object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a XML LogFormatter
-func (f *XMLFmt) Apply(lb *LoggerBuilder) {
+func (f *FmtXML) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }

@@ -351,12 +351,12 @@ func TestMultiLoggerSetOuts(t *testing.T) {
 		{
 			name:  "switching to default writer with zero arguments",
 			input: nil,
-			wants: os.Stdout,
+			wants: os.Stderr,
 		},
 		{
 			name:  "switching to default writer with nil writers",
 			input: []io.Writer{nil, nil, nil},
-			wants: os.Stdout,
+			wants: os.Stderr,
 		},
 		{
 			name:  "ensure the empty writer works",

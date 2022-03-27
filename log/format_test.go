@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestTextFmtFormat(t *testing.T) {
+func TestFmtTextFormat(t *testing.T) {
 	type test struct {
 		msg *LogMessage
 		rgx *regexp.Regexp
@@ -95,7 +95,7 @@ func TestTextFmtFormat(t *testing.T) {
 
 }
 
-func TestTextFmtFmtMetadata(t *testing.T) {
+func TestFmtTextFmtMetadata(t *testing.T) {
 
 	type mapTest struct {
 		obj map[string]interface{}
@@ -256,7 +256,7 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 	}
 
 	for id, test := range mapTests {
-		txt := &TextFmt{}
+		txt := &FmtText{}
 
 		result := txt.fmtMetadata(test.obj)
 
@@ -264,7 +264,7 @@ func TestTextFmtFmtMetadata(t *testing.T) {
 	}
 
 	for id, test := range fieldTests {
-		txt := &TextFmt{}
+		txt := &FmtText{}
 
 		result := txt.fmtMetadata(test.obj)
 
@@ -386,7 +386,7 @@ func TestNewTextFormatter(t *testing.T) {
 	type test struct {
 		desc string
 		msg  *LogMessage
-		fmt  *TextFmt
+		fmt  *FmtText
 		rgx  *regexp.Regexp
 	}
 

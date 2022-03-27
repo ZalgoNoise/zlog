@@ -199,12 +199,12 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 
 	msg := "test content"
 
-	out := os.Stdout
+	out := os.Stderr
 	r, w, _ := os.Pipe()
-	os.Stdout = w
+	os.Stderr = w
 
-	// forcing this override of os.Stdout so that we can read from it
-	logger := New(WithOut(os.Stdout), FormatText)
+	// forcing this override of os.Stderr so that we can read from it
+	logger := New(WithOut(os.Stderr), FormatText)
 
 	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
 
@@ -236,7 +236,7 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 
 	w.Close()
 	result := <-outCh
-	os.Stdout = out
+	os.Stderr = out
 
 	if !regx.MatchString(result) {
 		t.Errorf(
@@ -277,9 +277,9 @@ func TestLoggerSetOuts(t *testing.T) {
 			wants: io.MultiWriter(mockBufs[0]),
 		},
 		{
-			name:  "switching to os.Stdout",
-			input: []io.Writer{os.Stdout},
-			wants: io.MultiWriter(os.Stdout),
+			name:  "switching to os.Stderr",
+			input: []io.Writer{os.Stderr},
+			wants: io.MultiWriter(os.Stderr),
 		},
 		{
 			name:  "switching to multi-buffer #0",
@@ -289,12 +289,12 @@ func TestLoggerSetOuts(t *testing.T) {
 		{
 			name:  "switching to default writer with zero arguments",
 			input: nil,
-			wants: os.Stdout,
+			wants: os.Stderr,
 		},
 		{
 			name:  "switching to default writer with nil writers",
 			input: []io.Writer{nil, nil, nil},
-			wants: os.Stdout,
+			wants: os.Stderr,
 		},
 		{
 			name:  "ensure the empty writer works",
@@ -361,9 +361,9 @@ func TestLoggerAddOuts(t *testing.T) {
 			wants: io.MultiWriter(mockBufs[0], mockBufs[5]),
 		},
 		{
-			name:  "adding os.Stdout",
-			input: []io.Writer{os.Stdout},
-			wants: io.MultiWriter(os.Stdout, mockBufs[5]),
+			name:  "adding os.Stderr",
+			input: []io.Writer{os.Stderr},
+			wants: io.MultiWriter(os.Stderr, mockBufs[5]),
 		},
 		{
 			name:  "adding multi-buffer #0",

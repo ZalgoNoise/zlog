@@ -106,7 +106,7 @@ type Logger interface {
 }
 
 var std = New(defaultConfig)
-var stdout = os.Stdout
+var stdout = os.Stderr
 
 // LoggerBuilder struct describes a builder object for Loggers
 //

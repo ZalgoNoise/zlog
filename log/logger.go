@@ -1,3 +1,80 @@
+// Package log will contain logic to implement loggers, which write messages
+// to writers with modular configuration. Loggers are defined by the Logger
+// interface, to provide both abstraction and extensibility of loggers.
+//
+// This package covers the native features of the Logger interface, and its objects'
+// configuration and API. Web solutions like the gRPC client and server are found
+// in their designated packages.
+//
+// The log package implements the following interfaces:
+//
+//     type Logger interface {
+//         io.Writer
+//         Printer
+//
+//         SetOuts(outs ...io.Writer) Logger
+//         AddOuts(outs ...io.Writer) Logger
+//         Prefix(prefix string) Logger
+//         Sub(sub string) Logger
+//         Fields(fields map[string]interface{}) Logger
+//         IsSkipExit() bool
+//     }
+//
+//     type Printer interface {
+//         Output(m *LogMessage) (n int, err error)
+//         Log(m ...*LogMessage)
+//
+//         Print(v ...interface{})
+//         Println(v ...interface{})
+//         Printf(format string, v ...interface{})
+//
+//         Panic(v ...interface{})
+//         Panicln(v ...interface{})
+//         Panicf(format string, v ...interface{})
+//
+//         Fatal(v ...interface{})
+//         Fatalln(v ...interface{})
+//         Fatalf(format string, v ...interface{})
+//
+//         Error(v ...interface{})
+//         Errorln(v ...interface{})
+//         Errorf(format string, v ...interface{})
+//
+//         Warn(v ...interface{})
+//         Warnln(v ...interface{})
+//         Warnf(format string, v ...interface{})
+//
+//         Info(v ...interface{})
+//         Infoln(v ...interface{})
+//         Infof(format string, v ...interface{})
+//
+//         Debug(v ...interface{})
+//         Debugln(v ...interface{})
+//         Debugf(format string, v ...interface{})
+//
+//         Trace(v ...interface{})
+//         Traceln(v ...interface{})
+//         Tracef(format string, v ...interface{})
+//     }
+//
+//     type ChanneledLogger interface {
+//         Log(msg ...*LogMessage)
+//         Close()
+//         Channels() (logCh chan *LogMessage, done chan struct{})
+//     }
+//
+// The remaining interfaces found in this package (LoggerConfig interface, LogFormatter interface)
+// are merely for configuring the logger, so these will be mostly useful for extensibility / new features
+//
+//     type LoggerConfig interface {
+//         Apply(lb *LoggerBuilder)
+//     }
+//
+//     type LogFormatter interface {
+//         Format(log *LogMessage) (buf []byte, err error)
+//         LoggerConfig
+//     }
+//
 package log
 
 import (

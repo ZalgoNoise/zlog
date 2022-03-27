@@ -45,6 +45,13 @@ var (
 
 )
 
+// LogClientConfig interface describes the behavior that a LogClientConfig object should have
+//
+// The single Apply(lb *GRPCLogClientBuilder) method allows for different modules to apply changes to a
+// GRPCLogClientBuilder, in a non-blocking way for other features.
+//
+// Each feature should implement its own structs with their own methods; where they can implement
+// Apply(lb *GRPCLogClientBuilder) to set their own configurations to the input GRPCLogClientBuilder
 type LogClientConfig interface {
 	Apply(ls *GRPCLogClientBuilder)
 }
@@ -76,46 +83,60 @@ func (m multiconf) Apply(lb *GRPCLogClientBuilder) {
 	}
 }
 
+// LSAddr struct is a custom LogClientConfig to define addresses to new gRPC Log Client
 type LSAddr struct {
 	addr address.ConnAddr
 }
 
+// LSOpts struct is a custom LogClientConfig to define gRPC Dial Options to new gRPC Log Client
 type LSOpts struct {
 	opts []grpc.DialOption
 }
 
+// LSType struct is a custom LogClientConfig to define the type of a new gRPC Log Client (unary or stream)
 type LSType struct {
 	isUnary bool
 }
 
+// LSLogger struct is a custom LogClientConfig to define the service logger for the new gRPC Log Client
 type LSLogger struct {
 	logger log.Logger
 }
 
+// LSExpBackoff struct is a custom LogClientConfig to define the backoff configuration for the new gRPC Log Client
 type LSExpBackoff struct {
 	backoff *ExpBackoff
 }
 
+// Apply method will set this option's address as the input GRPCLogClientBuilder's
 func (l LSAddr) Apply(ls *GRPCLogClientBuilder) {
 	ls.addr = &l.addr
 }
 
+// Apply method will set this option's Dial Options as the input GRPCLogClientBuilder's
 func (l LSOpts) Apply(ls *GRPCLogClientBuilder) {
 	ls.opts = append(ls.opts, l.opts...)
 }
 
+// Apply method will set this option's type as the input GRPCLogClientBuilder's
 func (l LSType) Apply(ls *GRPCLogClientBuilder) {
 	ls.isUnary = l.isUnary
 }
 
+// Apply method will set this option's logger as the input GRPCLogClientBuilder's
 func (l LSLogger) Apply(ls *GRPCLogClientBuilder) {
 	ls.svcLogger = l.logger
 }
 
+// Apply method will set this option's backoff as the input GRPCLogClientBuilder's
 func (l LSExpBackoff) Apply(ls *GRPCLogClientBuilder) {
 	ls.expBackoff = l.backoff
 }
 
+// WithAddr function will take in any amount of addresses, and create a connections
+// map with them, for the gRPC client to connect to the server
+//
+// If these addresses are all empty (or if none is provided) defaults are applied (localhost:9099)
 func WithAddr(addr ...string) LogClientConfig {
 	a := &LSAddr{
 		addr: map[string]*grpc.ClientConn{},
@@ -131,6 +152,7 @@ func WithAddr(addr ...string) LogClientConfig {
 	return a
 }
 
+// StreamRPC function will set this gRPC Log Client type as Stream RPC
 func StreamRPC() LogClientConfig {
 	return &LSType{
 		isUnary: false,
@@ -138,12 +160,20 @@ func StreamRPC() LogClientConfig {
 
 }
 
+// UnaryRPC function will set this gRPC Log Client type as Unary RPC
 func UnaryRPC() LogClientConfig {
 	return &LSType{
 		isUnary: true,
 	}
 }
 
+// WithLogger function will define this gRPC Log Client's service logger.
+// This logger will register the gRPC Client transactions; and not the log
+// messages it is handling.
+//
+// This function's loggers input parameter is variadic -- it supports setting
+// any number of loggers. If no input is provided, then it will default to
+// setting this service logger as a nil logger (one which doesn't do anything)
 func WithLogger(loggers ...log.Logger) LogClientConfig {
 	if len(loggers) == 1 {
 		return &LSLogger{
@@ -162,6 +192,10 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 	}
 }
 
+// WithBackoff function will take in a time.Duration value to set as the
+// exponential backoff module's retry deadline.
+//
+// If unset (or set as 0), it will be configured with defaultRetryTime.
 func WithBackoff(t time.Duration) LogClientConfig {
 	// default config
 	if t == 0 || t == defaultRetryTime {
@@ -175,6 +209,11 @@ func WithBackoff(t time.Duration) LogClientConfig {
 	}
 }
 
+// WithGRPCOpts will allow passing in any number of gRPC Dial Options, which
+// are added to the gRPC Log Client.
+//
+// Running this function with zero parameters will generate a LogClientConfig with
+// the default gRPC Dial Options.
 func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
 	if opts != nil {
 		// enforce defaults
@@ -189,6 +228,8 @@ func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
 
 }
 
+// Insecure function will allow creating an insecure gRPC connection (maybe for testing
+// purposes) by adding a new option for insecure transport credentials.
 func Insecure() LogClientConfig {
 	return &LSOpts{
 		opts: []grpc.DialOption{
@@ -197,6 +238,15 @@ func Insecure() LogClientConfig {
 	}
 }
 
+// WithTLS function allows configuring TLS / mTLS for a gRPC Log Client.
+//
+// If only one parameter is passed (caPath), it will run its TLS flow. If three
+// parameters are set (caPath, certPath, keyPath), it will run its mTLS flow.
+//
+// The function will try to open the certificates that the user points to in these
+// paths, so it is required that they are accessible in terms of permissions. These
+// configurations will panic if they fail to execute. This is OK since it should happen
+// as soon as the client is executed.
 func WithTLS(caPath string, certKeyPair ...string) LogClientConfig {
 	var cred credentials.TransportCredentials
 	var err error

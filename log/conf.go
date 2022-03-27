@@ -62,7 +62,7 @@ var (
 		1:  LCSkipExit{},
 		5:  TextFormat,
 		6:  JSONFormat,
-		7:  WithOut(os.Stdout),
+		7:  WithOut(os.Stderr),
 		8:  WithPrefix("log"),
 		9:  WithFilter(LLInfo),
 		10: WithFilter(LLWarn),
@@ -74,7 +74,7 @@ var (
 	SkipExit      LoggerConfig = LoggerConfigs[1]  // placeholder for an initialized skip-exits LoggerConfig
 	FormatText    LoggerConfig = LoggerConfigs[5]  // placeholder for an initialized Text-LogFormatter LoggerConfig
 	FormatJSON    LoggerConfig = LoggerConfigs[6]  // placeholder for an initialized JSON-LogFormatter LoggerConfig
-	StdOut        LoggerConfig = LoggerConfigs[7]  // placeholder for an initialized os.Stdout LoggerConfig
+	StdOut        LoggerConfig = LoggerConfigs[7]  // placeholder for an initialized os.Stderr LoggerConfig
 	PrefixDefault LoggerConfig = LoggerConfigs[8]  // placeholder for an initialized default-prefix LoggerConfig
 	FilterInfo    LoggerConfig = LoggerConfigs[9]  // placeholder for an initialized Info-filtered LoggerConfig
 	FilterWarn    LoggerConfig = LoggerConfigs[10] // placeholder for an initialized Warn-filtered LoggerConfig
@@ -177,7 +177,7 @@ func WithOut(out ...io.Writer) LoggerConfig {
 
 	// default
 	return &LCOut{
-		out: os.Stdout,
+		out: os.Stderr,
 	}
 }
 

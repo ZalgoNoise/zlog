@@ -19,16 +19,16 @@ import (
 type LogLevel int32
 
 const (
-	LLTrace LogLevel = iota
-	LLDebug
-	LLInfo
-	LLWarn
-	LLError
-	LLFatal
-	_
-	_
-	_
-	LLPanic
+	LLTrace LogLevel = iota // LogLevel Trace
+	LLDebug                 // LogLevel Debug
+	LLInfo                  // LogLevel Info
+	LLWarn                  // LogLevel Warning
+	LLError                 // LogLevel Error
+	LLFatal                 // LogLevel Fatal
+	_                       // [reserved]
+	_                       // [reserved]
+	_                       // [reserved]
+	LLPanic                 // LogLevel Panic
 )
 
 // String method is defined for LogLevel objects to implement the Stringer interface
@@ -45,6 +45,7 @@ func (ll LogLevel) Int() int {
 }
 
 var (
+	// LogTypeVals is an enum map to convert LogLevels to its string representation
 	LogTypeVals = map[LogLevel]string{
 		0: "trace",
 		1: "debug",
@@ -55,6 +56,8 @@ var (
 		9: "panic",
 	}
 
+	// LogTypeVals is an enum map to convert LogLevels from its string representation
+	// to an int value
 	LogTypeKeys = map[string]int{
 		"trace": 0,
 		"debug": 1,
@@ -174,11 +177,22 @@ func (m *LogMessage) Bytes() []byte {
 	return buf
 }
 
+// Proto method will convert this LogMessage into a protobuf MessageRequest,
+// while skipping the (potential) returning error.
 func (m *LogMessage) Proto() *pb.MessageRequest {
 	msg, _ := m.ToProto()
 	return msg
 }
 
+// ToProto method will conver this LogMessage into a protobuf MessageRequest,
+// returning a pointer to one and an error.
+//
+// This is possible only by encoding the message's metadata into JSON bytes,
+// to then encode as a struct protobuf with protojson.
+//
+// In gRPC, metadata will make the messages heavier; as there is no way to send
+// simply any arbitrary JSON data via gRPC without encoding the keys in, too. It's
+// either this, or the .proto file would need to describe the metadata format
 func (m *LogMessage) ToProto() (*pb.MessageRequest, error) {
 	b, err := json.Marshal(m.Metadata)
 	if err != nil {
@@ -289,6 +303,11 @@ func (b *MessageBuilder) CallStack(all bool) *MessageBuilder {
 	return b
 }
 
+// FromProto method will decode a protobuf MessageRequest, returning a pointer to
+// a MessageBuilder.
+//
+// Considering the amount of optional elements, all elements are verified (besides the
+// message elements) and defaults are applied when unset.
 func (b *MessageBuilder) FromProto(in *pb.MessageRequest) *MessageBuilder {
 	if in.Time == nil {
 		b.time = time.Now()

@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
+
+	"github.com/zalgonoise/zlog/store"
 )
 
 func TestLoggerPrint(t *testing.T) {
@@ -216,6 +219,217 @@ func TestLoggerPrintf(t *testing.T) {
 
 		verify(id, test, logEntry)
 	}
+}
+
+func TestLoggerOutputLevelFilter(t *testing.T) {
+	module := "Logger"
+	funcname := "WithFilter() - Output()"
+
+	type test struct {
+		levelFilter LogLevel
+		msg         *LogMessage
+		n           int
+	}
+
+	var tests = []test{
+		{
+			levelFilter: 0,
+			msg:         NewMessage().Message("hi").Build(),
+			n:           3,
+		},
+		{
+			levelFilter: 3,
+			msg:         NewMessage().Message("hi").Build(),
+			n:           0,
+		},
+		{
+			levelFilter: 3,
+			msg:         NewMessage().Level(LLError).Message("hi").Build(),
+			n:           3,
+		},
+		{
+			levelFilter: 9,
+			msg:         NewMessage().Message("hi").Build(),
+			n:           0,
+		},
+	}
+
+	var verify = func(id int, test test, logger Logger) {
+		n, err := logger.Output(test.msg)
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] error writting message: %s",
+				id,
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+		if n != test.n {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] byte count mismatch: wanted %v ; got %v",
+				id,
+				module,
+				funcname,
+				test.n,
+				n,
+			)
+			return
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s]",
+			id,
+			module,
+			funcname,
+		)
+	}
+	mockBufs[0].Reset()
+	for id, test := range tests {
+		logger := New(WithFilter(test.levelFilter), SkipExit, TextOnly, WithOut(mockBufs[0]))
+
+		verify(id, test, logger)
+		mockBufs[0].Reset()
+	}
+}
+
+func TestLoggerCheckDefaults(t *testing.T) {
+	module := "Logger"
+	funcname := "checkDefaults()"
+
+	tlogger := New(WithOut(store.EmptyWriter), TextFormat)
+
+	type test struct {
+		name      string
+		logMeta   map[string]interface{}
+		logPrefix string
+		logSub    string
+		input     *LogMessage
+		wants     *LogMessage
+	}
+
+	var tests = []test{
+		{
+			name:      "check defaults -- basic",
+			logMeta:   nil,
+			logPrefix: "",
+			logSub:    "",
+			input:     NewMessage().Message("hi").Build(),
+			wants:     NewMessage().Message("hi").Build(),
+		},
+		{
+			name:      "check defaults -- keep message metadata",
+			logMeta:   nil,
+			logPrefix: "",
+			logSub:    "",
+			input:     NewMessage().Message("hi").Metadata(Field{"a": 0}).Build(),
+			wants:     NewMessage().Message("hi").Metadata(Field{"a": 0}).Build(),
+		},
+		{
+			name:      "apply logger metadata",
+			logMeta:   Field{"a": 0},
+			logPrefix: "",
+			logSub:    "",
+			input:     NewMessage().Message("hi").Build(),
+			wants:     NewMessage().Message("hi").Metadata(Field{"a": 0}).Build(),
+		},
+		{
+			name:      "append logger metadata",
+			logMeta:   Field{"a": 0},
+			logPrefix: "",
+			logSub:    "",
+			input:     NewMessage().Message("hi").Metadata(Field{"b": 1}).Build(),
+			wants:     NewMessage().Message("hi").Metadata(Field{"a": 0, "b": 1}).Build(),
+		},
+		{
+			name:      "apply logger sub-prefix",
+			logMeta:   nil,
+			logPrefix: "",
+			logSub:    "new",
+			input:     NewMessage().Message("hi").Build(),
+			wants:     NewMessage().Message("hi").Sub("new").Build(),
+		},
+		{
+			name:      "apply logger prefix",
+			logMeta:   nil,
+			logPrefix: "new",
+			logSub:    "",
+			input:     NewMessage().Message("hi").Build(),
+			wants:     NewMessage().Message("hi").Prefix("new").Build(),
+		},
+	}
+
+	var verify = func(id int, test test, input *LogMessage) {
+		if input.Prefix != test.wants.Prefix {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s -- action: %s",
+				id,
+				module,
+				funcname,
+				test.wants.Prefix,
+				input.Prefix,
+				test.name,
+			)
+			return
+		}
+
+		if input.Sub != test.wants.Sub {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] sub-prefix mismatch: wanted %s ; got %s -- action: %s",
+				id,
+				module,
+				funcname,
+				test.wants.Sub,
+				input.Sub,
+				test.name,
+			)
+			return
+		}
+		if input.Msg != test.wants.Msg {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] message mismatch: wanted %s ; got %s -- action: %s",
+				id,
+				module,
+				funcname,
+				test.wants.Msg,
+				input.Msg,
+				test.name,
+			)
+			return
+		}
+
+		if !reflect.DeepEqual(input.Metadata, test.wants.Metadata) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] metadata mismatch: wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.wants.Metadata,
+				input.Metadata,
+				test.name,
+			)
+			return
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			id,
+			module,
+			funcname,
+			test.name,
+		)
+	}
+
+	for id, test := range tests {
+		tlogger.Prefix(test.logPrefix).Sub(test.logSub).Fields(test.logMeta)
+
+		msg := test.input
+
+		tlogger.(*logger).checkDefaults(msg)
+
+		verify(id, test, msg)
+		tlogger.Prefix("").Sub("").Fields(nil)
+	}
+
 }
 
 func TestLoggerLog(t *testing.T) {
@@ -445,6 +659,93 @@ func TestLoggerLog(t *testing.T) {
 		}
 		mockLogger.logger.Fields(nil)
 	}
+
+}
+
+func TestLoggerLogMultiMessage(t *testing.T) {
+	module := "Logger"
+	funcname := "Log()"
+
+	tlogger := New(WithOut(mockBufs[0]), TextOnly, SkipExit)
+
+	type test struct {
+		name string
+		msgs []*LogMessage
+		n    int
+	}
+
+	var tests = []test{
+		{
+			name: "log one message",
+			msgs: []*LogMessage{NewMessage().Message("hi").Build()},
+			n:    3,
+		},
+		{
+			name: "log three messages",
+			msgs: []*LogMessage{NewMessage().Message("hi").Build(), NewMessage().Message("hi").Build(), NewMessage().Message("hi").Build()},
+			n:    9,
+		},
+		{
+			name: "log three messages -- first and last are empty",
+			msgs: []*LogMessage{{}, NewMessage().Message("hi").Build(), {}},
+			n:    5,
+		},
+		{
+			name: "log three empty messages",
+			msgs: []*LogMessage{{}, {}, {}},
+			n:    3,
+		},
+		{
+			name: "nil input",
+			msgs: nil,
+			n:    0,
+		},
+	}
+
+	var verify = func(id int, test test) {
+		if mockBufs[0].Len() != test.n {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] byte count mismatch: wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.n,
+				mockBufs[0].Len(),
+				test.name,
+			)
+			return
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			id,
+			module,
+			funcname,
+			test.name,
+		)
+
+	}
+
+	mockBufs[0].Reset()
+	for id, test := range tests {
+
+		if test.msgs == nil {
+			tlogger.Log()
+		} else {
+			tlogger.Log(test.msgs...)
+		}
+
+		verify(id, test)
+		mockBufs[0].Reset()
+	}
+
+	// test nil input
+	tlogger.Log(nil, nil, nil)
+	verify(0, test{name: "three nil messages", n: 0})
+
+	// test nil input with a real message
+	tlogger.Log(nil, nil, NewMessage().Message("hi").Build())
+	verify(0, test{name: "two nil messages, then a real message", n: 3})
 
 }
 
@@ -1452,7 +1753,7 @@ func TestLoggerWarnf(t *testing.T) {
 	}
 }
 
-func TestLoggernfo(t *testing.T) {
+func TestLoggerInfo(t *testing.T) {
 	type test struct {
 		msg     string
 		wantMsg string
@@ -1530,7 +1831,7 @@ func TestLoggernfo(t *testing.T) {
 	}
 }
 
-func TestLoggernfoln(t *testing.T) {
+func TestLoggerInfoln(t *testing.T) {
 	type test struct {
 		msg     string
 		wantMsg string
@@ -1608,7 +1909,7 @@ func TestLoggernfoln(t *testing.T) {
 	}
 }
 
-func TestLoggernfof(t *testing.T) {
+func TestLoggerInfof(t *testing.T) {
 	type test struct {
 		format  string
 		v       []interface{}

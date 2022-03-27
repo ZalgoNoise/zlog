@@ -5,6 +5,14 @@ import (
 	"os"
 )
 
+// Printer interface defines what a (log) printer should be able to do
+//
+// Besides the "raw" (Output(), Log()) methods, this interface extends
+// the logger's API to have plenty of quick-access methods to print messages
+// on different log levels, without relying on the MessageBuilder
+//
+// Similar to the standard library fmt package, its methods will follow the
+// same logic and design as an fmt.Print(), fmt.Println(), and fmt.Printf() call
 type Printer interface {
 	Output(m *LogMessage) (n int, err error)
 	Log(m ...*LogMessage)

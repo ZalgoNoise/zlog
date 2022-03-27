@@ -19,7 +19,7 @@ func TestMultiConf(t *testing.T) {
 		{
 			conf: MultiConf(),
 			want: &LoggerBuilder{
-				out:         os.Stdout,
+				out:         os.Stderr,
 				prefix:      "log",
 				sub:         "",
 				fmt:         ColorTextLevelFirst,
@@ -30,7 +30,7 @@ func TestMultiConf(t *testing.T) {
 		{
 			conf: MultiConf(SkipExit, FormatJSON, StdOut),
 			want: &LoggerBuilder{
-				out:         os.Stdout,
+				out:         os.Stderr,
 				prefix:      "",
 				sub:         "",
 				fmt:         JSONFormat,
@@ -147,7 +147,7 @@ func TestNilLogger(t *testing.T) {
 				JSONFormat,
 			},
 			wants: &logger{
-				out:         os.Stdout,
+				out:         os.Stderr,
 				prefix:      "test",
 				sub:         "new",
 				fmt:         JSONFormat,
@@ -341,7 +341,7 @@ func TestLCOut(t *testing.T) {
 		{
 			conf: WithOut(),
 			want: &LoggerBuilder{
-				out: os.Stdout,
+				out: os.Stderr,
 			},
 		},
 		{

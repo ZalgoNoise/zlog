@@ -1,10 +1,9 @@
 syntax = "proto3";
-// package log;
+
 package message;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-// option go_package = "../log";
 option go_package = "./message";
 
 enum Level {

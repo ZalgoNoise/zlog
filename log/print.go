@@ -56,9 +56,9 @@ func (l *logger) checkDefaults(m *LogMessage) {
 	}
 
 	// push logger metadata to message
-	if m.Metadata == nil && l.meta != nil {
+	if len(m.Metadata) == 0 && len(l.meta) > 0 {
 		m.Metadata = l.meta
-	} else if m.Metadata != nil && l.meta != nil {
+	} else if len(m.Metadata) > 0 && len(l.meta) > 0 {
 		// add Logger metadata to existing metadata
 		for k, v := range l.meta {
 			m.Metadata[k] = v
@@ -151,14 +151,8 @@ func (l *logger) Log(m ...*LogMessage) {
 	}
 
 	for _, msg := range m {
-		// replace defaults if logger has them set
-		if msg.Prefix == "log" && l.prefix != "" {
-			msg.Prefix = l.prefix
-		}
-
-		// replace defaults if logger has them set
-		if msg.Metadata == nil && l.meta != nil {
-			msg.Metadata = l.meta
+		if msg == nil {
+			continue
 		}
 
 		s := msg.Msg

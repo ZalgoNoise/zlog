@@ -28,11 +28,25 @@ var (
 
 var backoff *ExpBackoff
 
+// GRPCLogger interface will be of types Logger and ChanneledLogger, to allow
+// it being used interchangeably as either, with the same methods and API
+//
+// In nature, it is a gRPC client for a gRPC Log Server. As such, certain
+// configurations are inaccessible as they are set on the server (e.g., IsSkipExit())
+//
+// Also worth mentioning that MultiLogger() will support Loggers of this type, considering
+// that its SetOuts() / AddOuts() methods are expecting an io.Writer of type ConnAddr
 type GRPCLogger interface {
 	log.Logger
 	log.ChanneledLogger
 }
 
+// GRPCLogClient struct will define the elements required to build and work with
+// a gRPC Log Client.
+//
+// It does not have exactly the same elements as a joined Logger+ChannelLogger,
+// considering that it is actually sending log messages to a (remote) server that is
+// configuring its own Logger.
 type GRPCLogClient struct {
 	addr  *address.ConnAddr
 	opts  []grpc.DialOption
@@ -46,6 +60,10 @@ type GRPCLogClient struct {
 	meta   map[string]interface{}
 }
 
+// GRPCLogClientBuilder struct is an entrypoint object to create a GRPCLogClient
+//
+// This struct will take in multiple configurations, creating a GRPCLogClient
+// during the process
 type GRPCLogClientBuilder struct {
 	addr       *address.ConnAddr
 	opts       []grpc.DialOption
@@ -70,7 +88,12 @@ func newGRPCLogClient(confs ...LogClientConfig) *GRPCLogClientBuilder {
 	return builder
 }
 
-// factory
+// New function will serve as a GRPCLogger factory -- taking in different LogClientConfig
+// options and creating either a Unary RPC or a Stream RPC GRPCLogger, along with other
+// user-defined (or default) parameters
+//
+// This function returns not only the logger but an error channel, which should be monitored
+// (preferrably in a goroutine) to ensure that the gRPC client is running without issues
 func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 	builder := newGRPCLogClient(opts...)
 
@@ -82,48 +105,46 @@ func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 		svcLogger: builder.svcLogger,
 	}
 
+	// check input type -- create an appropriate GRPCLogger
 	if builder.isUnary {
 		client.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Unary gRPC client").Build())
 		return newUnaryLogger(client)
 	} else {
 		client.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Stream gRPC client").Build())
 		return newStreamLogger(client)
-
 	}
-
 }
 
 func newUnaryLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 	errCh := make(chan error)
 
+	// register log() function and error channel in the backoff module
 	backoff.RegisterLog(c.log, errCh).WithDone(&c.done)
 
+	// launch log listener in a goroutine
 	go c.listen(errCh)
 
 	return c, errCh
 }
 
 func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
-
 	errCh := make(chan error)
 
+	// register stream() function and error channel in the backoff module
 	backoff.RegisterStream(c.stream, errCh).WithDone(&c.done)
 
+	// launch log listener in a goroutine
 	go c.stream(errCh)
 
 	return c, errCh
 }
 
-func (c GRPCLogClient) listen(errCh chan error) {
-	for {
-		msg := <-c.msgCh
-		backoff.AddMessage(msg)
-		go c.log(msg, errCh)
-	}
-}
-
+// connect method will iterate the connections map and dial each remote
+//
+// It stores the connection in the map or it removes the entry in case it is unhealthy
 func (c GRPCLogClient) connect() error {
 
+	// exit if no addresses are set
 	if c.addr.Len() == 0 {
 		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("conn").Metadata(log.Field{"error": ErrNoAddr.Error()}).Message("no addresses provided").Build())
 		return ErrNoAddr
@@ -144,7 +165,9 @@ func (c GRPCLogClient) connect() error {
 		var conn *grpc.ClientConn
 		conn, err := grpc.Dial(remote, c.opts...)
 
+		// handle dial errors
 		if err != nil {
+			// retry with backoff
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").Metadata(log.Field{
 					"error":      err,
@@ -154,12 +177,17 @@ func (c GRPCLogClient) connect() error {
 				}).Message("retrying connection").Build(),
 			)
 
+			// backoff locked -- skip retry until unlocked
 			if backoff.IsLocked() {
 				return ErrBackoffLocked
 			} else {
 
+				// backoff unlocked -- increment timer and wait
+				// the Wait() method returns a registered func() to execute
+				// and an error in case the backoff reaches its deadline
 				call, err := backoff.Increment().Wait()
 
+				// handle backoff deadline errors
 				if err != nil {
 					c.svcLogger.Log(
 						log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("conn").
@@ -168,9 +196,13 @@ func (c GRPCLogClient) connect() error {
 							}).
 							Message("removing address after failed dial attempt").Build(),
 					)
+
+					// address is removed from connections map
 					c.addr.Unset(remote)
 					continue
 				} else {
+
+					// execute registered call
 					go call()
 					return ErrFailedConn
 				}
@@ -178,6 +210,7 @@ func (c GRPCLogClient) connect() error {
 
 		}
 
+		// once the connection is established, it's mapped to its (string) address
 		c.addr.Set(remote, conn)
 		liveConns++
 
@@ -190,12 +223,24 @@ func (c GRPCLogClient) connect() error {
 				Message("dialed the address successfully").Build(),
 		)
 	}
+
+	// return ErrNoConns if the counter for live connections hasn't increased
 	if liveConns == 0 {
 		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("conn").Metadata(log.Field{"error": ErrNoConns.Error()}).Message("all connections failed").Build())
 		return ErrNoConns
 	}
 
 	return nil
+}
+
+// listen method is middleware to allow the backoff module to register an
+// action call (in this case log()), which will be retried in case of failure
+func (c GRPCLogClient) listen(errCh chan error) {
+	for {
+		msg := <-c.msgCh
+		backoff.AddMessage(msg)
+		go c.log(msg, errCh)
+	}
 }
 
 func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {

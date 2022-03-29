@@ -415,12 +415,10 @@ func (c GRPCLogClient) stream(errCh chan error) {
 		// send them to the remote gRPC Log Server; this last function will also listen
 		// to the internal comms channel and to errors (e.g., to kick-off backoff)
 		go func() {
-			respCh := make(chan bool)
 			go c.handleStreamService(
 				reqID,
 				stream,
 				localErr,
-				respCh,
 				c.done,
 			)
 
@@ -429,7 +427,6 @@ func (c GRPCLogClient) stream(errCh chan error) {
 				stream,
 				localErr,
 				errCh,
-				respCh,
 				cancel,
 			)
 		}()
@@ -478,15 +475,29 @@ func (c GRPCLogClient) streamBackoff(
 	return
 }
 
+// handleStreamService method is in place to break-down stream()'s functionality
+// into a smaller function.
+//
+// The method will loop forever acting as a listener to the gRPC stream, and handling
+// incoming server responses (to messages posted to it). If the response is an error
+// or not OK, this is sinked to the local error channel to be processed. Otherwise,
+// the response is registered.
+//
+// This method is ran in parallel with handleStreamMessages()
 func (c GRPCLogClient) handleStreamService(
 	reqID string,
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
-	respCh chan bool,
 	done chan struct{},
 ) {
 	for {
-		if in, err := stream.Recv(); err != nil {
+		// capture each incoming message (server response to Log entries)
+		in, err := stream.Recv()
+
+		if err != nil {
+
+			// send received error to local error and register the event
+			// don't break off the loop; keep listening for messages
 			localErr <- err
 
 			c.svcLogger.Log(
@@ -496,28 +507,63 @@ func (c GRPCLogClient) handleStreamService(
 				}).Message("issue receiving message from stream").Build(),
 			)
 			continue
-		} else {
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id": reqID,
-				}).Message("response received from gRPC server").Build(),
-			)
-
-			respCh <- in.GetOk()
 		}
+
+		c.svcLogger.Log(
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+				"id": reqID,
+			}).Message("response received from gRPC server").Build(),
+		)
+
+		// there are no errors in the response; check the response's OK value
+		// if not OK, register this as a local bad response error and continue
+		if !in.GetOk() {
+			localErr <- ErrBadResponse
+			c.svcLogger.Log(
+				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+					"id": reqID,
+					"response": log.Field{
+						"ok": in,
+					},
+					"error": ErrBadResponse.Error(),
+				}).Message("failed to write log message").Build(),
+			)
+			continue
+		}
+
+		// server response is OK, register this event
+		c.svcLogger.Log(
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+				"id": reqID,
+				"response": log.Field{
+					"ok": in,
+				},
+			}).Message("registering server response").Build(),
+		)
+
 	}
 }
 
+// handleStreamMessages method is in place to break-down stream()'s functionality
+// into a smaller function.
+//
+// It will manage the exchanged messages in a gRPC Log Client, from its channels:
+// - incoming log messages which should be sent to the gRPC Log Server
+// - done requests (to gracefully exit)
+// - error messages (sinked into the local error channel)
+//
+// This method is ran in parallel with handleStreamService()
 func (c GRPCLogClient) handleStreamMessages(
 	reqID string,
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
 	errCh chan error,
-	respCh chan bool,
 	cancel context.CancelFunc,
 ) {
 	for {
 		select {
+
+		// LogMessage is received in the message channel -- send this message to the stream
 		case out := <-c.msgCh:
 
 			c.svcLogger.Log(
@@ -526,6 +572,7 @@ func (c GRPCLogClient) handleStreamMessages(
 				}).Message("incoming log message to send").Build(),
 			)
 
+			// send the protofied message and check for errors (sinked to local error channel)
 			err := stream.Send(out.Proto())
 			if err != nil {
 				localErr <- err
@@ -537,31 +584,8 @@ func (c GRPCLogClient) handleStreamMessages(
 					}).Message("issue sending log message to gRPC server").Build(),
 				)
 			}
-		case in := <-respCh:
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id": reqID,
-					"response": log.Field{
-						"ok": in,
-					},
-				}).Message("registering server response").Build(),
-			)
 
-			if !in {
-				errCh <- ErrBadResponse
-
-				c.svcLogger.Log(
-					log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-						"id": reqID,
-						"response": log.Field{
-							"ok": in,
-						},
-						"error": ErrBadResponse.Error(),
-					}).Message("failed to write log message").Build(),
-				)
-
-				return
-			}
+		// done is received -- gracefully exit by cancelling context and closing the connection
 		case <-c.done:
 			cancel()
 
@@ -573,7 +597,12 @@ func (c GRPCLogClient) handleStreamMessages(
 
 			return
 
+		// error is received -- parse error in case it is potentially expected; handle it
+		// accordingly. In case the error is unexpected, it is sent to the (outbound) error
+		// channel and signal done is sent.
 		case err := <-localErr:
+
+			// Stream Deadline Exceeded -- reconnect to gRPC Log Server
 			if ErrDeadlineRegexp.MatchString(err.Error()) {
 
 				c.svcLogger.Log(
@@ -585,13 +614,21 @@ func (c GRPCLogClient) handleStreamMessages(
 
 				go c.stream(errCh)
 
+				// Connection Refused or EOF error -- trigger backoff routine
 			} else if ErrEOFRegexp.MatchString(err.Error()) || ErrConnRefusedRegexp.MatchString(err.Error()) {
 
 				c.streamBackoff(reqID, errCh, cancel)
 
+				// Bad Response -- send to error channel, continue
+			} else if errors.Is(err, ErrBadResponse) {
+
+				errCh <- err
+				continue
+
+				// default -- send to error channel, close the client
 			} else {
 				errCh <- err
-				cancel()
+				defer c.Close()
 
 				c.svcLogger.Log(
 					log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
@@ -607,7 +644,12 @@ func (c GRPCLogClient) handleStreamMessages(
 	}
 }
 
-// implement ChanneledLogger
+// Close method is the implementation of the ChanneledLogger's Close().
+//
+// For a gRPC Log Client, it is important to iterate through all (alive)
+// connections in the ConnAddr map, and close them. After doing so, it
+// sends the done signal to its channel, which causes all open streams to
+// cancel their context and exit gracefully
 func (c GRPCLogClient) Close() {
 	for _, conn := range c.addr.Map() {
 		conn.Close()
@@ -615,20 +657,53 @@ func (c GRPCLogClient) Close() {
 	c.done <- struct{}{}
 }
 
+// Channels method is the implementation of the ChanneledLogger's Channels().
+//
+// It returns two channels (message and done channels) to allow control over the
+// gRPC Log Client over a background / separate goroutine. Considering that
+// creating a gRPC Log Client returns an error channel, this method will give
+// the developer the three needed channels to work with the logger asynchronously
 func (c GRPCLogClient) Channels() (logCh chan *log.LogMessage, done chan struct{}) {
 	return c.msgCh, c.done
 }
 
-// implement Logger
+// Output method implements the Logger's Output().
+//
+// This method will simply push the incoming Log Message to the message channel,
+// which is sent to a gRPC Log Server, either via a Unary or Stream RPC
 func (c GRPCLogClient) Output(m *log.LogMessage) (n int, err error) {
 	c.msgCh <- m
 	return 1, nil
 }
 
+// SetOuts method implements the Logger's SetOuts().
+//
+// For compatibility with the Logger interface, this method must take in io.Writers.
+// However, this is not how the gRPC Log Client will work to register messages.
+//
+// As such, the ConnAddr type will implement the Write() method to be compatible with
+// this implementation -- however the type assertion (and check of the same) is required
+// to ensure that only "clean" io.Writers are passed on. If so -- these will be added
+// to the connection/address map. Otherwise a Bad Writer error is returned.
+//
+// After doing so, the method will run the client's connect() method to ensure these
+// are healthy. If there are errors in this check, the retuning value will be nil instead
+// of the same logger.
+//
+// SetOuts() will replace all the existing connections and addresses by resetting the
+// map beforehand.
 func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
+	// reset connections map
 	c.addr.Reset()
 
 	for _, remote := range outs {
+		// ensure the input writer is not nil
+		if remote == nil {
+			continue
+		}
+
+		// ensure the input writer is of type *address.ConnAddr
+		// if not, skip this writer and register this event
 		if r, ok := remote.(*address.ConnAddr); !ok {
 
 			c.svcLogger.Log(
@@ -638,6 +713,7 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 					Message("invalid writer warning").Build(),
 			)
 
+			// writer is valid -- add it to connections map; register this event
 		} else {
 			c.addr.Add(r.Keys()...)
 
@@ -650,6 +726,8 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 		}
 	}
 
+	// test connectivity to remotes -- if this returns an error, the function
+	// will return nil instead of the GRPCLogClient
 	err := c.connect()
 	if err != nil {
 		return nil
@@ -658,8 +736,30 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 	return c
 }
 
+// AddOuts method implements the Logger's AddOuts().
+//
+// For compatibility with the Logger interface, this method must take in io.Writers.
+// However, this is not how the gRPC Log Client will work to register messages.
+//
+// As such, the ConnAddr type will implement the Write() method to be compatible with
+// this implementation -- however the type assertion (and check of the same) is required
+// to ensure that only "clean" io.Writers are passed on. If so -- these will be added
+// to the connection/address map. Otherwise a Bad Writer error is returned.
+//
+// After doing so, the method will run the client's connect() method to ensure these
+// are healthy. If there are errors in this check, the retuning value will be nil instead
+// of the same logger.
+//
+// AddOuts() will add the new input io.Writers to the existing connections and addresses
 func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 	for _, remote := range outs {
+		// ensure the input writer is not nil
+		if remote == nil {
+			continue
+		}
+
+		// ensure the input writer is of type *address.ConnAddr
+		// if not, skip this writer and register this event
 		if r, ok := remote.(*address.ConnAddr); !ok {
 
 			c.svcLogger.Log(
@@ -669,6 +769,7 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 					Message("invalid writer warning").Build(),
 			)
 
+			// writer is valid -- add it to connections map; register this event
 		} else {
 			c.addr.Add(r.Keys()...)
 
@@ -681,6 +782,8 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 		}
 	}
 
+	// test connectivity to remotes -- if this returns an error, the function
+	// will return nil instead of the GRPCLogClient
 	err := c.connect()
 	if err != nil {
 		return nil
@@ -689,6 +792,15 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 	return c
 }
 
+// Write method complies with the Logger's io.Writer implementation.
+//
+// The Write method will allow adding this Logger as a io.Writer to other objects.
+// Although this is slightly meta (the client is used as a writer to write to the server
+// who will write the log message -- plus the internal logging events for these loggers)
+// it is still possible, if you really want to use it that way
+//
+// Added bonus is support for gob-encoded messages, which is also natively supported in
+// the logger's Write implementation
 func (c GRPCLogClient) Write(p []byte) (n int, err error) {
 	// check if it's gob-encoded
 	m := &log.LogMessage{}

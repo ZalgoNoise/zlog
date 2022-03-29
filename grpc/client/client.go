@@ -243,7 +243,7 @@ func (c GRPCLogClient) listen(errCh chan error) {
 	}
 }
 
-// log method is a one-shot function which will send all configured connections
+// log method is a go-routine function which will send all configured connections
 // a Log() request.
 func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 
@@ -327,15 +327,26 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 	}
 }
 
+// stream method is a go-routine function which will establish a connection with
+// all configured addresses to create a Stream().
 func (c GRPCLogClient) stream(errCh chan error) {
 
 	localErr := make(chan error)
 
+	// establish connections
 	err := c.connect()
+
+	// handle connection errors
 	if err != nil {
+
+		// check if errors are failed connection or backoff locked errors;
+		// return so the action is cancelled
 		if errors.Is(err, ErrFailedConn) || errors.Is(err, ErrBackoffLocked) {
 			return
 		}
+
+		// any other errors will be sent to the error channel and logged locally;
+		// then cancelling this action
 		errCh <- err
 
 		c.svcLogger.Log(
@@ -346,6 +357,8 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 		return
 	}
+
+	// there are live connections; setup a stream with each of the remote gRPC Log Servers
 	for remote, conn := range c.addr.Map() {
 		logClient := pb.NewLogServiceClient(conn)
 
@@ -355,6 +368,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 			}).Message("setting up log service with connection").Build(),
 		)
 
+		// generate a new context with a timeout and a UUID
 		ctx, cancel, reqID := pb.NewContextTimeout(pb.DefaultStreamTimeout)
 
 		c.svcLogger.Log(
@@ -365,43 +379,19 @@ func (c GRPCLogClient) stream(errCh chan error) {
 			}).Message("setting request ID for long-lived connection").Build(),
 		)
 
+		// setup a stream with the remote gRPC Log Server
 		stream, err := logClient.LogStream(ctx)
 
+		// check for errors when creating a stream
 		if err != nil {
+
+			// if it's connection refused or EOF, kick-off the backoff routine
 			if ErrConnRefusedRegexp.MatchString(err.Error()) || ErrEOFRegexp.MatchString(err.Error()) {
-				call, err := backoff.Increment().Wait()
-
-				if err != nil {
-					fmt.Println("stream err listner: ", ErrFailedRetry)
-					cancel()
-
-					errCh <- ErrFailedRetry
-
-					c.svcLogger.Log(
-						log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-							"id":         reqID,
-							"error":      err.Error(),
-							"numRetries": backoff.Counter(),
-						}).Message("closing stream after too many failed attempts to reconnect").Build(),
-					)
-					return
-
-				}
-
-				c.svcLogger.Log(
-					log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-						"error":      err,
-						"iterations": backoff.Counter(),
-						"maxWait":    backoff.Max(),
-						"curWait":    backoff.Current(),
-					}).Message("retrying connection").Build(),
-				)
-
-				go call()
-				return
-
+				c.streamBackoff(reqID, errCh, cancel)
 			}
 
+			// otherwise, error is sent to the error channel, conn closed, context cancelled,
+			// error logged and then return
 			errCh <- err
 			conn.Close()
 			cancel()
@@ -417,6 +407,13 @@ func (c GRPCLogClient) stream(errCh chan error) {
 			return
 		}
 
+		// stream is live; kick off a goroutine with a comm channel and two separate,
+		// concurrent functions, the latter being a blocking one.
+		//
+		// - the first function (handleStreamService method) will listen to server responses
+		// - the second one (handleStreamMessages) will listen to incoming LogMessages and
+		// send them to the remote gRPC Log Server; this last function will also listen
+		// to the internal comms channel and to errors (e.g., to kick-off backoff)
 		go func() {
 			respCh := make(chan bool)
 			go c.handleStreamService(
@@ -437,6 +434,48 @@ func (c GRPCLogClient) stream(errCh chan error) {
 			)
 		}()
 	}
+}
+
+// streamBackoff method is the Stream gRPC Log Client's standard backoff flow, which
+// is used when setting up a stream and when receiving an error from the gRPC Log Server
+func (c GRPCLogClient) streamBackoff(
+	reqID string,
+	errCh chan error,
+	cancel context.CancelFunc,
+) {
+	// increment timer and wait
+	// the Wait() method returns a registered func() to execute
+	// and an error in case the backoff reaches its deadline
+	call, err := backoff.Increment().Wait()
+
+	// handle backoff deadline errors by closing the stream
+	if err != nil {
+		c.svcLogger.Log(
+			log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+				"id":         reqID,
+				"error":      err.Error(),
+				"numRetries": backoff.Counter(),
+			}).Message("closing stream after too many failed attempts to reconnect").Build(),
+		)
+
+		c.done <- struct{}{}
+		errCh <- ErrFailedRetry
+		cancel()
+		return
+	}
+
+	// otherwise the stream will be recreated
+	c.svcLogger.Log(
+		log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+			"error":      err,
+			"iterations": backoff.Counter(),
+			"maxWait":    backoff.Max(),
+			"curWait":    backoff.Current(),
+		}).Message("retrying connection").Build(),
+	)
+
+	go call()
+	return
 }
 
 func (c GRPCLogClient) handleStreamService(
@@ -548,38 +587,7 @@ func (c GRPCLogClient) handleStreamMessages(
 
 			} else if ErrEOFRegexp.MatchString(err.Error()) || ErrConnRefusedRegexp.MatchString(err.Error()) {
 
-				call, err := backoff.Increment().Wait()
-
-				if err != nil {
-
-					fmt.Println("localErr listner: ", ErrFailedRetry)
-
-					c.svcLogger.Log(
-						log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-							"id":         reqID,
-							"error":      err.Error(),
-							"numRetries": backoff.Counter(),
-						}).Message("closing stream after too many failed attempts to reconnect").Build(),
-					)
-					c.done <- struct{}{}
-					errCh <- ErrFailedRetry
-					cancel()
-					return
-
-				} else {
-					c.svcLogger.Log(
-						log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-							"error":      err,
-							"iterations": backoff.Counter(),
-							"maxWait":    backoff.Max(),
-							"curWait":    backoff.Current(),
-						}).Message("retrying connection").Build(),
-					)
-
-					go call()
-					return
-
-				}
+				c.streamBackoff(reqID, errCh, cancel)
 
 			} else {
 				errCh <- err

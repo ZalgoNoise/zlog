@@ -243,14 +243,24 @@ func (c GRPCLogClient) listen(errCh chan error) {
 	}
 }
 
+// log method is a one-shot function which will send all configured connections
+// a Log() request.
 func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
+
+	// establish connections
 	err := c.connect()
 
+	// handle connection errors
 	if err != nil {
+
+		// check if errors are failed connection or backoff locked errors;
+		// return so the action is cancelled
 		if errors.Is(err, ErrFailedConn) || errors.Is(err, ErrBackoffLocked) {
 			return
 		}
 
+		// any other errors will be sent to the error channel and logged locally;
+		// then cancelling this action
 		errCh <- err
 
 		c.svcLogger.Log(
@@ -262,9 +272,9 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 		return
 	}
 
+	// there are live connections; log input message on each of the remote gRPC Log Servers
 	for remote, conn := range c.addr.Map() {
 		defer conn.Close()
-
 		client := pb.NewLogServiceClient(conn)
 
 		c.svcLogger.Log(
@@ -273,6 +283,7 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 			}).Message("setting up log service with connection").Build(),
 		)
 
+		// generate a new context with a timeout and a UUID
 		ctx, cancel, reqID := pb.NewContextTimeout(pb.DefaultTimeout)
 
 		c.svcLogger.Log(
@@ -283,24 +294,17 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 			}).Message("received a new log message to register").Build(),
 		)
 
+		// send LogMessage to remote gRPC Log Server
 		response, err := client.Log(ctx, msg.Proto())
 
-		if err != nil {
+		// if the server returns an error, it's sent to the error channel, context cancelled,
+		// error logged and then return
+		if err != nil || !response.GetOk() {
+			if err == nil {
+				err = ErrBadResponse
+			}
+
 			errCh <- err
-			cancel()
-
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
-					"id":     reqID,
-					"remote": remote,
-					"error":  err.Error(),
-				}).Message("failed to send message to gRPC server").Build(),
-			)
-
-			return
-		}
-		if !response.Ok {
-			errCh <- ErrBadResponse
 			cancel()
 
 			c.svcLogger.Log(
@@ -316,6 +320,8 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 
 			return
 		}
+
+		// message sent; response retrieved; context is cancelled.
 		cancel()
 
 	}

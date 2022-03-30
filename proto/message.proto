@@ -28,6 +28,8 @@ message MessageRequest {
 
 message MessageResponse {
     bool ok = 1;
+    optional string err = 2;
+    optional int32 bytes = 3;
 }
 
 service LogService {

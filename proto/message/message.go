@@ -161,7 +161,7 @@ func (s *LogServer) logStream(stream LogService_LogStreamServer) {
 
 func getRequestID(ctx context.Context) string {
 	reqID := CtxGet(ctx, RequestIDKey)
-	if reqID[0] == "" {
+	if len(reqID) == 0 || reqID[0] == "" {
 		return DefaultRequestID
 	}
 	return reqID[0]

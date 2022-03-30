@@ -43,6 +43,13 @@ var (
 	LoggerJSON        LogServerConfig = LogServerConfigs[7] // placeholder for an initialized JSON logger
 )
 
+// LogServerConfig interface describes the behavior that a LogServerConfig object should have
+//
+// The single Apply(lb *GRPCLogServer) method allows for different modules to apply changes to a
+// GRPCLogServer, in a non-blocking way for other features.
+//
+// Each feature should implement its own structs with their own methods; where they can implement
+// Apply(lb *GRPCLogServer) to set their own configurations to the input GRPCLogServer
 type LogServerConfig interface {
 	Apply(ls *GRPCLogServer)
 }
@@ -74,38 +81,49 @@ func (m multiconf) Apply(lb *GRPCLogServer) {
 	}
 }
 
+// LSAddr struct is a custom LogServerConfig to define addresses to new gRPC Log Server
 type LSAddr struct {
 	addr string
 }
 
+// LSLogger struct is a custom LogServerConfig to define the (served) logger for the new gRPC Log Server
 type LSLogger struct {
 	logger log.Logger
 }
 
+// LSServiceLogger struct is a custom LogServerConfig to define the service logger for the new gRPC Log Server
 type LSServiceLogger struct {
 	logger log.Logger
 }
 
+// LSOpts struct is a custom LogServerConfig to define gRPC Dial Options to new gRPC Log Server
 type LSOpts struct {
 	opts []grpc.ServerOption
 }
 
+// Apply method will set this option's address as the input GRPCLogServer's
 func (l LSAddr) Apply(ls *GRPCLogServer) {
 	ls.Addr = l.addr
 }
 
+// Apply method will set this option's logger as the input GRPCLogServer's logger
 func (l LSLogger) Apply(ls *GRPCLogServer) {
 	ls.Logger = l.logger
 }
 
+// Apply method will set this option's logger as the input GRPCLogServer's service logger
 func (l LSServiceLogger) Apply(ls *GRPCLogServer) {
 	ls.SvcLogger = l.logger
 }
 
+// Apply method will set this option's Dial Options as the input GRPCLogServer's
 func (l LSOpts) Apply(ls *GRPCLogServer) {
 	ls.opts = append(ls.opts, l.opts...)
 }
 
+// WithAddr function will take one address for the gRPC Log Server to listen to.
+//
+// If this address is empty, defaults are applied (localhost:9099)
 func WithAddr(addr string) LogServerConfig {
 	// enforce defaults
 	if addr == "" || addr == ":" {
@@ -117,6 +135,14 @@ func WithAddr(addr string) LogServerConfig {
 	}
 }
 
+// WithLogger function will define this gRPC Log Server's logger.
+//
+// This logger will register the gRPC Client incoming log messages, from either
+// Unary or Stream RPCs.
+//
+// This function's loggers input parameter is variadic -- it supports setting
+// any number of loggers. If no input is provided, then it will default to
+// setting this logger as a default logger (with its output set to os.Stderr)
 func WithLogger(loggers ...log.Logger) LogServerConfig {
 	if len(loggers) == 1 {
 		return &LSLogger{
@@ -135,6 +161,14 @@ func WithLogger(loggers ...log.Logger) LogServerConfig {
 	}
 }
 
+// WithServiceLogger function will define this gRPC Log Server's service logger.
+//
+// This logger will register the gRPC Server's transactions, and not the client's
+// incoming log messages.
+//
+// This function's loggers input parameter is variadic -- it supports setting
+// any number of loggers. If no input is provided, then it will default to
+// setting this service logger as a nil logger (one which doesn't do anything)
 func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
 
 	if len(loggers) == 1 {
@@ -154,6 +188,11 @@ func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
 	}
 }
 
+// WithGRPCOpts will allow passing in any number of gRPC Server Options, which
+// are added to the gRPC Log Server.
+//
+// Running this function with zero parameters will generate a LogServerConfig with
+// the default gRPC Server Options.
 func WithGRPCOpts(opts ...grpc.ServerOption) LogServerConfig {
 	if opts != nil {
 		return &LSOpts{
@@ -166,6 +205,15 @@ func WithGRPCOpts(opts ...grpc.ServerOption) LogServerConfig {
 
 }
 
+// WithTLS function allows configuring TLS / mTLS for a gRPC Log Server.
+//
+// If only two parameters are passed (certPath, keyPath), it will run its TLS flow. If three
+// parameters are set (certPath, keyPath, caPath), it will run its mTLS flow.
+//
+// The function will try to open the certificates that the user points to in these
+// paths, so it is required that they are accessible in terms of permissions. These
+// configurations will panic if they fail to execute. This is OK since it should happen
+// as soon as the server is executed.
 func WithTLS(certPath, keyPath string, caPath ...string) LogServerConfig {
 	var cred credentials.TransportCredentials
 	var err error

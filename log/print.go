@@ -147,8 +147,8 @@ func (l *logger) Printf(format string, v ...interface{}) {
 	l.Output(log)
 }
 
-// Log method will take in a pointer to a LogMessage, and write it to the Logger's io.Writer
-// without returning an error message.
+// Log method will take in a pointer to one or more LogMessages, and write it to the Logger's
+// io.Writer without returning an error message.
 //
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since this package also supports creation (and maintainance) of

@@ -2,6 +2,7 @@ package message
 
 import (
 	"context"
+	"errors"
 	"io"
 	"regexp"
 	"strings"
@@ -13,6 +14,8 @@ import (
 const commPrefix string = "gRPC"
 
 var (
+	ErrNoResponse = errors.New("couldn't receive a response for the write request, from the logging module")
+
 	contextCancelledRegexp = regexp.MustCompile(`rpc error: code = Canceled desc = context canceled`)
 )
 
@@ -23,6 +26,7 @@ type LogServer struct {
 	Done  chan struct{}
 	ErrCh chan error
 	Comm  chan *MessageRequest
+	Resp  chan *MessageResponse
 }
 
 // NewLogServer is a placeholder function to create a LogServer object, which returns
@@ -32,6 +36,7 @@ func NewLogServer() *LogServer {
 		MsgCh: make(chan *MessageRequest),
 		Done:  make(chan struct{}),
 		Comm:  make(chan *MessageRequest),
+		Resp:  make(chan *MessageResponse),
 	}
 }
 
@@ -130,10 +135,20 @@ func (s *LogServer) logStream(stream LogService_LogStreamServer) {
 		// send new (valid) message to the messages channel to be logged
 		s.MsgCh <- in
 
+		res, ok := <-s.Resp
+
+		if !ok {
+			err := ErrNoResponse.Error()
+			res = &MessageResponse{
+				Ok:  false,
+				Err: &err,
+			}
+		}
+
 		// register a send transaction with request ID
 		s.Comm <- newComm(1, fName, "send: [", reqID, "]")
 		// send OK response to client
-		err = stream.Send(&MessageResponse{Ok: true})
+		err = stream.Send(res)
 		if err != nil {
 			// handle send errors if existing
 			// log level warning since it's an issue with the client

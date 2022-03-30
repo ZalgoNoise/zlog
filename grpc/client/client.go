@@ -824,6 +824,15 @@ func (c GRPCLogClient) Write(p []byte) (n int, err error) {
 	return c.Output(m)
 }
 
+// Prefix method implements the Logger interface.
+//
+// It will set a Logger-scoped (as opposed to message-scoped) prefix string to the logger
+//
+// Logger-scoped prefix strings can be set in order to avoid calling the `MessageBuilder.Prefix()` method
+// repeatedly, and instead doing so via the logger at the beginning of a service or function
+//
+// A logger-scoped prefix is not cleared with new Log messages, but `MessageBuilder.Prefix()` calls will
+// replace it.
 func (c GRPCLogClient) Prefix(prefix string) log.Logger {
 	if prefix == "" {
 		c.prefix = "log"
@@ -833,26 +842,65 @@ func (c GRPCLogClient) Prefix(prefix string) log.Logger {
 	return c
 }
 
+// Sub method implements the Logger interface.
+//
+// Logger-scoped sub-prefix strings can be set in order to avoid calling the `MessageBuilder.Sub()` method
+// repeatedly, and instead doing so via the logger at the beginning of a service or function
+//
+// A logger-scoped sub-prefix is not cleared with new Log messages, but `MessageBuilder.Sub()` calls will
+// replace it.
 func (c GRPCLogClient) Sub(sub string) log.Logger {
 	c.sub = sub
 	return c
 }
 
+// Fields method implements the Logger interface.
+//
+// Fields method will set Logger-scoped (as opposed to message-scoped) metadata fields to the logger
+//
+// Logger-scoped metadata can be set in order to avoid calling the `MessageBuilder.Metadata()` method
+// repeatedly, and instead doing so via the logger at the beginning of a service or function.
+//
+// Logger-scoped metadata fields are not cleared with new log messages, but only added to the existing
+// metadata map. These can be cleared with a call to `Logger.Fields(nil)`
 func (c GRPCLogClient) Fields(fields map[string]interface{}) log.Logger {
 	c.meta = fields
 	return c
 }
 
+// IsSkipExit method implements the Printer interface.
+//
+// IsSkipExit method returns a boolean on whether the gRPC Log Client's serive logger is
+// set to skip os.Exit(1) or panic() calls.
+//
+// It is used in functions which call these, to first evaluate if those calls should be
+// executed or skipped.
+//
+// Considering this method is unused by the gRPC Log Client, it's merely here to
+// implement the interface
 func (c GRPCLogClient) IsSkipExit() bool {
 	return c.svcLogger.IsSkipExit()
 }
 
+// Log method implements the Printer interface.
+//
+// It will take in a pointer to one or more LogMessages, and write it to the Logger's
+// io.Writer without returning an error message.
+//
+// While the resulting error message of running `GRPCLogClient.Output()` is simply ignored, this is done
+// as a blind-write for this Logger. Since these methods are simply sinking LogMessages to a channel,
+// this operation is considered safe (the errors will be handled at a gRPC Log Client level, not as a Logger)
 func (c GRPCLogClient) Log(m ...*log.LogMessage) {
 	for _, msg := range m {
 		c.Output(msg)
 	}
 }
 
+// Print method implements the Printer interface.
+//
+// It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern
+//
+// It applies LogLevel Info
 func (c GRPCLogClient) Print(v ...interface{}) {
 	c.Log(
 		log.NewMessage().
@@ -866,6 +914,11 @@ func (c GRPCLogClient) Print(v ...interface{}) {
 
 }
 
+// Println method implements the Printer interface.
+//
+// It is similar to fmt.Println; and will print a message using an fmt.Sprintln(v...) pattern
+//
+// It applies LogLevel Info
 func (c GRPCLogClient) Println(v ...interface{}) {
 	c.Log(
 		log.NewMessage().
@@ -879,6 +932,11 @@ func (c GRPCLogClient) Println(v ...interface{}) {
 
 }
 
+// Printf method implements the Printer interface.
+//
+// It is similar to fmt.Printf; and will print a message using an fmt.Sprintf(format, v...) pattern
+//
+// It applies LogLevel Info
 func (c GRPCLogClient) Printf(format string, v ...interface{}) {
 	c.Log(
 		log.NewMessage().
@@ -891,6 +949,10 @@ func (c GRPCLogClient) Printf(format string, v ...interface{}) {
 	)
 }
 
+// Panic method implements the Printer interface.
+//
+// It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Panic.
 func (c GRPCLogClient) Panic(v ...interface{}) {
 	body := fmt.Sprint(v...)
 
@@ -905,6 +967,10 @@ func (c GRPCLogClient) Panic(v ...interface{}) {
 	)
 }
 
+// Panicln method implements the Printer interface.
+//
+// It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Panic.
 func (c GRPCLogClient) Panicln(v ...interface{}) {
 	body := fmt.Sprintln(v...)
 
@@ -919,6 +985,10 @@ func (c GRPCLogClient) Panicln(v ...interface{}) {
 	)
 }
 
+// Panicf method implements the Printer interface.
+//
+// It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Panic.
 func (c GRPCLogClient) Panicf(format string, v ...interface{}) {
 	body := fmt.Sprintf(format, v...)
 
@@ -933,6 +1003,10 @@ func (c GRPCLogClient) Panicf(format string, v ...interface{}) {
 	)
 }
 
+// Fatal method implements the Printer interface.
+//
+// It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Fatal.
 func (c GRPCLogClient) Fatal(v ...interface{}) {
 	c.Log(
 		log.NewMessage().
@@ -945,6 +1019,10 @@ func (c GRPCLogClient) Fatal(v ...interface{}) {
 	)
 }
 
+// Fatalln method implements the Printer interface.
+//
+// It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Fatal.
 func (c GRPCLogClient) Fatalln(v ...interface{}) {
 
 	c.Log(
@@ -958,6 +1036,10 @@ func (c GRPCLogClient) Fatalln(v ...interface{}) {
 	)
 }
 
+// Fatalf method implements the Printer interface.
+//
+// It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Fatal.
 func (c GRPCLogClient) Fatalf(format string, v ...interface{}) {
 
 	c.Log(
@@ -971,6 +1053,10 @@ func (c GRPCLogClient) Fatalf(format string, v ...interface{}) {
 	)
 }
 
+// Error method implements the Printer interface.
+//
+// It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Error.
 func (c GRPCLogClient) Error(v ...interface{}) {
 
 	c.Log(
@@ -984,6 +1070,10 @@ func (c GRPCLogClient) Error(v ...interface{}) {
 	)
 }
 
+// Errorln method implements the Printer interface.
+//
+// It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Error.
 func (c GRPCLogClient) Errorln(v ...interface{}) {
 
 	c.Log(
@@ -997,6 +1087,10 @@ func (c GRPCLogClient) Errorln(v ...interface{}) {
 	)
 }
 
+// Errorf method implements the Printer interface.
+//
+// It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Error.
 func (c GRPCLogClient) Errorf(format string, v ...interface{}) {
 
 	c.Log(
@@ -1010,6 +1104,10 @@ func (c GRPCLogClient) Errorf(format string, v ...interface{}) {
 	)
 }
 
+// Warn method implements the Printer interface.
+//
+// It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Warn.
 func (c GRPCLogClient) Warn(v ...interface{}) {
 
 	c.Log(
@@ -1023,6 +1121,10 @@ func (c GRPCLogClient) Warn(v ...interface{}) {
 	)
 }
 
+// Warnln method implements the Printer interface.
+//
+// It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Warn.
 func (c GRPCLogClient) Warnln(v ...interface{}) {
 
 	c.Log(
@@ -1036,6 +1138,10 @@ func (c GRPCLogClient) Warnln(v ...interface{}) {
 	)
 }
 
+// Warnf method implements the Printer interface.
+//
+// It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Warn.
 func (c GRPCLogClient) Warnf(format string, v ...interface{}) {
 
 	c.Log(
@@ -1049,6 +1155,10 @@ func (c GRPCLogClient) Warnf(format string, v ...interface{}) {
 	)
 }
 
+// Info method implements the Printer interface.
+//
+// It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Info.
 func (c GRPCLogClient) Info(v ...interface{}) {
 
 	c.Log(
@@ -1062,6 +1172,10 @@ func (c GRPCLogClient) Info(v ...interface{}) {
 	)
 }
 
+// Infoln method implements the Printer interface.
+//
+// It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Info.
 func (c GRPCLogClient) Infoln(v ...interface{}) {
 
 	c.Log(
@@ -1075,6 +1189,10 @@ func (c GRPCLogClient) Infoln(v ...interface{}) {
 	)
 }
 
+// Infof method implements the Printer interface.
+//
+// It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Info.
 func (c GRPCLogClient) Infof(format string, v ...interface{}) {
 
 	c.Log(
@@ -1088,6 +1206,10 @@ func (c GRPCLogClient) Infof(format string, v ...interface{}) {
 	)
 }
 
+// Debug method implements the Printer interface.
+//
+// It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Debug.
 func (c GRPCLogClient) Debug(v ...interface{}) {
 
 	c.Log(
@@ -1101,6 +1223,10 @@ func (c GRPCLogClient) Debug(v ...interface{}) {
 	)
 }
 
+// Debugln method implements the Printer interface.
+//
+// It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Debug.
 func (c GRPCLogClient) Debugln(v ...interface{}) {
 
 	c.Log(
@@ -1114,6 +1240,10 @@ func (c GRPCLogClient) Debugln(v ...interface{}) {
 	)
 }
 
+// Debugf method implements the Printer interface.
+//
+// It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Debug.
 func (c GRPCLogClient) Debugf(format string, v ...interface{}) {
 
 	c.Log(
@@ -1127,6 +1257,10 @@ func (c GRPCLogClient) Debugf(format string, v ...interface{}) {
 	)
 }
 
+// Trace method implements the Printer interface.
+//
+// It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Trace.
 func (c GRPCLogClient) Trace(v ...interface{}) {
 
 	c.Log(
@@ -1140,6 +1274,10 @@ func (c GRPCLogClient) Trace(v ...interface{}) {
 	)
 }
 
+// Traceln method implements the Printer interface.
+//
+// It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Trace.
 func (c GRPCLogClient) Traceln(v ...interface{}) {
 
 	c.Log(
@@ -1153,6 +1291,10 @@ func (c GRPCLogClient) Traceln(v ...interface{}) {
 	)
 }
 
+// Tracef method implements the Printer interface.
+//
+// It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
+// automatically applying LogLevel Trace.
 func (c GRPCLogClient) Tracef(format string, v ...interface{}) {
 
 	c.Log(

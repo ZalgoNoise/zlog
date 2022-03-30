@@ -15,6 +15,13 @@ var (
 	ErrAddrListen   error = errors.New("failed to listen to input address")
 )
 
+// GRPCLogServer struct will define the elements required to build and work with
+// a gRPC Log Server.
+//
+// Besides the gRPC-related elements, this struct will contain two Loggers (Logger
+// and SvcLogger). This allows the gRPC Server to both do its job -- and register
+// any (important) log messages to a different output, with its own configuration
+// and requirements.
 type GRPCLogServer struct {
 	Addr      string
 	opts      []grpc.ServerOption
@@ -25,6 +32,12 @@ type GRPCLogServer struct {
 	Server    *grpc.Server
 }
 
+// New function will create a new gRPC Log Server, ensuring that at least the default
+// settings are applied.
+//
+// Once the Log Server is configured, a goroutine is kicked off to listen to internal
+// comms (the registerComms() method), which will route runtime-related log messages
+// to its SvcLogger
 func New(confs ...LogServerConfig) *GRPCLogServer {
 	server := &GRPCLogServer{
 		ErrCh: make(chan error),
@@ -45,6 +58,8 @@ func New(confs ...LogServerConfig) *GRPCLogServer {
 
 }
 
+// registerComms method will listen to messages from the Log Server's Comm channel, and register
+// them in the service logger accordingly.
 func (s GRPCLogServer) registerComms() {
 	for {
 		msg, ok := <-s.LogSv.Comm
@@ -57,6 +72,10 @@ func (s GRPCLogServer) registerComms() {
 	}
 }
 
+// listen method will start listening on the provided address, sending any errors to the Log Server's
+// error channel.
+//
+// If there are no errors setting up this listener, the function returns a net.Listener
 func (s GRPCLogServer) listen() net.Listener {
 	lis, err := net.Listen("tcp", s.Addr)
 
@@ -80,6 +99,36 @@ func (s GRPCLogServer) listen() net.Listener {
 	return lis
 }
 
+func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
+	n, err := s.Logger.Output(logmsg)
+	n32 := int32(n)
+
+	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
+
+	if err != nil || n == 0 {
+		var errStr string
+		if err == nil {
+			errStr = "zero bytes written"
+		} else {
+			errStr = err.Error()
+		}
+
+		s.LogSv.Resp <- &pb.MessageResponse{
+			Ok:    false,
+			Err:   &errStr,
+			Bytes: &n32,
+		}
+		return
+	}
+
+	s.LogSv.Resp <- &pb.MessageResponse{
+		Ok:    true,
+		Bytes: &n32,
+	}
+}
+
+// handleMessages method will be a (blocking) function kicked off as a go-routine
+// which will take in messages from the Log Server's message channel and register them
 func (s GRPCLogServer) handleMessages() {
 	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
 
@@ -87,9 +136,8 @@ func (s GRPCLogServer) handleMessages() {
 		select {
 		case msg := <-s.LogSv.MsgCh:
 			logmsg := log.NewMessage().FromProto(msg).Build()
-			s.Logger.Log(logmsg)
 
-			s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
+			go s.handleResponses(logmsg)
 
 		case <-s.LogSv.Done:
 			s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())

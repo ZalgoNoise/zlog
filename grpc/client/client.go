@@ -297,24 +297,36 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 		// send LogMessage to remote gRPC Log Server
 		response, err := client.Log(ctx, msg.Proto())
 
-		// if the server returns an error, it's sent to the error channel, context cancelled,
-		// error logged and then return
-		if err != nil || !response.GetOk() {
-			if err == nil {
-				err = ErrBadResponse
+		var res = log.Field{}
+
+		// verify response
+		if response != nil {
+			res["ok"] = response.GetOk()
+
+			if response.GetBytes() > 0 {
+				res["bytes"] = response.GetBytes()
 			}
 
+			if response.GetErr() != "" {
+				res["error"] = response.GetErr()
+				if err == nil {
+					err = errors.New(response.GetErr())
+				}
+			}
+		}
+
+		// if the server returns any error, it's sent to the error channel, context cancelled,
+		// error logged and then return
+		if err != nil {
 			errCh <- err
 			cancel()
 
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
-					"id":     reqID,
-					"remote": remote,
-					"error":  err.Error(),
-					"response": log.Field{
-						"ok": response.GetOk(),
-					},
+					"id":       reqID,
+					"remote":   remote,
+					"error":    err.Error(),
+					"response": res,
 				}).Message("failed to send message to gRPC server").Build(),
 			)
 
@@ -323,6 +335,13 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 
 		// message sent; response retrieved; context is cancelled.
 		cancel()
+		c.svcLogger.Log(
+			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
+				"id":       reqID,
+				"remote":   remote,
+				"response": res,
+			}).Message("message logged successfully").Build(),
+		)
 
 	}
 }
@@ -518,14 +537,23 @@ func (c GRPCLogClient) handleStreamService(
 		// there are no errors in the response; check the response's OK value
 		// if not OK, register this as a local bad response error and continue
 		if !in.GetOk() {
-			localErr <- ErrBadResponse
+			var err error
+			if in.GetErr() != "" {
+				err = errors.New(in.GetErr())
+			} else {
+				err = ErrBadResponse
+			}
+
+			localErr <- err
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 					"id": reqID,
 					"response": log.Field{
-						"ok": in,
+						"ok":    in.GetOk(),
+						"bytes": in.GetBytes(),
+						"error": in.GetErr(),
 					},
-					"error": ErrBadResponse.Error(),
+					"error": err.Error(),
 				}).Message("failed to write log message").Build(),
 			)
 			continue
@@ -536,7 +564,8 @@ func (c GRPCLogClient) handleStreamService(
 			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 				"id": reqID,
 				"response": log.Field{
-					"ok": in,
+					"ok":    in.GetOk(),
+					"bytes": in.GetBytes(),
 				},
 			}).Message("registering server response").Build(),
 		)

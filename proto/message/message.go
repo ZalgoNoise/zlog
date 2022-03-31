@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -22,11 +23,11 @@ var (
 // LogServer struct defines the elements of a gRPC Log Server, used as a log message, internal logs,
 // errors and done channel router, for a GRPCLogServer object.
 type LogServer struct {
-	MsgCh chan *MessageRequest
-	Done  chan struct{}
 	ErrCh chan error
+	MsgCh chan *MessageRequest
 	Comm  chan *MessageRequest
 	Resp  chan *MessageResponse
+	done  atomic.Value
 }
 
 // NewLogServer is a placeholder function to create a LogServer object, which returns
@@ -34,9 +35,9 @@ type LogServer struct {
 func NewLogServer() *LogServer {
 	return &LogServer{
 		MsgCh: make(chan *MessageRequest),
-		Done:  make(chan struct{}),
-		Comm:  make(chan *MessageRequest),
-		Resp:  make(chan *MessageResponse),
+		// done:  make(chan struct{}),
+		Comm: make(chan *MessageRequest),
+		Resp: make(chan *MessageResponse),
 	}
 }
 
@@ -96,41 +97,91 @@ func (s *LogServer) LogStream(stream LogService_LogStreamServer) error {
 	}
 }
 
+func (s *LogServer) Done() <-chan struct{} {
+	d := s.done.Load()
+
+	if d == nil {
+		d = make(chan struct{})
+		s.done.Store(d)
+	}
+	return d.(chan struct{})
+}
+
+func (s *LogServer) Stop() {
+	d := s.done.Load()
+	if d == nil {
+		return
+	}
+
+	close(d.(chan struct{}))
+}
+
 func (s *LogServer) logStream(stream LogService_LogStreamServer) {
 	fName := "logStream"
 
-	for {
-		// get incoming messages from stream
-		in, err := stream.Recv()
+	go func() {
+		for {
+			// get incoming messages from stream
+			in, err := stream.Recv()
 
-		// collect request ID from context (if set)
-		reqID := getRequestID(stream.Context())
+			// collect request ID from context (if set)
+			reqID := getRequestID(stream.Context())
 
-		// check for errors
-		if err != nil {
+			// check for errors
+			if err != nil {
 
-			// error is EOF -- stream disconnected
-			// break from this loop / keep listening for connections
-			if err == io.EOF {
-				s.Comm <- newComm(1, fName, "recv: got EOF from [", reqID, "]")
-				// break
-				continue
-			}
+				// error is EOF -- stream disconnected
+				// break from this loop / keep listening for connections
+				if err == io.EOF {
+					s.Comm <- newComm(1, fName, "recv: got EOF from [", reqID, "]")
+					// break
+					continue
+				}
 
-			// context cancelled by client -- exit
-			if contextCancelledRegexp.MatchString(err.Error()) {
-				s.Comm <- newComm(2, fName, "recv: got context closure from [", reqID, "] :: ", err.Error())
+				// context cancelled by client -- exit
+				if contextCancelledRegexp.MatchString(err.Error()) {
+					s.Comm <- newComm(2, fName, "recv: got context closure from [", reqID, "] :: ", err.Error())
+					return
+				}
+
+				// other errors are logged and sent to the error channel, response sent to client
+				// -- then, exit
+				s.Comm <- newComm(4, fName, "recv: got error from [", reqID, "] :: ", err.Error())
+				s.ErrCh <- err
+
+				// send Not OK message to client
+				errStr := err.Error()
+				err = stream.Send(&MessageResponse{Ok: false, Err: &errStr})
+				if err != nil {
+					// handle send errors if existing
+					// log level warning since it's an issue with the client
+					s.Comm <- newComm(3, fName, "send: got error with [", reqID, "] :: ", err.Error())
+					s.ErrCh <- err
+					return
+				}
+
 				return
 			}
 
-			// other errors are logged and sent to the error channel, response sent to client
-			// -- then, exit
-			s.Comm <- newComm(4, fName, "recv: got error from [", reqID, "] :: ", err.Error())
-			s.ErrCh <- err
+			// register a recv transaction with request ID
+			s.Comm <- newComm(1, fName, "recv: [", reqID, "]")
+			// send new (valid) message to the messages channel to be logged
+			s.MsgCh <- in
 
-			// send Not OK message to client
-			errStr := err.Error()
-			err = stream.Send(&MessageResponse{Ok: false, Err: &errStr})
+			res, ok := <-s.Resp
+
+			if !ok {
+				err := ErrNoResponse.Error()
+				res = &MessageResponse{
+					Ok:  false,
+					Err: &err,
+				}
+			}
+
+			// register a send transaction with request ID
+			s.Comm <- newComm(1, fName, "send: [", reqID, "]")
+			// send OK response to client
+			err = stream.Send(res)
 			if err != nil {
 				// handle send errors if existing
 				// log level warning since it's an issue with the client
@@ -138,36 +189,12 @@ func (s *LogServer) logStream(stream LogService_LogStreamServer) {
 				s.ErrCh <- err
 				return
 			}
-
-			return
 		}
+	}()
 
-		// register a recv transaction with request ID
-		s.Comm <- newComm(1, fName, "recv: [", reqID, "]")
-		// send new (valid) message to the messages channel to be logged
-		s.MsgCh <- in
-
-		res, ok := <-s.Resp
-
-		if !ok {
-			err := ErrNoResponse.Error()
-			res = &MessageResponse{
-				Ok:  false,
-				Err: &err,
-			}
-		}
-
-		// register a send transaction with request ID
-		s.Comm <- newComm(1, fName, "send: [", reqID, "]")
-		// send OK response to client
-		err = stream.Send(res)
-		if err != nil {
-			// handle send errors if existing
-			// log level warning since it's an issue with the client
-			s.Comm <- newComm(3, fName, "send: got error with [", reqID, "] :: ", err.Error())
-			s.ErrCh <- err
-			return
-		}
+	select {
+	case <-s.Done():
+		return
 	}
 }
 

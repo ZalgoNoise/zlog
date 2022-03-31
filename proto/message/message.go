@@ -69,10 +69,21 @@ func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageRespon
 
 	s.Comm <- newComm(1, fName, "recv: [", reqID, "]")
 
+	// send message to be written
 	s.MsgCh <- in
 
+	// receive Logger's response
+	res, ok := <-s.Resp
+
+	// handle bad responses
+	if !ok {
+		return nil, ErrNoResponse
+	}
+
+	// register a send transaction with request ID
 	s.Comm <- newComm(1, fName, "send: [", reqID, "]")
-	return &MessageResponse{Ok: true}, nil
+	// send OK response to
+	return res, nil
 }
 
 // LogStream method implements the LogServiceClient interface
@@ -118,7 +129,8 @@ func (s *LogServer) logStream(stream LogService_LogStreamServer) {
 			s.ErrCh <- err
 
 			// send Not OK message to client
-			err = stream.Send(&MessageResponse{Ok: false})
+			errStr := err.Error()
+			err = stream.Send(&MessageResponse{Ok: false, Err: &errStr})
 			if err != nil {
 				// handle send errors if existing
 				// log level warning since it's an issue with the client

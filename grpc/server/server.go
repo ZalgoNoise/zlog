@@ -145,6 +145,9 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 func (s GRPCLogServer) handleMessages() {
 	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
 
+	// avoid calling Done() method repeatedly
+	done := s.LogSv.Done()
+
 	for {
 		select {
 		// new message is received
@@ -157,13 +160,18 @@ func (s GRPCLogServer) handleMessages() {
 			go s.handleResponses(logmsg)
 
 		// done signal is received
-		case <-s.LogSv.Done():
+		case <-done:
 			s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
 			return
 		}
 	}
 }
 
+// Serve method will be a long-running, blocking function which will launch the gRPC server
+//
+// It will start listening to the resgistered address and launch its internal message handler routine.
+// Then, the gRPC Server is created (as a package-level instance), registered for reflection. Finally,
+// the grpc.Server's own Serve() method is executed and persisted unless an error occurs.
 func (s GRPCLogServer) Serve() {
 	lis := s.listen()
 	if lis == nil {
@@ -196,9 +204,11 @@ func (s GRPCLogServer) Serve() {
 
 }
 
+// Stop method will be a wrapper for the routine involved to (gracefully) stop this gRPC
+// Log Server. It will first call the
 func (s GRPCLogServer) Stop() {
 	s.LogSv.Stop()
 	grpcServer.Stop()
 
-	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stop").Message("received done signal").Build())
+	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
 }

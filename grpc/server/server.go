@@ -13,6 +13,8 @@ import (
 var (
 	ErrMessageParse error = errors.New("failed to parse message")
 	ErrAddrListen   error = errors.New("failed to listen to input address")
+
+	grpcServer *grpc.Server
 )
 
 // GRPCLogServer struct will define the elements required to build and work with
@@ -29,7 +31,7 @@ type GRPCLogServer struct {
 	SvcLogger log.Logger
 	ErrCh     chan error
 	LogSv     *pb.LogServer
-	Server    *grpc.Server
+	// Server    *grpc.Server
 }
 
 // New function will create a new gRPC Log Server, ensuring that at least the default
@@ -145,12 +147,17 @@ func (s GRPCLogServer) handleMessages() {
 
 	for {
 		select {
+		// new message is received
 		case msg := <-s.LogSv.MsgCh:
+
+			// convert pb.MessageRequest to log.LogMessage
 			logmsg := log.NewMessage().FromProto(msg).Build()
 
+			// send message to be written in a goroutine
 			go s.handleResponses(logmsg)
 
-		case <-s.LogSv.Done:
+		// done signal is received
+		case <-s.LogSv.Done():
 			s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
 			return
 		}
@@ -165,18 +172,18 @@ func (s GRPCLogServer) Serve() {
 
 	go s.handleMessages()
 
-	s.Server = grpc.NewServer(s.opts...)
-	pb.RegisterLogServiceServer(s.Server, s.LogSv)
+	grpcServer = grpc.NewServer(s.opts...)
+	pb.RegisterLogServiceServer(grpcServer, s.LogSv)
 
 	// gRPC reflection
-	reflection.Register(s.Server)
+	reflection.Register(grpcServer)
 
 	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("serve").
 		Message("gRPC server is running").Metadata(log.Field{
 		"addr": s.Addr,
 	}).Build())
 
-	if err := s.Server.Serve(lis); err != nil {
+	if err := grpcServer.Serve(lis); err != nil {
 		s.ErrCh <- err
 
 		s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("serve").
@@ -190,8 +197,8 @@ func (s GRPCLogServer) Serve() {
 }
 
 func (s GRPCLogServer) Stop() {
-	s.LogSv.Done <- struct{}{}
-	s.Server.Stop()
+	s.LogSv.Stop()
+	grpcServer.Stop()
 
 	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stop").Message("received done signal").Build())
 }

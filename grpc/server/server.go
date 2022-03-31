@@ -99,12 +99,17 @@ func (s GRPCLogServer) listen() net.Listener {
 	return lis
 }
 
+// handleResponses method will take care of registering an input log message in the
+// (actual) target Logger.
+//
+// This is done via the Output() method which, like the io.Writer, returns the
+// number of bytes written and an error. From this point, depending on the outcome,
+// a pb.MessageResponse object is built and sent to the Responses channel
 func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 	n, err := s.Logger.Output(logmsg)
 	n32 := int32(n)
 
-	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
-
+	// handle write errors or zero-bytes-written errors
 	if err != nil || n == 0 {
 		var errStr string
 		if err == nil {
@@ -113,6 +118,9 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 			errStr = err.Error()
 		}
 
+		s.SvcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("handler").Message("issue writting log message: " + errStr).Build())
+
+		// send not OK response
 		s.LogSv.Resp <- &pb.MessageResponse{
 			Ok:    false,
 			Err:   &errStr,
@@ -121,6 +129,9 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 		return
 	}
 
+	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
+
+	// send OK response
 	s.LogSv.Resp <- &pb.MessageResponse{
 		Ok:    true,
 		Bytes: &n32,

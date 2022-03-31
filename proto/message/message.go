@@ -18,7 +18,14 @@ var (
 	ErrNoResponse = errors.New("couldn't receive a response for the write request, from the logging module")
 
 	contextCancelledRegexp = regexp.MustCompile(`rpc error: code = Canceled desc = context canceled`)
+
+	// closedchan is a reusable closed channel.
+	closedchan = make(chan struct{})
 )
+
+func init() {
+	close(closedchan)
+}
 
 // LogServer struct defines the elements of a gRPC Log Server, used as a log message, internal logs,
 // errors and done channel router, for a GRPCLogServer object.
@@ -35,9 +42,8 @@ type LogServer struct {
 func NewLogServer() *LogServer {
 	return &LogServer{
 		MsgCh: make(chan *MessageRequest),
-		// done:  make(chan struct{}),
-		Comm: make(chan *MessageRequest),
-		Resp: make(chan *MessageResponse),
+		Comm:  make(chan *MessageRequest),
+		Resp:  make(chan *MessageResponse),
 	}
 }
 
@@ -89,40 +95,65 @@ func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageRespon
 
 // LogStream method implements the LogServiceClient interface
 func (s *LogServer) LogStream(stream LogService_LogStreamServer) error {
-	go s.logStream(stream)
+	fName := "LogStream"
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
+	// goroutine to listen to stream -- it is closed with s.Stop()
+	go s.logStream(ctx, stream)
+
+	done := s.Done()
 
 	for {
-		err := <-s.ErrCh
-		return err
+		select {
+		case <-done:
+			s.Comm <- newComm(0, fName, "done signal received; closing goroutine contexts")
+			cancel()
+			return nil
+		case err := <-s.ErrCh:
+			s.Comm <- newComm(3, fName, "error received; closing goroutine contexts")
+			cancel()
+			return err
+
+		}
 	}
 }
 
-func (s *LogServer) Done() <-chan struct{} {
-	d := s.done.Load()
-
-	if d == nil {
-		d = make(chan struct{})
-		s.done.Store(d)
-	}
-	return d.(chan struct{})
-}
-
-func (s *LogServer) Stop() {
-	d := s.done.Load()
-	if d == nil {
-		return
-	}
-
-	close(d.(chan struct{}))
-}
-
-func (s *LogServer) logStream(stream LogService_LogStreamServer) {
+func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamServer) {
 	fName := "logStream"
+	done := ctx.Done()
 
+	// local channel to route input messages and errors
+	localCh := make(chan struct {
+		in  *MessageRequest
+		err error
+	})
+
+	// get incoming messages from stream
+	// send to local channel
 	go func() {
 		for {
-			// get incoming messages from stream
 			in, err := stream.Recv()
+
+			localCh <- struct {
+				in  *MessageRequest
+				err error
+			}{
+				in:  in,
+				err: err,
+			}
+		}
+	}()
+
+	// blocking long-running operation to switch on:
+	// - input messages from the local message channel (localCh)
+	// - done signals from the input context's done channel
+	for {
+		select {
+		case msg := <-localCh:
+			in := msg.in
+			err := msg.err
 
 			// collect request ID from context (if set)
 			reqID := getRequestID(stream.Context())
@@ -189,13 +220,58 @@ func (s *LogServer) logStream(stream LogService_LogStreamServer) {
 				s.ErrCh <- err
 				return
 			}
-		}
-	}()
 
-	select {
-	case <-s.Done():
+		// context closure ; exit goroutine
+		case <-done:
+			s.Comm <- newComm(0, fName, "exiting log stream goroutine")
+			return
+		}
+	}
+
+}
+
+// Done method will be similar to context.Context's Done() implementation of the
+// cancelCtx. It allocates the done struct as an atomic value, which is created or
+// loaded when this method is called.
+//
+// Just like the context package, this can be used to select over and act upon (for a
+// graceful exit request).
+//
+//     for {
+//         select {
+//             (...)
+//             case <-server.Done():
+//                 return
+//         }
+//     }
+//
+func (s *LogServer) Done() <-chan struct{} {
+	fName := "Done"
+
+	s.Comm <- newComm(0, fName, "listening to done signal")
+
+	d := s.done.Load()
+
+	if d == nil {
+		d = make(chan struct{})
+		s.done.Store(d)
+	}
+	return d.(chan struct{})
+}
+
+// Stop method will close the LogServer's done channel, which ensures it will halt
+// any on-going goroutines gracefully.
+func (s *LogServer) Stop() {
+	fName := "Stop"
+	s.Comm <- newComm(0, fName, "msg: received done signal")
+
+	d := s.done.Load()
+	if d == nil {
+		s.done.Store(closedchan)
 		return
 	}
+	close(d.(chan struct{}))
+
 }
 
 func getRequestID(ctx context.Context) string {

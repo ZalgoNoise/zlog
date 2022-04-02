@@ -297,7 +297,9 @@ func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials
 
 	config := &tls.Config{
 		Certificates: []tls.Certificate{c},
-		ClientCAs:    crtPool,
+		RootCAs:      crtPool,
+		MinVersion:   tls.VersionTLS13,
+		// MaxVersion:   tls.VersionTLS13,
 	}
 
 	return credentials.NewTLS(config), nil

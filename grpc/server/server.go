@@ -120,7 +120,7 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 			errStr = err.Error()
 		}
 
-		s.SvcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("handler").Message("issue writting log message: " + errStr).Build())
+		s.SvcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("handler").Message("issue writting log message").Metadata(log.Field{"error": errStr, "bytesWritten": n}).Build())
 
 		// send not OK response
 		s.LogSv.Resp <- &pb.MessageResponse{
@@ -194,7 +194,7 @@ func (s GRPCLogServer) Serve() {
 	if err := grpcServer.Serve(lis); err != nil {
 		s.ErrCh <- err
 
-		s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("serve").
+		s.SvcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("serve").
 			Message("gRPC server crashed with an error").Metadata(log.Field{
 			"error": err.Error(),
 			"addr":  s.Addr,

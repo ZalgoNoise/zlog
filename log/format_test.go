@@ -651,68 +651,178 @@ func TestNewTextFormatter(t *testing.T) {
 
 }
 
-func TestCSVFmtFormat(t *testing.T) {
+func TestNewCSVFormat(t *testing.T) {
+	module := "Format"
+	funcname := "NewCSVFormat()"
+
 	type test struct {
-		msg *LogMessage
-		rgx *regexp.Regexp
+		name     string
+		unixTime bool
+		jsonMeta bool
 	}
 
 	var tests = []test{
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1}).Build(),
-			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,\[ a = 1 \]`),
+			name: "default object",
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1}).Build(),
-			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ a = 1 \]`),
+			name:     "set unixTime",
+			unixTime: true,
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
-			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
+			name:     "set jsonMeta",
+			jsonMeta: true,
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
-			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
+			name:     "set both options",
+			unixTime: true,
+			jsonMeta: true,
+		},
+	}
+
+	var verify = func(id int, test test, fmt *FmtCSV) {
+		if fmt.unixTime != test.unixTime {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- unixTime value mismatch: wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.unixTime,
+				fmt.unixTime,
+				test.name,
+			)
+			return
+		}
+		if fmt.jsonMeta != test.jsonMeta {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- unixTime value mismatch: wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.jsonMeta,
+				fmt.jsonMeta,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for id, test := range tests {
+		fmt := NewCSVFormat()
+
+		if test.unixTime {
+			fmt.Unix()
+		}
+
+		if test.jsonMeta {
+			fmt.JSON()
+		}
+
+		csv := fmt.Build()
+
+		verify(id, test, csv)
+	}
+}
+
+func TestCSVFmtFormat(t *testing.T) {
+	module := "FormatCSV"
+	funcname := "Format()"
+
+	type test struct {
+		name string
+		fmt  *FmtCSV
+		msg  *LogMessage
+		rgx  *regexp.Regexp
+	}
+
+	var tests = []test{
+		{
+			name: "default fmt -- simple, trace, no sub",
+			fmt:  NewCSVFormat().Build(),
+			msg:  NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1}).Build(),
+			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,\[ a = 1 \]`),
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
-			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \] "`),
+			name: "default fmt -- simple, trace, w/ sub",
+			fmt:  NewCSVFormat().Build(),
+			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1}).Build(),
+			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ a = 1 \]`),
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
-			rgx: regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \]`),
+			name: "default fmt -- complex meta, trace, no sub",
+			fmt:  NewCSVFormat().Build(),
+			msg:  NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
+		},
+		{
+			name: "default fmt -- complex meta, trace, w/ sub",
+			fmt:  NewCSVFormat().Build(),
+			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
+		},
+		{
+			name: "default fmt -- complex meta strings, trace, no sub",
+			fmt:  NewCSVFormat().Build(),
+			msg:  NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \] "`),
+		},
+		{
+			name: "default fmt -- complex meta strings, trace, w/ sub",
+			fmt:  NewCSVFormat().Build(),
+			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \]`),
+		},
+		{
+			name: "unixTime fmt -- complex meta strings, trace, w/ sub",
+			fmt:  NewCSVFormat().Unix().Build(),
+			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			rgx:  regexp.MustCompile(`\d{10},trace,one,two,three,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \]`),
+		},
+		{
+			name: "unixTime+jsonMeta fmt -- complex meta strings, trace, w/ sub",
+			fmt:  NewCSVFormat().Unix().JSON().Build(),
+			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			rgx:  regexp.MustCompile(`\d+,trace,one,two,three,\"{\"\"a\"\":\"\"one\"\",\"\"b\"\":\[{\"\"a\"\":\"\"one\"\"},{\"\"b\"\":\"\"one\"\"}\]}\"`),
 		},
 	}
 
 	var verify = func(id int, test test, b []byte) {
 		if len(b) == 0 {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- empty buffer error",
+				"#%v -- FAILED -- [%s] [%s] -- empty buffer error -- action: %s",
 				id,
+				module,
+				funcname,
+				test.name,
 			)
 			return
 		}
 
 		if !test.rgx.Match(b) {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- log message mismatch, expected output to match regex %s -- %s",
+				"#%v -- FAILED -- [%s] [%s] -- log message mismatch, expected output to match regex %s -- %s -- action: %s",
 				id,
+				module,
+				funcname,
 				test.rgx,
 				string(b),
+				test.name,
 			)
 			return
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [TextFormat] Format(*LogMessage) -- %s",
+			"#%v -- PASSED -- [%s] [%s] -- %s",
 			id,
+			module,
+			funcname,
 			*test.msg,
 		)
 
 	}
 
 	for id, test := range tests {
-		csv := FormatCSV
+		csv := test.fmt
 
 		b, err := csv.Format(test.msg)
 		if err != nil {
@@ -727,10 +837,10 @@ func TestCSVFmtFormat(t *testing.T) {
 
 	// test logger config implementation
 	buf := &bytes.Buffer{}
-	csv := New(WithOut(buf), FormatCSV)
 
 	for id, test := range tests {
 		buf.Reset()
+		csv := New(WithOut(buf), test.fmt)
 		csv.Log(test.msg)
 		verify(id, test, buf.Bytes())
 	}
@@ -821,4 +931,158 @@ func TestXMLFmtFormat(t *testing.T) {
 		verify(id, test, buf.Bytes())
 	}
 
+}
+
+func TestGobFmt(t *testing.T) {
+	module := "FormatGob"
+	funcname := "Format()"
+	type test struct {
+		name string
+		msg  *LogMessage
+	}
+
+	var tests = []test{
+		{
+			name: "simple message",
+			msg:  NewMessage().Message("hello world").Build(),
+		},
+		{
+			name: "complete message w/o metadata",
+			msg:  NewMessage().Level(LLWarn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
+		},
+		{
+			name: "complete message w/ metadata",
+			msg: NewMessage().Level(LLWarn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(Field{
+				"a": true,
+				"b": 1,
+				"c": "data",
+				"d": map[string]interface{}{
+					"e": "inner",
+					"f": []string{
+						"g", "h", "i",
+					},
+				},
+			}).Build(),
+		},
+	}
+
+	g := &FmtGob{}
+
+	var verify = func(id int, test test) {
+		b, err := g.Format(test.msg)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- error when formatting message: %s -- action: %s",
+				id,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		new, err := NewMessage().FromGob(b)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- error when converting gob to message: %s -- action: %s",
+				id,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		fmt.Println(msg, test.msg)
+
+		if new.Time.Unix() != test.msg.Time.Unix() {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message time mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Time,
+				new.Time,
+				test.name,
+			)
+			return
+		}
+		if new.Level != test.msg.Level {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message level mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Level,
+				new.Level,
+				test.name,
+			)
+			return
+		}
+		if new.Prefix != test.msg.Prefix {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message prefix mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Prefix,
+				new.Prefix,
+				test.name,
+			)
+			return
+		}
+		if new.Sub != test.msg.Sub {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message sub-prefix mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Sub,
+				new.Sub,
+				test.name,
+			)
+			return
+		}
+		if new.Msg != test.msg.Msg {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message body mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Msg,
+				new.Msg,
+				test.name,
+			)
+			return
+		}
+
+		if len(new.Metadata) != len(test.msg.Metadata) {
+			return
+		}
+		for k := range new.Metadata {
+			if _, ok := test.msg.Metadata[k]; !ok {
+				return
+			}
+		}
+	}
+
+	for id, test := range tests {
+		verify(id, test)
+	}
+
+	// ensure FromGob can fail:
+	fake := []byte(`{"this":"is","not":"gob"}`)
+	_, err := NewMessage().FromGob(fake)
+	if err == nil {
+		t.Errorf(
+			"#0 -- FAILED -- [%s] [%s] -- FromGob() call with invalid data didn't result in an error",
+			module,
+			funcname,
+		)
+		return
+	}
 }

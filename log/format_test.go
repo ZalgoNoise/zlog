@@ -80,7 +80,7 @@ func TestFmtTextFormat(t *testing.T) {
 	}
 
 	for id, test := range tests {
-		txt := TextFormat
+		txt := FormatText
 
 		b, err := txt.Format(test.msg)
 		if err != nil {
@@ -367,7 +367,7 @@ func TestJSONFmtFormat(t *testing.T) {
 	}
 
 	for id, test := range tests {
-		jsn := JSONFormat
+		jsn := FormatJSON
 
 		b, err := jsn.Format(test.msg)
 		if err != nil {
@@ -712,7 +712,7 @@ func TestCSVFmtFormat(t *testing.T) {
 	}
 
 	for id, test := range tests {
-		csv := CSVFormat
+		csv := FormatCSV
 
 		b, err := csv.Format(test.msg)
 		if err != nil {
@@ -727,7 +727,7 @@ func TestCSVFmtFormat(t *testing.T) {
 
 	// test logger config implementation
 	buf := &bytes.Buffer{}
-	csv := New(WithOut(buf), CSVFormat)
+	csv := New(WithOut(buf), FormatCSV)
 
 	for id, test := range tests {
 		buf.Reset()
@@ -798,7 +798,7 @@ func TestXMLFmtFormat(t *testing.T) {
 	}
 
 	for id, test := range tests {
-		xml := XMLFormat
+		xml := FormatXML
 
 		b, err := xml.Format(test.msg)
 		if err != nil {
@@ -813,7 +813,7 @@ func TestXMLFmtFormat(t *testing.T) {
 
 	// test logger config implementation
 	buf := &bytes.Buffer{}
-	xml := New(WithOut(buf), XMLFormat)
+	xml := New(WithOut(buf), FormatXML)
 
 	for id, test := range tests {
 		buf.Reset()

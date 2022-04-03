@@ -35,12 +35,12 @@ var mockBufs = []*bytes.Buffer{
 }
 
 var mockLoggers = []Logger{
-	New(WithPrefix(mockMultiPrefixes[0]), JSONFormat, WithOut(mockBufs[0])),
-	New(WithPrefix(mockMultiPrefixes[1]), JSONFormat, WithOut(mockBufs[1])),
-	New(WithPrefix(mockMultiPrefixes[2]), JSONFormat, WithOut(mockBufs[2])),
-	New(WithPrefix(mockMultiPrefixes[3]), JSONFormat, WithOut(mockBufs[3])),
-	New(WithPrefix(mockMultiPrefixes[4]), JSONFormat, WithOut(mockBufs[4])),
-	New(WithPrefix(mockMultiPrefixes[5]), JSONFormat, WithOut(mockBufs[5])),
+	New(WithPrefix(mockMultiPrefixes[0]), FormatJSON, WithOut(mockBufs[0])),
+	New(WithPrefix(mockMultiPrefixes[1]), FormatJSON, WithOut(mockBufs[1])),
+	New(WithPrefix(mockMultiPrefixes[2]), FormatJSON, WithOut(mockBufs[2])),
+	New(WithPrefix(mockMultiPrefixes[3]), FormatJSON, WithOut(mockBufs[3])),
+	New(WithPrefix(mockMultiPrefixes[4]), FormatJSON, WithOut(mockBufs[4])),
+	New(WithPrefix(mockMultiPrefixes[5]), FormatJSON, WithOut(mockBufs[5])),
 }
 
 var mockMultiLogger = struct {
@@ -312,12 +312,12 @@ func TestMultiLoggerSetOuts(t *testing.T) {
 
 	t1logger := New(
 		WithPrefix("test-new-logger"),
-		TextFormat,
+		FormatText,
 		WithOut(mockBufs[5]),
 	)
 	t2logger := New(
 		WithPrefix("test-new-logger-2"),
-		TextFormat,
+		FormatText,
 		WithOut(mockBufs[4]),
 	)
 	innerML := MultiLogger(t2logger)
@@ -412,12 +412,12 @@ func TestMultiLoggerAddOuts(t *testing.T) {
 
 	t1logger := New(
 		WithPrefix("test-new-logger"),
-		TextFormat,
+		FormatText,
 		WithOut(mockBufs[5]),
 	)
 	t2logger := New(
 		WithPrefix("test-new-logger-2"),
-		TextFormat,
+		FormatText,
 		WithOut(mockBufs[4]),
 	)
 	innerML := MultiLogger(t2logger)
@@ -549,7 +549,7 @@ func TestMultiLoggerSub(t *testing.T) {
 				for d := 0; d < len(newSubPrefixes); d++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix("log"), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix("log"), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -756,7 +756,7 @@ func TestMultiLoggerFields(t *testing.T) {
 				for d := 0; d < len(mockMultiPrefixes); d++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[d]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[d]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -930,9 +930,9 @@ func TestMultiLoggerWrite(t *testing.T) {
 	bufs := []*bytes.Buffer{{}, {}, {}}
 
 	logger := MultiLogger(
-		New(JSONFormat, WithOut(bufs[0])),
-		New(JSONFormat, WithOut(bufs[1])),
-		New(JSONFormat, WithOut(bufs[2])),
+		New(FormatJSON, WithOut(bufs[0])),
+		New(FormatJSON, WithOut(bufs[1])),
+		New(FormatJSON, WithOut(bufs[2])),
 	)
 	var verify = func(id int, test test) {
 

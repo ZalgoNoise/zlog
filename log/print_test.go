@@ -297,7 +297,7 @@ func TestLoggerCheckDefaults(t *testing.T) {
 	module := "Logger"
 	funcname := "checkDefaults()"
 
-	tlogger := New(WithOut(store.EmptyWriter), TextFormat)
+	tlogger := New(WithOut(store.EmptyWriter), FormatText)
 
 	type test struct {
 		name      string
@@ -986,7 +986,7 @@ func TestLoggerFatal(t *testing.T) {
 	}{
 		logger: New(
 			WithPrefix("test-message"),
-			JSONFormat,
+			FormatJSON,
 			WithOut(mockBuffer),
 			SkipExit,
 		),
@@ -1077,7 +1077,7 @@ func TestLoggerFatalln(t *testing.T) {
 	}{
 		logger: New(
 			WithPrefix("test-message"),
-			JSONFormat,
+			FormatJSON,
 			WithOut(mockBuffer),
 			SkipExit,
 		),
@@ -1168,7 +1168,7 @@ func TestLoggerFatalf(t *testing.T) {
 	}{
 		logger: New(
 			WithPrefix("test-message"),
-			JSONFormat,
+			FormatJSON,
 			WithOut(mockBuffer),
 			SkipExit,
 		),
@@ -2520,7 +2520,7 @@ func TestMultiLoggerPrint(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -2707,7 +2707,7 @@ func TestMultiLoggerPrintln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -2890,7 +2890,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -2922,7 +2922,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3119,7 +3119,7 @@ func TestMultiLoggerLog(t *testing.T) {
 					for e := 0; e < len(mockMultiPrefixes); e++ {
 						buf := &bytes.Buffer{}
 						bufs = append(bufs, buf)
-						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf), SkipExit))
+						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
 					}
 					mlogger := MultiLogger(logs...)
 
@@ -3152,7 +3152,7 @@ func TestMultiLoggerLog(t *testing.T) {
 					for e := 0; e < len(mockMultiPrefixes); e++ {
 						buf := &bytes.Buffer{}
 						bufs = append(bufs, buf)
-						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf), SkipExit))
+						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
 					}
 					mlogger := MultiLogger(logs...)
 
@@ -3336,7 +3336,7 @@ func TestMultiLoggerPanic(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3544,7 +3544,7 @@ func TestMultiLoggerPanicln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3748,7 +3748,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3779,7 +3779,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3997,7 +3997,7 @@ func TestMultiLoggerFatal(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf), SkipExit))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4184,7 +4184,7 @@ func TestMultiLoggerFatalln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf), SkipExit))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4367,7 +4367,7 @@ func TestMultiLoggerFatalf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf), SkipExit))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4399,7 +4399,7 @@ func TestMultiLoggerFatalf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf), SkipExit))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4594,7 +4594,7 @@ func TestMultiLoggerError(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4781,7 +4781,7 @@ func TestMultiLoggerErrorln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4964,7 +4964,7 @@ func TestMultiLoggerErrorf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4996,7 +4996,7 @@ func TestMultiLoggerErrorf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5191,7 +5191,7 @@ func TestMultiLoggerWarn(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5378,7 +5378,7 @@ func TestMultiLoggerWarnln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5561,7 +5561,7 @@ func TestMultiLoggerWarnf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5593,7 +5593,7 @@ func TestMultiLoggerWarnf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5777,7 +5777,7 @@ func TestMultiLoggernfo(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5964,7 +5964,7 @@ func TestMultiLoggernfoln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6147,7 +6147,7 @@ func TestMultiLoggernfof(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6179,7 +6179,7 @@ func TestMultiLoggernfof(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6374,7 +6374,7 @@ func TestMultiLoggerDebug(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6561,7 +6561,7 @@ func TestMultiLoggerDebugln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6744,7 +6744,7 @@ func TestMultiLoggerDebugf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6776,7 +6776,7 @@ func TestMultiLoggerDebugf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6971,7 +6971,7 @@ func TestMultiLoggerTrace(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -7158,7 +7158,7 @@ func TestMultiLoggerTraceln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -7341,7 +7341,7 @@ func TestMultiLoggerTracef(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -7373,7 +7373,7 @@ func TestMultiLoggerTracef(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), JSONFormat, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -7542,7 +7542,7 @@ func TestPrint(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -7646,7 +7646,7 @@ func TestPrintln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -7750,7 +7750,7 @@ func TestPrintf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -7861,7 +7861,7 @@ func TestLog(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -8050,7 +8050,7 @@ func TestPanic(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -8133,7 +8133,7 @@ func TestPanicln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -8216,7 +8216,7 @@ func TestPanicf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -8305,7 +8305,7 @@ func TestFatal(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 		SkipExit,
 	)
@@ -8410,7 +8410,7 @@ func TestFatalln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 		SkipExit,
 	)
@@ -8515,7 +8515,7 @@ func TestFatalf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 		SkipExit,
 	)
@@ -8627,7 +8627,7 @@ func TestError(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -8731,7 +8731,7 @@ func TestErrorln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -8835,7 +8835,7 @@ func TestErrorf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -8946,7 +8946,7 @@ func TestWarn(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9050,7 +9050,7 @@ func TestWarnln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9154,7 +9154,7 @@ func TestWarnf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9265,7 +9265,7 @@ func TestInfo(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9369,7 +9369,7 @@ func TestInfoln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9473,7 +9473,7 @@ func TestInfof(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9584,7 +9584,7 @@ func TestDebug(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9688,7 +9688,7 @@ func TestDebugln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9792,7 +9792,7 @@ func TestDebugf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -9903,7 +9903,7 @@ func TestTrace(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -10007,7 +10007,7 @@ func TestTraceln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 
@@ -10111,7 +10111,7 @@ func TestTracef(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(buf),
 	)
 

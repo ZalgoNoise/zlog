@@ -145,7 +145,7 @@ func main() {
 	csvLogger := log.New(
 		log.WithPrefix("csv-logger"),
 		log.WithOut(os.Stdout),
-		log.CSVFormat,
+		log.FormatCSV,
 		log.SkipExit,
 	)
 
@@ -172,7 +172,7 @@ func main() {
 	xmlLogger := log.New(
 		log.WithPrefix("xml-logger"),
 		log.WithOut(os.Stdout),
-		log.XMLFormat,
+		log.FormatXML,
 		log.SkipExit,
 	)
 

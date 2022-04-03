@@ -26,11 +26,11 @@ var (
 		0: defaultConfig,
 		1: WithServiceLogger(log.New()),
 		2: WithServiceLogger(log.New(log.NilConfig)),
-		3: WithServiceLogger(log.New(log.ColorTextLevelFirst)),
-		4: WithServiceLogger(log.New(log.JSONFormat)),
+		3: WithServiceLogger(log.New(log.TextColorLevelFirst)),
+		4: WithServiceLogger(log.New(log.FormatJSON)),
 		5: WithLogger(),
-		6: WithLogger(log.New(log.ColorTextLevelFirst)),
-		7: WithLogger(log.New(log.JSONFormat)),
+		6: WithLogger(log.New(log.TextColorLevelFirst)),
+		7: WithLogger(log.New(log.FormatJSON)),
 	}
 
 	DefaultCfg        LogServerConfig = LogServerConfigs[0] // placeholder for an intialized default LogServerConfig

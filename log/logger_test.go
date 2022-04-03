@@ -12,12 +12,12 @@ import (
 	"github.com/zalgonoise/zlog/store"
 )
 
-func TestTextFormatLogger(t *testing.T) {
+func TestFormatTextLogger(t *testing.T) {
 	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
 	regx := regexp.MustCompile(regxStr)
 
 	prefix := "test-new-logger"
-	format := TextFormat
+	format := FormatText
 	msg := "test content"
 	var buf bytes.Buffer
 
@@ -36,7 +36,7 @@ func TestTextFormatLogger(t *testing.T) {
 			"#%v [Logger] [text-fmt] New(%s,%s).Info(%s) = %s ; expected %s",
 			0,
 			prefix,
-			"TextFormat",
+			"FormatText",
 			msg,
 			buf.String(),
 			regxStr,
@@ -47,15 +47,15 @@ func TestTextFormatLogger(t *testing.T) {
 		"#%v -- TESTED -- [Logger] [text-fmt] New(%s,%s).Info(%s) = %s",
 		0,
 		prefix,
-		"TextFormat",
+		"FormatText",
 		msg,
 		buf.String(),
 	)
 }
 
-func TestJSONFormatLogger(t *testing.T) {
+func TestFormatJSONLogger(t *testing.T) {
 	prefix := "test-new-logger"
-	format := JSONFormat
+	format := FormatJSON
 	msg := "test content"
 	buf := &bytes.Buffer{}
 	logEntry := &LogMessage{}
@@ -75,7 +75,7 @@ func TestJSONFormatLogger(t *testing.T) {
 			"#%v [Logger] [json-fmt] New(%s,%s).Info(%s) -- unmarshal error: %s",
 			0,
 			prefix,
-			"JSONFormat",
+			"FormatJSON",
 			msg,
 			err,
 		)
@@ -88,7 +88,7 @@ func TestJSONFormatLogger(t *testing.T) {
 			"#%v [Logger] [json-fmt] New(%s,%s).Info(%s) -- data mismatch",
 			0,
 			prefix,
-			"JSONFormat",
+			"FormatJSON",
 			msg,
 		)
 	}
@@ -97,7 +97,7 @@ func TestJSONFormatLogger(t *testing.T) {
 		"#%v -- TESTED -- [Logger] [json-fmt] New(%s,%s).Info(%s)",
 		0,
 		prefix,
-		"JSONFormat",
+		"FormatJSON",
 		msg,
 	)
 }
@@ -107,7 +107,7 @@ func TestNewSingleWriterLogger(t *testing.T) {
 	regx := regexp.MustCompile(regxStr)
 
 	prefix := "test-new-logger"
-	format := TextFormat
+	format := FormatText
 	msg := "test content"
 	var buf bytes.Buffer
 
@@ -125,7 +125,7 @@ func TestNewSingleWriterLogger(t *testing.T) {
 			"#%v [Logger] New(%s,%s).Info(%s) = %s ; expected %s",
 			0,
 			prefix,
-			"TextFormat",
+			"FormatText",
 			msg,
 			buf.String(),
 			regxStr,
@@ -136,7 +136,7 @@ func TestNewSingleWriterLogger(t *testing.T) {
 		"#%v -- TESTED -- [Logger] New(%s,%s).Info(%s) = %s",
 		0,
 		prefix,
-		"TextFormat",
+		"FormatText",
 		msg,
 		buf.String(),
 	)
@@ -148,7 +148,7 @@ func TestNewMultiWriterLogger(t *testing.T) {
 	regx := regexp.MustCompile(regxStr)
 
 	prefix := "test-new-logger"
-	format := TextFormat
+	format := FormatText
 	msg := "test content"
 
 	var buf1 bytes.Buffer
@@ -175,7 +175,7 @@ func TestNewMultiWriterLogger(t *testing.T) {
 				"#%v [Logger] [multi-writer] New(%s,%s).Info(%s) = %s ; expected %s",
 				id,
 				prefix,
-				"TextFormat",
+				"FormatText",
 				msg,
 				buf.String(),
 				regxStr,
@@ -185,7 +185,7 @@ func TestNewMultiWriterLogger(t *testing.T) {
 			"#%v -- TESTED -- [Logger] [multi-writer] New(%s,%s).Info(%s) = %s",
 			id,
 			prefix,
-			"TextFormat",
+			"FormatText",
 			msg,
 			buf.String(),
 		)
@@ -263,7 +263,7 @@ func TestLoggerSetOuts(t *testing.T) {
 
 	tlogger := New(
 		WithPrefix("test-new-logger"),
-		TextFormat,
+		FormatText,
 	)
 
 	var tests = []struct {
@@ -347,7 +347,7 @@ func TestLoggerAddOuts(t *testing.T) {
 	tlogger := New(
 		WithPrefix("test-new-logger"),
 		WithOut(mockBufs[5]),
-		TextFormat,
+		FormatText,
 	)
 
 	var tests = []struct {
@@ -435,7 +435,7 @@ func TestLoggerPrefix(t *testing.T) {
 	tlogger := New(
 		WithPrefix("test-new-logger"),
 		WithOut(mockBufs[0]),
-		TextFormat,
+		FormatText,
 	)
 
 	var tests = []struct {
@@ -504,7 +504,7 @@ func TestLoggerSub(t *testing.T) {
 	tlogger := New(
 		WithPrefix("test-new-logger"),
 		WithOut(mockBufs[0]),
-		TextFormat,
+		FormatText,
 	)
 
 	var tests = []struct {
@@ -576,7 +576,7 @@ func TestLoggerFields(t *testing.T) {
 	tlogger := New(
 		WithPrefix("test-new-logger"),
 		WithOut(mockBufs[0]),
-		TextFormat,
+		FormatText,
 	)
 
 	var tests = []struct {

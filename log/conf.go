@@ -49,7 +49,7 @@ var (
 	// default configuration for a Logger
 	defaultConfig LoggerConfig = &multiconf{
 		confs: []LoggerConfig{
-			ColorTextLevelFirst,
+			TextColorLevelFirst,
 			WithOut(),
 			WithPrefix("log"),
 		},
@@ -60,8 +60,6 @@ var (
 	LoggerConfigs = map[int]LoggerConfig{
 		0:  defaultConfig,
 		1:  LCSkipExit{},
-		5:  TextFormat,
-		6:  JSONFormat,
 		7:  WithOut(os.Stderr),
 		8:  WithPrefix("log"),
 		9:  WithFilter(LLInfo),
@@ -72,8 +70,6 @@ var (
 
 	DefaultCfg    LoggerConfig = LoggerConfigs[0]  // placeholder for an initialized default LoggerConfig
 	SkipExit      LoggerConfig = LoggerConfigs[1]  // placeholder for an initialized skip-exits LoggerConfig
-	FormatText    LoggerConfig = LoggerConfigs[5]  // placeholder for an initialized Text-LogFormatter LoggerConfig
-	FormatJSON    LoggerConfig = LoggerConfigs[6]  // placeholder for an initialized JSON-LogFormatter LoggerConfig
 	StdOut        LoggerConfig = LoggerConfigs[7]  // placeholder for an initialized os.Stderr LoggerConfig
 	PrefixDefault LoggerConfig = LoggerConfigs[8]  // placeholder for an initialized default-prefix LoggerConfig
 	FilterInfo    LoggerConfig = LoggerConfigs[9]  // placeholder for an initialized Info-filtered LoggerConfig

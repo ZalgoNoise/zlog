@@ -60,7 +60,7 @@ func TestNewLogCh(t *testing.T) {
 
 					l := New(
 						WithPrefix(mockEmptyPrefixes[0]),
-						JSONFormat,
+						FormatJSON,
 						WithOut(w...),
 					)
 
@@ -274,7 +274,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 
 							l := New(
 								WithPrefix(mockEmptyPrefixes[0]),
-								JSONFormat,
+								FormatJSON,
 								WithOut(w...),
 							)
 							logs = append(logs, l)

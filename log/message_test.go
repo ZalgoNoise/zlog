@@ -19,7 +19,7 @@ var mockLogger = struct {
 }{
 	logger: New(
 		WithPrefix("test-message"),
-		JSONFormat,
+		FormatJSON,
 		WithOut(mockBuffer),
 	),
 	buf: mockBuffer,

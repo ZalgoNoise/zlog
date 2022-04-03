@@ -76,6 +76,7 @@ var LogFormatters = map[int]LogFormatter{
 	1:  &FmtJSON{},
 	2:  &FmtCSV{},
 	3:  &FmtXML{},
+	4:  &FmtGob{},
 	5:  NewTextFormat().Time(LTRFC3339).Build(),
 	6:  NewTextFormat().Time(LTRFC822Z).Build(),
 	7:  NewTextFormat().Time(LTRubyDate).Build(),
@@ -94,25 +95,26 @@ var LogFormatters = map[int]LogFormatter{
 }
 
 var (
-	TextFormat                LogFormatter = LogFormatters[0]  // placeholder for an initialized Text LogFormatter
-	JSONFormat                LogFormatter = LogFormatters[1]  // placeholder for an initialized JSON LogFormatter
-	CSVFormat                 LogFormatter = LogFormatters[2]  // placeholder for an initialized CSV LogFormatter
-	XMLFormat                 LogFormatter = LogFormatters[3]  // placeholder for an initialized XML LogFormatter
+	FormatText                LogFormatter = LogFormatters[0]  // placeholder for an initialized Text LogFormatter
+	FormatJSON                LogFormatter = LogFormatters[1]  // placeholder for an initialized JSON LogFormatter
+	FormatCSV                 LogFormatter = LogFormatters[2]  // placeholder for an initialized CSV LogFormatter
+	FormatXML                 LogFormatter = LogFormatters[3]  // placeholder for an initialized XML LogFormatter
+	FormatGob                 LogFormatter = LogFormatters[4]  // placeholder for an initialized Gob LogFormatter
 	TextLongDate              LogFormatter = LogFormatters[5]  // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
 	TextShortDate             LogFormatter = LogFormatters[6]  // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
 	TextRubyDate              LogFormatter = LogFormatters[7]  // placeholder for an initialized Text LogFormatter, with a RubyDate date format
 	TextDoubleSpace           LogFormatter = LogFormatters[8]  // placeholder for an initialized Text LogFormatter, with double spaces
 	TextLevelFirstSpaced      LogFormatter = LogFormatters[9]  // placeholder for an initialized  LogFormatter, with level-first and double spaces
 	TextLevelFirst            LogFormatter = LogFormatters[10] // placeholder for an initialized  LogFormatter, with level-first
-	ColorTextDoubleSpace      LogFormatter = LogFormatters[11] // placeholder for an initialized  LogFormatter, with color and double spaces
-	ColorTextLevelFirstSpaced LogFormatter = LogFormatters[12] // placeholder for an initialized  LogFormatter, with color, level-first and double spaces
-	ColorTextLevelFirst       LogFormatter = LogFormatters[13] // placeholder for an initialized  LogFormatter, with color and level-first
-	ColorText                 LogFormatter = LogFormatters[14] // placeholder for an initialized  LogFormatter, with color
+	TextColorDoubleSpace      LogFormatter = LogFormatters[11] // placeholder for an initialized  LogFormatter, with color and double spaces
+	TextColorLevelFirstSpaced LogFormatter = LogFormatters[12] // placeholder for an initialized  LogFormatter, with color, level-first and double spaces
+	TextColorLevelFirst       LogFormatter = LogFormatters[13] // placeholder for an initialized  LogFormatter, with color and level-first
+	TextColor                 LogFormatter = LogFormatters[14] // placeholder for an initialized  LogFormatter, with color
 	TextOnly                  LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, with only the text content
 	TextNoHeaders             LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without headers
 	TextNoTimestamp           LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp
-	ColorTextNoTimestamp      LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp
-	ColorTextUpperNoTimestamp LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp and uppercase headers
+	TextColorNoTimestamp      LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp
+	TextColorUpperNoTimestamp LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp and uppercase headers
 )
 
 // FmtText struct describes the different manipulations and processing that a
@@ -582,5 +584,21 @@ func (f *FmtXML) Format(log *LogMessage) (buf []byte, err error) {
 // Apply method implements the LoggerConfig interface, allowing a FmtXML object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a XML LogFormatter
 func (f *FmtXML) Apply(lb *LoggerBuilder) {
+	lb.fmt = f
+}
+
+// FmtGob struct allows marshalling a LogMessage as gob-encoded bytes
+type FmtGob struct{}
+
+// Format method will take in a pointer to a LogMessage, and return the execution of its
+// encode() method; which converts it to gob-encoded bytes, returning a slice of bytes and an
+// error
+func (f *FmtGob) Format(log *LogMessage) ([]byte, error) {
+	return log.encode()
+}
+
+// Apply method implements the LoggerConfig interface, allowing a FmtGob object to be passed on as an
+// argument, when creating a new Logger. It will define the logger's formatter as a Gob LogFormatter
+func (f *FmtGob) Apply(lb *LoggerBuilder) {
 	lb.fmt = f
 }

@@ -331,14 +331,14 @@ func (l *logger) Write(p []byte) (n int, err error) {
 // mostly for prototyping or testing
 type nilLogger struct{}
 
-func (l *nilLogger) Write(p []byte) (n int, err error)           { return 0, nil }
+func (l *nilLogger) Write(p []byte) (n int, err error)           { return 1, nil }
 func (l *nilLogger) SetOuts(outs ...io.Writer) Logger            { return l }
 func (l *nilLogger) AddOuts(outs ...io.Writer) Logger            { return l }
 func (l *nilLogger) Prefix(prefix string) Logger                 { return l }
 func (l *nilLogger) Sub(sub string) Logger                       { return l }
 func (l *nilLogger) Fields(fields map[string]interface{}) Logger { return l }
 func (l *nilLogger) IsSkipExit() bool                            { return true }
-func (l *nilLogger) Output(m *LogMessage) (n int, err error)     { return 0, nil }
+func (l *nilLogger) Output(m *LogMessage) (n int, err error)     { return 1, nil }
 func (l *nilLogger) Log(m ...*LogMessage)                        {}
 func (l *nilLogger) Print(v ...interface{})                      {}
 func (l *nilLogger) Println(v ...interface{})                    {}

@@ -78,8 +78,6 @@
 package log
 
 import (
-	"bytes"
-	"encoding/gob"
 	"io"
 	"os"
 	"sync"
@@ -304,12 +302,7 @@ func (l *logger) IsSkipExit() bool {
 // portion, and the remaining fields will default to the Logger's set elements
 func (l *logger) Write(p []byte) (n int, err error) {
 	// check if it's gob-encoded
-	m := &LogMessage{}
-
-	buf := bytes.NewBuffer(p)
-	dec := gob.NewDecoder(buf)
-
-	err = dec.Decode(m)
+	m, err := NewMessage().FromGob(p)
 
 	if err != nil {
 		// default to printing message

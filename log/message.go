@@ -346,6 +346,20 @@ func (b *MessageBuilder) FromProto(in *pb.MessageRequest) *MessageBuilder {
 	return b
 }
 
+func (b *MessageBuilder) FromGob(p []byte) (*LogMessage, error) {
+	msg := &LogMessage{}
+
+	buf := bytes.NewBuffer(p)
+	dec := gob.NewDecoder(buf)
+	err := dec.Decode(msg)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return msg, nil
+}
+
 // Build method will create a new timestamp, review all elements in the `MessageBuilder`,
 // apply any defaults to non-defined elements, and return a pointer to a LogMessage
 func (b *MessageBuilder) Build() *LogMessage {

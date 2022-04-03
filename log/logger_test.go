@@ -806,17 +806,17 @@ func TestNilLoggerWrite(t *testing.T) {
 	}{
 		{
 			input: []byte("abc"),
-			n:     0,
+			n:     1,
 			err:   nil,
 		},
 		{
 			input: []byte("123"),
-			n:     0,
+			n:     1,
 			err:   nil,
 		},
 		{
 			input: []byte("!@#"),
-			n:     0,
+			n:     1,
 			err:   nil,
 		},
 	}

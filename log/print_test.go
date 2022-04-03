@@ -10230,17 +10230,17 @@ func TestNilLoggerOutput(t *testing.T) {
 	}{
 		{
 			input: NewMessage().Message("test").Build(),
-			n:     0,
+			n:     1,
 			err:   nil,
 		},
 		{
 			input: NewMessage().Message("for").Build(),
-			n:     0,
+			n:     1,
 			err:   nil,
 		},
 		{
 			input: NewMessage().Message("nothing").Build(),
-			n:     0,
+			n:     1,
 			err:   nil,
 		},
 	}

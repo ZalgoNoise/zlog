@@ -495,7 +495,7 @@ func (f *FmtCSV) Format(log *LogMessage) (buf []byte, err error) {
 
 	if f.unixTime {
 		// Unix micros in string format
-		t = log.Time.Format(LTUnixMicro.String())
+		t = strconv.FormatInt(log.Time.Unix(), 10)
 	} else {
 		// RFC 3339 timestamp in string format
 		t = log.Time.Format(LTRFC3339Nano.String())

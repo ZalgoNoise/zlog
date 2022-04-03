@@ -1,9 +1,7 @@
 package sqlite
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -119,22 +117,23 @@ func (s *SQLite3) Write(p []byte) (n int, err error) {
 		return 0, ErrDBNotSetUp
 	}
 
-	var msg = &log.LogMessage{}
+	var out *log.LogMessage
 
 	// check if it's gob-encoded
-	buf := bytes.NewBuffer(p)
-	dec := gob.NewDecoder(buf)
+	msg, err := log.NewMessage().FromGob(p)
+	out = msg
 
-	err = dec.Decode(msg)
 	if err != nil {
 		// fall back to JSON
+		var msg = &log.LogMessage{}
 		jerr := json.Unmarshal(p, msg)
 		if jerr != nil {
 			return 0, fmt.Errorf("unable to decode input message; gob: %s -- json: %s", err, jerr)
 		}
+		out = msg
 	}
 
-	err = s.Insert(msg)
+	err = s.Insert(out)
 	if err != nil {
 		return 0, err
 	}

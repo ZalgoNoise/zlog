@@ -59,6 +59,7 @@ var msgs = []*log.LogMessage{
 }
 
 func main() {
+
 	homedir := os.Getenv("HOME")
 	db, err := sqlite.New(homedir + "/tmp/db/log.db")
 	// db, err := sqlite.Load(homedir + "/tmp/db/log.db")

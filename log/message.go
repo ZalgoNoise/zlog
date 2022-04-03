@@ -162,6 +162,8 @@ type LogMessage struct {
 func (m *LogMessage) encode() ([]byte, error) {
 	buf := &bytes.Buffer{}
 	gob.Register(Field{})
+	gob.Register(map[string]interface{}{})
+
 	enc := gob.NewEncoder(buf)
 
 	err := enc.Encode(m)

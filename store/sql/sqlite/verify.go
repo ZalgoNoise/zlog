@@ -7,11 +7,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const dbTableSchema string = `PRAGMA main.table_xinfo(log);`
+const dbTableSchema string = `PRAGMA main.table_xinfo(%s);`
 
 var (
 	tableSchemas = map[int]tableSchema{
-		0: {name: "id", ftype: "INTEGER PRIMARY KEY"},
+		0: {name: "id", ftype: "INTEGER"},
 		1: {name: "time", ftype: "TEXT KEY"},
 		2: {name: "level", ftype: "TEXT"},
 		3: {name: "prefix", ftype: "TEXT"},
@@ -58,8 +58,8 @@ func initTable() *logTableInfo {
 	}
 }
 
-func verify(db *sql.DB) error {
-	row, err := db.Query(dbTableSchema)
+func verify(db *sql.DB, table string) error {
+	row, err := db.Query(fmt.Sprintf(dbTableSchema, table))
 	if err != nil {
 		return err
 	}

@@ -106,29 +106,29 @@ type LCFilter struct {
 
 // Apply method will set the configured prefix string to the input pointer to a LoggerBuilder
 func (c *LCPrefix) Apply(lb *LoggerBuilder) {
-	lb.prefix = c.p
+	lb.Prefix = c.p
 }
 
 // Apply method will set the configured sub-prefix string to the input pointer to a LoggerBuilder
 func (c *LCSub) Apply(lb *LoggerBuilder) {
-	lb.sub = c.s
+	lb.Sub = c.s
 }
 
 // Apply method will set the configured output io.Writer to the input pointer to a LoggerBuilder
 func (c *LCOut) Apply(lb *LoggerBuilder) {
-	lb.out = c.out
+	lb.Out = c.out
 }
 
 // Apply method will set the configured skipExit option to true, in the input pointer to a LoggerBuilder
 //
 // Not setting this option will default to "false", or to respect os.Exit(1) and panic() calls
 func (c LCSkipExit) Apply(lb *LoggerBuilder) {
-	lb.skipExit = true
+	lb.SkipExit = true
 }
 
 // Apply method will set the configured level filter to the input pointer to a LoggerBuilder
 func (c LCFilter) Apply(lb *LoggerBuilder) {
-	lb.levelFilter = c.l.Int()
+	lb.LevelFilter = c.l.Int()
 }
 
 // NilLogger function will create a minimal LoggerConfig with an empty writer, and that does not

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -12,8 +14,8 @@ import (
 )
 
 const (
-	dbCreateTable string = `CREATE TABLE IF NOT EXISTS log (id INTEGER PRIMARY KEY, time TEXT KEY, level TEXT, prefix TEXT, sub TEXT, message TEXT, metadata TEXT);`
-	dbInsertValue string = `INSERT INTO log (time, level, prefix, sub, message, metadata) VALUES (?, ?, ?, ?, ?, ?);`
+	dbCreateTable string = `CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY, time TEXT KEY, level TEXT, prefix TEXT, sub TEXT, message TEXT, metadata TEXT);`
+	dbInsertValue string = `INSERT INTO %s (time, level, prefix, sub, message, metadata) VALUES (?, ?, ?, ?, ?, ?);`
 )
 
 var (
@@ -21,18 +23,19 @@ var (
 )
 
 type SQLite3 struct {
-	path string
-	db   *sql.DB
+	path  string
+	table string
+	db    *sql.DB
 }
 
-func New(path string) (*SQLite3, error) {
+func New(path, table string) (*SQLite3, error) {
 
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}
 
-	op, err := db.Prepare(dbCreateTable)
+	op, err := db.Prepare(fmt.Sprintf(dbCreateTable, table))
 	if err != nil {
 		return nil, err
 	}
@@ -45,26 +48,28 @@ func New(path string) (*SQLite3, error) {
 	}
 
 	return &SQLite3{
-		path: path,
-		db:   db,
+		path:  path,
+		table: table,
+		db:    db,
 	}, nil
 
 }
 
-func Load(path string) (*SQLite3, error) {
+func Load(path, table string) (*SQLite3, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}
 
-	err = verify(db)
+	err = verify(db, table)
 	if err != nil {
 		return nil, err
 	}
 
 	return &SQLite3{
-		path: path,
-		db:   db,
+		path:  path,
+		table: table,
+		db:    db,
 	}, nil
 }
 
@@ -84,7 +89,7 @@ func (s *SQLite3) Insert(msg ...*log.LogMessage) error {
 			return err
 		}
 
-		op, err := s.db.Prepare(dbInsertValue)
+		op, err := s.db.Prepare(fmt.Sprintf(dbInsertValue, s.table))
 		if err != nil {
 			return err
 		}
@@ -139,4 +144,33 @@ func (s *SQLite3) Write(p []byte) (n int, err error) {
 	}
 
 	return len(p), nil
+}
+
+type LCSQLite struct {
+	out io.Writer
+	fmt log.LogFormatter
+}
+
+func WithSQLite(path, table string) log.LoggerConfig {
+	var db = &SQLite3{}
+	var lerr, nerr error
+
+	db, lerr = Load(path, table)
+	if lerr != nil {
+		db, nerr = New(path, table)
+		if nerr != nil {
+			fmt.Errorf("failed to open or create database with errors; open: %s ; create: %s", lerr, nerr)
+			os.Exit(1)
+		}
+	}
+
+	return &LCSQLite{
+		out: db,
+		fmt: log.FormatJSON,
+	}
+}
+
+func (c *LCSQLite) Apply(lb *log.LoggerBuilder) {
+	lb.Out = c.out
+	lb.Fmt = c.fmt
 }

@@ -414,7 +414,7 @@ func (f *FmtText) fmtMetadata(data map[string]interface{}) string {
 // Apply method implements the LoggerConfig interface, allowing a FmtText object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a Text LogFormatter
 func (f *FmtText) Apply(lb *LoggerBuilder) {
-	lb.fmt = f
+	lb.Fmt = f
 }
 
 // FmtJSON struct describes the different manipulations and processing that a JSON LogFormatter
@@ -436,7 +436,7 @@ func (f *FmtJSON) Format(log *LogMessage) (buf []byte, err error) {
 // Apply method implements the LoggerConfig interface, allowing a FmtJSON object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a JSON LogFormatter
 func (f *FmtJSON) Apply(lb *LoggerBuilder) {
-	lb.fmt = f
+	lb.Fmt = f
 }
 
 // FmtCSV struct describes the different manipulations and processing that a CSV LogFormatter
@@ -543,7 +543,7 @@ func (f *FmtCSV) Format(log *LogMessage) (buf []byte, err error) {
 // Apply method implements the LoggerConfig interface, allowing a FmtCSV object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a CSV LogFormatter
 func (f *FmtCSV) Apply(lb *LoggerBuilder) {
-	lb.fmt = f
+	lb.Fmt = f
 }
 
 // FmtXML struct describes the different manipulations and processing that a XML LogFormatter
@@ -584,7 +584,7 @@ func (f *FmtXML) Format(log *LogMessage) (buf []byte, err error) {
 // Apply method implements the LoggerConfig interface, allowing a FmtXML object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a XML LogFormatter
 func (f *FmtXML) Apply(lb *LoggerBuilder) {
-	lb.fmt = f
+	lb.Fmt = f
 }
 
 // FmtGob struct allows marshalling a LogMessage as gob-encoded bytes
@@ -600,5 +600,5 @@ func (f *FmtGob) Format(log *LogMessage) ([]byte, error) {
 // Apply method implements the LoggerConfig interface, allowing a FmtGob object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a Gob LogFormatter
 func (f *FmtGob) Apply(lb *LoggerBuilder) {
-	lb.fmt = f
+	lb.Fmt = f
 }

@@ -19,95 +19,95 @@ func TestMultiConf(t *testing.T) {
 		{
 			conf: MultiConf(),
 			want: &LoggerBuilder{
-				out:         os.Stderr,
-				prefix:      "log",
-				sub:         "",
-				fmt:         TextColorLevelFirst,
-				skipExit:    false,
-				levelFilter: 0,
+				Out:         os.Stderr,
+				Prefix:      "log",
+				Sub:         "",
+				Fmt:         TextColorLevelFirst,
+				SkipExit:    false,
+				LevelFilter: 0,
 			},
 		},
 		{
 			conf: MultiConf(SkipExit, FormatJSON, StdOut),
 			want: &LoggerBuilder{
-				out:         os.Stderr,
-				prefix:      "",
-				sub:         "",
-				fmt:         FormatJSON,
-				skipExit:    true,
-				levelFilter: 0,
+				Out:         os.Stderr,
+				Prefix:      "",
+				Sub:         "",
+				Fmt:         FormatJSON,
+				SkipExit:    true,
+				LevelFilter: 0,
 			},
 		},
 		{
 			conf: MultiConf(SkipExit, FilterInfo, WithPrefix("test")),
 			want: &LoggerBuilder{
-				out:         nil,
-				prefix:      "test",
-				sub:         "",
-				fmt:         nil,
-				skipExit:    true,
-				levelFilter: 2,
+				Out:         nil,
+				Prefix:      "test",
+				Sub:         "",
+				Fmt:         nil,
+				SkipExit:    true,
+				LevelFilter: 2,
 			},
 		},
 	}
 
 	var verify = func(id int, test test, builder *LoggerBuilder) {
-		if builder.out != test.want.out {
+		if builder.Out != test.want.Out {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching outputs: got %v ; expected %v",
 				id,
-				builder.out,
-				test.want.out,
+				builder.Out,
+				test.want.Out,
 			)
 			return
 		}
 
-		if builder.prefix != test.want.prefix {
+		if builder.Prefix != test.want.Prefix {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching prefixes: got %s ; expected %s",
 				id,
-				builder.prefix,
-				test.want.prefix,
+				builder.Prefix,
+				test.want.Prefix,
 			)
 			return
 		}
 
-		if builder.sub != test.want.sub {
+		if builder.Sub != test.want.Sub {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching sub-prefixes: got %s ; expected %s",
 				id,
-				builder.sub,
-				test.want.sub,
+				builder.Sub,
+				test.want.Sub,
 			)
 			return
 		}
 
-		if builder.fmt != test.want.fmt {
+		if builder.Fmt != test.want.Fmt {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching formats: got %v ; expected %v",
 				id,
-				builder.fmt,
-				test.want.fmt,
+				builder.Fmt,
+				test.want.Fmt,
 			)
 			return
 		}
 
-		if builder.skipExit != test.want.skipExit {
+		if builder.SkipExit != test.want.SkipExit {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching skip-exit opts: got %v ; expected %v",
 				id,
-				builder.skipExit,
-				test.want.skipExit,
+				builder.SkipExit,
+				test.want.SkipExit,
 			)
 			return
 		}
 
-		if builder.levelFilter != test.want.levelFilter {
+		if builder.LevelFilter != test.want.LevelFilter {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching level filters: got %v ; expected %v",
 				id,
-				builder.levelFilter,
-				test.want.levelFilter,
+				builder.LevelFilter,
+				test.want.LevelFilter,
 			)
 			return
 		}
@@ -231,31 +231,31 @@ func TestLCPrefix(t *testing.T) {
 		{
 			conf: WithPrefix(""),
 			want: &LoggerBuilder{
-				prefix: "",
+				Prefix: "",
 			},
 		},
 		{
 			conf: WithPrefix("log"),
 			want: &LoggerBuilder{
-				prefix: "log",
+				Prefix: "log",
 			},
 		},
 		{
 			conf: WithPrefix("test"),
 			want: &LoggerBuilder{
-				prefix: "test",
+				Prefix: "test",
 			},
 		},
 	}
 
 	var verify = func(id int, test test, builder *LoggerBuilder) {
 
-		if builder.prefix != test.want.prefix {
+		if builder.Prefix != test.want.Prefix {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] WithPrefix(prefix) -- mismatching prefixes: got %s ; expected %s",
 				id,
-				builder.prefix,
-				test.want.prefix,
+				builder.Prefix,
+				test.want.Prefix,
 			)
 			return
 		}
@@ -285,31 +285,31 @@ func TestLCSub(t *testing.T) {
 		{
 			conf: WithSub(""),
 			want: &LoggerBuilder{
-				sub: "",
+				Sub: "",
 			},
 		},
 		{
 			conf: WithSub("log"),
 			want: &LoggerBuilder{
-				sub: "log",
+				Sub: "log",
 			},
 		},
 		{
 			conf: WithSub("test"),
 			want: &LoggerBuilder{
-				sub: "test",
+				Sub: "test",
 			},
 		},
 	}
 
 	var verify = func(id int, test test, builder *LoggerBuilder) {
 
-		if builder.sub != test.want.sub {
+		if builder.Sub != test.want.Sub {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] WithSub(sub) -- mismatching sub-prefixes: got %s ; expected %s",
 				id,
-				builder.prefix,
-				test.want.prefix,
+				builder.Prefix,
+				test.want.Prefix,
 			)
 			return
 		}
@@ -341,37 +341,37 @@ func TestLCOut(t *testing.T) {
 		{
 			conf: WithOut(),
 			want: &LoggerBuilder{
-				out: os.Stderr,
+				Out: os.Stderr,
 			},
 		},
 		{
 			conf: WithOut(os.Stderr),
 			want: &LoggerBuilder{
-				out: os.Stderr,
+				Out: os.Stderr,
 			},
 		},
 		{
 			conf: WithOut(buf),
 			want: &LoggerBuilder{
-				out: buf,
+				Out: buf,
 			},
 		},
 	}
 
 	var verify = func(id int, test test, builder *LoggerBuilder) {
 
-		if builder.out != test.want.out {
+		if builder.Out != test.want.Out {
 			t.Errorf(
-				"#%v -- FAILED -- [Conf] WithOut(...outs) -- mismatching outputs: got %v ; expected %v",
+				"#%v -- FAILED -- [Conf] WithOut(...Outs) -- mismatching outputs: got %v ; expected %v",
 				id,
-				builder.out,
-				test.want.out,
+				builder.Out,
+				test.want.Out,
 			)
 			return
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [Conf] WithOut(...outs)",
+			"#%v -- PASSED -- [Conf] WithOut(...Outs)",
 			id,
 		)
 	}
@@ -395,31 +395,31 @@ func TestLCSkipExit(t *testing.T) {
 		{
 			conf: SkipExit,
 			want: &LoggerBuilder{
-				skipExit: true,
+				SkipExit: true,
 			},
 		},
 		{
 			conf: MultiConf(),
 			want: &LoggerBuilder{
-				skipExit: false,
+				SkipExit: false,
 			},
 		},
 		{
 			conf: defaultConfig,
 			want: &LoggerBuilder{
-				skipExit: false,
+				SkipExit: false,
 			},
 		},
 	}
 
 	var verify = func(id int, test test, builder *LoggerBuilder) {
 
-		if builder.skipExit != test.want.skipExit {
+		if builder.SkipExit != test.want.SkipExit {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] SkipExit() -- mismatching skip-exit opts: got %v ; expected %v",
 				id,
-				builder.skipExit,
-				test.want.skipExit,
+				builder.SkipExit,
+				test.want.SkipExit,
 			)
 		}
 
@@ -448,55 +448,55 @@ func TestLCFilter(t *testing.T) {
 		{
 			conf: WithFilter(0),
 			want: &LoggerBuilder{
-				levelFilter: 0,
+				LevelFilter: 0,
 			},
 		},
 		{
 			conf: WithFilter(5),
 			want: &LoggerBuilder{
-				levelFilter: 5,
+				LevelFilter: 5,
 			},
 		},
 		{
 			conf: WithFilter(9),
 			want: &LoggerBuilder{
-				levelFilter: 9,
+				LevelFilter: 9,
 			},
 		},
 		{
 			conf: FilterInfo,
 			want: &LoggerBuilder{
-				levelFilter: 2,
+				LevelFilter: 2,
 			},
 		},
 		{
 			conf: FilterWarn,
 			want: &LoggerBuilder{
-				levelFilter: 3,
+				LevelFilter: 3,
 			},
 		},
 		{
 			conf: FilterError,
 			want: &LoggerBuilder{
-				levelFilter: 4,
+				LevelFilter: 4,
 			},
 		},
 		{
 			conf: DefaultCfg,
 			want: &LoggerBuilder{
-				levelFilter: 0,
+				LevelFilter: 0,
 			},
 		},
 	}
 
 	var verify = func(id int, test test, builder *LoggerBuilder) {
 
-		if builder.levelFilter != test.want.levelFilter {
+		if builder.LevelFilter != test.want.LevelFilter {
 			t.Errorf(
 				"#%v -- FAILED -- [Conf] LevelFilter(level) -- mismatching level filters: got %v ; expected %v",
 				id,
-				builder.levelFilter,
-				test.want.levelFilter,
+				builder.LevelFilter,
+				test.want.LevelFilter,
 			)
 			return
 		}

@@ -113,12 +113,12 @@ var stdout = os.Stderr
 // all elements are set (with defaults or otherwise) it
 // is converted / copied into a Logger
 type LoggerBuilder struct {
-	out         io.Writer
-	prefix      string
-	sub         string
-	fmt         LogFormatter
-	skipExit    bool
-	levelFilter int
+	Out         io.Writer
+	Prefix      string
+	Sub         string
+	Fmt         LogFormatter
+	SkipExit    bool
+	LevelFilter int
 }
 
 // New function allows creating a basic Logger (implementing the Logger
@@ -138,17 +138,17 @@ func New(confs ...LoggerConfig) Logger {
 
 	MultiConf(confs...).Apply(builder)
 
-	if builder.out == store.EmptyWriter && builder.skipExit {
+	if builder.Out == store.EmptyWriter && builder.SkipExit {
 		return &nilLogger{}
 	}
 
 	return &logger{
-		out:         builder.out,
-		prefix:      builder.prefix,
-		sub:         builder.sub,
-		fmt:         builder.fmt,
-		skipExit:    builder.skipExit,
-		levelFilter: builder.levelFilter,
+		out:         builder.Out,
+		prefix:      builder.Prefix,
+		sub:         builder.Sub,
+		fmt:         builder.Fmt,
+		skipExit:    builder.SkipExit,
+		levelFilter: builder.LevelFilter,
 	}
 }
 

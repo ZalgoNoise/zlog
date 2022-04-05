@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -71,10 +72,7 @@ func newComm(level int32, method string, msg ...string) *MessageRequest {
 func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageResponse, error) {
 	fName := "Log"
 
-	// collect request ID from context (if set)
-	reqID := getRequestID(ctx)
-
-	s.Comm <- newComm(1, fName, "recv: [", reqID, "]")
+	s.Comm <- newComm(1, fName, "recv")
 
 	// send message to be written
 	s.MsgCh <- in
@@ -88,7 +86,7 @@ func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageRespon
 	}
 
 	// register a send transaction with request ID
-	s.Comm <- newComm(1, fName, "send: [", reqID, "]")
+	s.Comm <- newComm(1, fName, "send: [", res.ReqID, "]")
 	// send OK response to
 	return res, nil
 }
@@ -155,8 +153,7 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 			in := msg.in
 			err := msg.err
 
-			// collect request ID from context (if set)
-			reqID := getRequestID(stream.Context())
+			fallbackUUID := uuid.New().String()
 
 			// check for errors
 			if err != nil {
@@ -164,29 +161,29 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 				// error is EOF -- stream disconnected
 				// break from this loop / keep listening for connections
 				if err == io.EOF {
-					s.Comm <- newComm(1, fName, "recv: got EOF from [", reqID, "]")
+					s.Comm <- newComm(1, fName, "recv: got EOF from [", fallbackUUID, "]")
 					// break
 					continue
 				}
 
 				// context cancelled by client -- exit
 				if contextCancelledRegexp.MatchString(err.Error()) {
-					s.Comm <- newComm(2, fName, "recv: got context closure from [", reqID, "] :: ", err.Error())
+					s.Comm <- newComm(2, fName, "recv: got context closure from [", fallbackUUID, "] :: ", err.Error())
 					return
 				}
 
 				// other errors are logged and sent to the error channel, response sent to client
 				// -- then, exit
-				s.Comm <- newComm(4, fName, "recv: got error from [", reqID, "] :: ", err.Error())
+				s.Comm <- newComm(4, fName, "recv: got error from [", fallbackUUID, "] :: ", err.Error())
 				s.ErrCh <- err
 
 				// send Not OK message to client
 				errStr := err.Error()
-				err = stream.Send(&MessageResponse{Ok: false, Err: &errStr})
+				err = stream.Send(&MessageResponse{Ok: false, ReqID: fallbackUUID, Err: &errStr})
 				if err != nil {
 					// handle send errors if existing
 					// log level warning since it's an issue with the client
-					s.Comm <- newComm(3, fName, "send: got error with [", reqID, "] :: ", err.Error())
+					s.Comm <- newComm(3, fName, "send: got error from [", fallbackUUID, "] :: ", err.Error())
 					s.ErrCh <- err
 					return
 				}
@@ -195,7 +192,7 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 			}
 
 			// register a recv transaction with request ID
-			s.Comm <- newComm(1, fName, "recv: [", reqID, "]")
+			s.Comm <- newComm(1, fName, "recv")
 			// send new (valid) message to the messages channel to be logged
 			s.MsgCh <- in
 
@@ -204,19 +201,20 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 			if !ok {
 				err := ErrNoResponse.Error()
 				res = &MessageResponse{
-					Ok:  false,
-					Err: &err,
+					Ok:    false,
+					ReqID: fallbackUUID,
+					Err:   &err,
 				}
 			}
 
 			// register a send transaction with request ID
-			s.Comm <- newComm(1, fName, "send: [", reqID, "]")
+			s.Comm <- newComm(1, fName, "send: [", res.ReqID, "]")
 			// send OK response to client
 			err = stream.Send(res)
 			if err != nil {
 				// handle send errors if existing
 				// log level warning since it's an issue with the client
-				s.Comm <- newComm(3, fName, "send: got error with [", reqID, "] :: ", err.Error())
+				s.Comm <- newComm(3, fName, "send: got error with [", res.ReqID, "] :: ", err.Error())
 				s.ErrCh <- err
 				return
 			}
@@ -272,12 +270,4 @@ func (s *LogServer) Stop() {
 	}
 	close(d.(chan struct{}))
 
-}
-
-func getRequestID(ctx context.Context) string {
-	reqID := CtxGet(ctx, RequestIDKey)
-	if len(reqID) == 0 || reqID[0] == "" {
-		return DefaultRequestID
-	}
-	return reqID[0]
 }

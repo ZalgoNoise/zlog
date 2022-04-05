@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 
+	"github.com/google/uuid"
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
@@ -111,6 +112,9 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 	n, err := s.Logger.Output(logmsg)
 	n32 := int32(n)
 
+	// generate request ID
+	reqID := uuid.New().String()
+
 	// handle write errors or zero-bytes-written errors
 	if err != nil || n == 0 {
 		var errStr string
@@ -125,6 +129,7 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 		// send not OK response
 		s.LogSv.Resp <- &pb.MessageResponse{
 			Ok:    false,
+			ReqID: reqID,
 			Err:   &errStr,
 			Bytes: &n32,
 		}
@@ -136,6 +141,7 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 	// send OK response
 	s.LogSv.Resp <- &pb.MessageResponse{
 		Ok:    true,
+		ReqID: reqID,
 		Bytes: &n32,
 	}
 }

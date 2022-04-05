@@ -8,11 +8,26 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"time"
 
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
+)
+
+const (
+	// default Unary RPC timeout in seconds
+	timeoutSeconds = 30
+
+	// default Stream RPC timeout in seconds
+	streamTimeoutSeconds = 3600
+
+	// default Unary RPC timeout
+	defaultTimeout = time.Second * timeoutSeconds
+
+	// default Stream RPC timeout
+	defaultStreamTimeout = time.Second * streamTimeoutSeconds
 )
 
 var (
@@ -283,13 +298,13 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 			}).Message("setting up log service with connection").Build(),
 		)
 
-		// generate a new context with a timeout and a UUID
-		ctx, cancel, reqID := pb.NewContextTimeout(pb.DefaultTimeout)
+		// generate a new context with a timeout
+		bgCtx := context.Background()
+		ctx, cancel := context.WithTimeout(bgCtx, defaultTimeout)
 
 		c.svcLogger.Log(
 			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
-				"timeout": pb.TimeoutSeconds,
-				"id":      reqID,
+				"timeout": timeoutSeconds,
 				"remote":  remote,
 			}).Message("received a new log message to register").Build(),
 		)
@@ -302,6 +317,7 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 		// verify response
 		if response != nil {
 			res["ok"] = response.GetOk()
+			res["id"] = response.GetReqID()
 
 			if response.GetBytes() > 0 {
 				res["bytes"] = response.GetBytes()
@@ -323,7 +339,6 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
-					"id":       reqID,
 					"remote":   remote,
 					"error":    err.Error(),
 					"response": res,
@@ -337,7 +352,6 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 		cancel()
 		c.svcLogger.Log(
 			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
-				"id":       reqID,
 				"remote":   remote,
 				"response": res,
 			}).Message("message logged successfully").Build(),
@@ -387,13 +401,13 @@ func (c GRPCLogClient) stream(errCh chan error) {
 			}).Message("setting up log service with connection").Build(),
 		)
 
-		// generate a new context with a timeout and a UUID
-		ctx, cancel, reqID := pb.NewContextTimeout(pb.DefaultStreamTimeout)
+		// generate a new context with a timeout
+		bgCtx := context.Background()
+		ctx, cancel := context.WithTimeout(bgCtx, defaultStreamTimeout)
 
 		c.svcLogger.Log(
 			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"timeout": pb.StreamTimeoutSeconds,
-				"id":      reqID,
+				"timeout": streamTimeoutSeconds,
 				"remote":  remote,
 			}).Message("setting request ID for long-lived connection").Build(),
 		)
@@ -406,7 +420,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 			// if it's connection refused or EOF, kick-off the backoff routine
 			if ErrConnRefusedRegexp.MatchString(err.Error()) || ErrEOFRegexp.MatchString(err.Error()) {
-				c.streamBackoff(reqID, errCh, cancel)
+				c.streamBackoff(errCh, cancel)
 			}
 
 			// otherwise, error is sent to the error channel, conn closed, context cancelled,
@@ -417,7 +431,6 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id":     reqID,
 					"remote": remote,
 					"error":  err.Error(),
 				}).Message("failed to setup stream connection with gRPC server").Build(),
@@ -435,14 +448,12 @@ func (c GRPCLogClient) stream(errCh chan error) {
 		// to the internal comms channel and to errors (e.g., to kick-off backoff)
 		go func() {
 			go c.handleStreamService(
-				reqID,
 				stream,
 				localErr,
 				c.done,
 			)
 
 			c.handleStreamMessages(
-				reqID,
 				stream,
 				localErr,
 				errCh,
@@ -455,7 +466,6 @@ func (c GRPCLogClient) stream(errCh chan error) {
 // streamBackoff method is the Stream gRPC Log Client's standard backoff flow, which
 // is used when setting up a stream and when receiving an error from the gRPC Log Server
 func (c GRPCLogClient) streamBackoff(
-	reqID string,
 	errCh chan error,
 	cancel context.CancelFunc,
 ) {
@@ -468,7 +478,6 @@ func (c GRPCLogClient) streamBackoff(
 	if err != nil {
 		c.svcLogger.Log(
 			log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"id":         reqID,
 				"error":      err.Error(),
 				"numRetries": backoff.Counter(),
 			}).Message("closing stream after too many failed attempts to reconnect").Build(),
@@ -504,7 +513,6 @@ func (c GRPCLogClient) streamBackoff(
 //
 // This method is ran in parallel with handleStreamMessages()
 func (c GRPCLogClient) handleStreamService(
-	reqID string,
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
 	done chan struct{},
@@ -521,7 +529,7 @@ func (c GRPCLogClient) handleStreamService(
 
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id":    reqID,
+					"id":    in.ReqID,
 					"error": err.Error(),
 				}).Message("issue receiving message from stream").Build(),
 			)
@@ -530,7 +538,7 @@ func (c GRPCLogClient) handleStreamService(
 
 		c.svcLogger.Log(
 			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"id": reqID,
+				"id": in.ReqID,
 			}).Message("response received from gRPC server").Build(),
 		)
 
@@ -547,7 +555,7 @@ func (c GRPCLogClient) handleStreamService(
 			localErr <- err
 			c.svcLogger.Log(
 				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id": reqID,
+					"id": in.ReqID,
 					"response": log.Field{
 						"ok":    in.GetOk(),
 						"bytes": in.GetBytes(),
@@ -562,7 +570,7 @@ func (c GRPCLogClient) handleStreamService(
 		// server response is OK, register this event
 		c.svcLogger.Log(
 			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"id": reqID,
+				"id": in.ReqID,
 				"response": log.Field{
 					"ok":    in.GetOk(),
 					"bytes": in.GetBytes(),
@@ -583,7 +591,6 @@ func (c GRPCLogClient) handleStreamService(
 //
 // This method is ran in parallel with handleStreamService()
 func (c GRPCLogClient) handleStreamMessages(
-	reqID string,
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
 	errCh chan error,
@@ -596,9 +603,7 @@ func (c GRPCLogClient) handleStreamMessages(
 		case out := <-c.msgCh:
 
 			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id": reqID,
-				}).Message("incoming log message to send").Build(),
+				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Message("incoming log message to send").Build(),
 			)
 
 			// send the protofied message and check for errors (sinked to local error channel)
@@ -608,7 +613,6 @@ func (c GRPCLogClient) handleStreamMessages(
 
 				c.svcLogger.Log(
 					log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-						"id":    reqID,
 						"error": err.Error(),
 					}).Message("issue sending log message to gRPC server").Build(),
 				)
@@ -619,9 +623,7 @@ func (c GRPCLogClient) handleStreamMessages(
 			cancel()
 
 			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id": reqID,
-				}).Message("received done signal").Build(),
+				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Message("received done signal").Build(),
 			)
 
 			return
@@ -636,7 +638,6 @@ func (c GRPCLogClient) handleStreamMessages(
 
 				c.svcLogger.Log(
 					log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-						"id":    reqID,
 						"error": err.Error(),
 					}).Message("stream timed-out -- starting a new connection").Build(),
 				)
@@ -646,7 +647,7 @@ func (c GRPCLogClient) handleStreamMessages(
 				// Connection Refused or EOF error -- trigger backoff routine
 			} else if ErrEOFRegexp.MatchString(err.Error()) || ErrConnRefusedRegexp.MatchString(err.Error()) {
 
-				c.streamBackoff(reqID, errCh, cancel)
+				c.streamBackoff(errCh, cancel)
 
 				// Bad Response -- send to error channel, continue
 			} else if errors.Is(err, ErrBadResponse) {
@@ -661,7 +662,6 @@ func (c GRPCLogClient) handleStreamMessages(
 
 				c.svcLogger.Log(
 					log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-						"id":    reqID,
 						"error": err.Error(),
 					}).Message("critical error -- closing stream").Build(),
 				)

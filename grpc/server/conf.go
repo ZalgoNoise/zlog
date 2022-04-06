@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io/ioutil"
 
-	grpclog "github.com/zalgonoise/zlog/grpc/server/interceptors/log"
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -187,8 +186,8 @@ func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
 
 	return &LSServiceLogger{
 		logger:     l,
-		streamItcp: grpclog.StreamServerInterceptor(l),
-		unaryItcp:  grpclog.UnaryServerInterceptor(l),
+		streamItcp: StreamServerLogging(l),
+		unaryItcp:  UnaryServerLogging(l),
 	}
 
 }

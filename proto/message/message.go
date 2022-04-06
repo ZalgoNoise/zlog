@@ -70,10 +70,6 @@ func newComm(level int32, method string, msg ...string) *MessageRequest {
 
 // Log method implements the LogServiceClient interface
 func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageResponse, error) {
-	fName := "Log"
-
-	s.Comm <- newComm(1, fName, "recv")
-
 	// send message to be written
 	s.MsgCh <- in
 
@@ -85,8 +81,6 @@ func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageRespon
 		return nil, ErrNoResponse
 	}
 
-	// register a send transaction with request ID
-	s.Comm <- newComm(1, fName, "send: [", res.ReqID, "]")
 	// send OK response to
 	return res, nil
 }

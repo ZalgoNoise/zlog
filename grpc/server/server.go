@@ -5,10 +5,12 @@ import (
 	"net"
 
 	"github.com/google/uuid"
-	"github.com/zalgonoise/zlog/log"
-	pb "github.com/zalgonoise/zlog/proto/message"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+
+	"github.com/zalgonoise/zlog/log"
+	pb "github.com/zalgonoise/zlog/proto/message"
 )
 
 var (
@@ -32,7 +34,50 @@ type GRPCLogServer struct {
 	SvcLogger log.Logger
 	ErrCh     chan error
 	LogSv     *pb.LogServer
-	// Server    *grpc.Server
+}
+
+// gRPCLogServerBuilder is a helper data structure to spawn new GRPCLogServers
+type gRPCLogServerBuilder struct {
+	addr         string
+	opts         []grpc.ServerOption
+	interceptors serverInterceptors
+	logger       log.Logger
+	svcLogger    log.Logger
+	errCh        chan error
+	logSv        *pb.LogServer
+}
+
+// build method will merge the stream / unary gRPC interceptors as []grpc.ServerOption
+func (b *gRPCLogServerBuilder) build() *GRPCLogServer {
+	// auto merge stream / unary interceptors as []grpc.ServerOption
+	var opts []grpc.ServerOption
+
+	if len(b.interceptors.streamItcp) > 0 {
+		sItcp := grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(b.interceptors.streamItcp...))
+		opts = append(opts, sItcp)
+	}
+
+	if len(b.interceptors.unaryItcp) > 0 {
+		uItcp := grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(b.interceptors.unaryItcp...))
+		opts = append(b.opts, uItcp)
+	}
+
+	return &GRPCLogServer{
+		Addr:      b.addr,
+		opts:      append(b.opts, opts...),
+		Logger:    b.logger,
+		SvcLogger: b.svcLogger,
+		ErrCh:     make(chan error),
+		LogSv:     pb.NewLogServer(),
+	}
+
+}
+
+// serverInterceptors struct is a placeholder for different interceptors to be added
+// to the GRPCLogServer
+type serverInterceptors struct {
+	streamItcp []grpc.StreamServerInterceptor
+	unaryItcp  []grpc.UnaryServerInterceptor
 }
 
 // New function will create a new gRPC Log Server, ensuring that at least the default
@@ -42,23 +87,20 @@ type GRPCLogServer struct {
 // comms (the registerComms() method), which will route runtime-related log messages
 // to its SvcLogger
 func New(confs ...LogServerConfig) *GRPCLogServer {
-	server := &GRPCLogServer{
-		ErrCh: make(chan error),
-		LogSv: pb.NewLogServer(),
-	}
+	builder := &gRPCLogServerBuilder{}
 
 	// enforce defaults
-	defaultConfig.Apply(server)
+	defaultConfig.Apply(builder)
 
 	// apply input configs
-	for _, config := range confs {
-		config.Apply(server)
-	}
+	MultiConf(confs...).Apply(builder)
+
+	// merge configurations / server options & interceptors
+	server := builder.build()
 
 	go server.registerComms()
 
 	return server
-
 }
 
 // registerComms method will listen to messages from the Log Server's Comm channel, and register

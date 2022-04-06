@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/ioutil"
 
+	grpclog "github.com/zalgonoise/zlog/grpc/server/interceptors/log"
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -51,7 +52,7 @@ var (
 // Each feature should implement its own structs with their own methods; where they can implement
 // Apply(lb *GRPCLogServer) to set their own configurations to the input GRPCLogServer
 type LogServerConfig interface {
-	Apply(ls *GRPCLogServer)
+	Apply(ls *gRPCLogServerBuilder)
 }
 
 type multiconf struct {
@@ -75,7 +76,7 @@ func MultiConf(conf ...LogServerConfig) LogServerConfig {
 
 // Apply method will make a multiconf-type of LogServerConfig iterate through all its objects and
 // run the Apply method on the input pointer to a GRPCLogServer
-func (m multiconf) Apply(lb *GRPCLogServer) {
+func (m multiconf) Apply(lb *gRPCLogServerBuilder) {
 	for _, c := range m.confs {
 		c.Apply(lb)
 	}
@@ -93,7 +94,9 @@ type LSLogger struct {
 
 // LSServiceLogger struct is a custom LogServerConfig to define the service logger for the new gRPC Log Server
 type LSServiceLogger struct {
-	logger log.Logger
+	logger     log.Logger
+	streamItcp grpc.StreamServerInterceptor
+	unaryItcp  grpc.UnaryServerInterceptor
 }
 
 // LSOpts struct is a custom LogServerConfig to define gRPC Dial Options to new gRPC Log Server
@@ -102,22 +105,24 @@ type LSOpts struct {
 }
 
 // Apply method will set this option's address as the input GRPCLogServer's
-func (l LSAddr) Apply(ls *GRPCLogServer) {
-	ls.Addr = l.addr
+func (l LSAddr) Apply(ls *gRPCLogServerBuilder) {
+	ls.addr = l.addr
 }
 
 // Apply method will set this option's logger as the input GRPCLogServer's logger
-func (l LSLogger) Apply(ls *GRPCLogServer) {
-	ls.Logger = l.logger
+func (l LSLogger) Apply(ls *gRPCLogServerBuilder) {
+	ls.logger = l.logger
 }
 
 // Apply method will set this option's logger as the input GRPCLogServer's service logger
-func (l LSServiceLogger) Apply(ls *GRPCLogServer) {
-	ls.SvcLogger = l.logger
+func (l LSServiceLogger) Apply(ls *gRPCLogServerBuilder) {
+	ls.svcLogger = l.logger
+	ls.interceptors.streamItcp = append(ls.interceptors.streamItcp, l.streamItcp)
+	ls.interceptors.unaryItcp = append(ls.interceptors.unaryItcp, l.unaryItcp)
 }
 
 // Apply method will set this option's Dial Options as the input GRPCLogServer's
-func (l LSOpts) Apply(ls *GRPCLogServer) {
+func (l LSOpts) Apply(ls *gRPCLogServerBuilder) {
 	ls.opts = append(ls.opts, l.opts...)
 }
 
@@ -170,22 +175,22 @@ func WithLogger(loggers ...log.Logger) LogServerConfig {
 // any number of loggers. If no input is provided, then it will default to
 // setting this service logger as a nil logger (one which doesn't do anything)
 func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
+	var l log.Logger
 
 	if len(loggers) == 1 {
-		return &LSServiceLogger{
-			logger: loggers[0],
-		}
-	}
-
-	if len(loggers) > 1 {
-		return &LSServiceLogger{
-			logger: log.MultiLogger(loggers...),
-		}
+		l = loggers[0]
+	} else if len(loggers) > 1 {
+		l = log.MultiLogger(loggers...)
+	} else {
+		l = log.New(log.NilConfig)
 	}
 
 	return &LSServiceLogger{
-		logger: log.New(log.NilConfig),
+		logger:     l,
+		streamItcp: grpclog.StreamServerInterceptor(l),
+		unaryItcp:  grpclog.UnaryServerInterceptor(l),
 	}
+
 }
 
 // WithGRPCOpts will allow passing in any number of gRPC Server Options, which

@@ -10,8 +10,10 @@ import (
 	"regexp"
 	"time"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
+
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
 )
@@ -79,16 +81,67 @@ type GRPCLogClient struct {
 //
 // This struct will take in multiple configurations, creating a GRPCLogClient
 // during the process
-type GRPCLogClientBuilder struct {
-	addr       *address.ConnAddr
-	opts       []grpc.DialOption
-	isUnary    bool
-	expBackoff *ExpBackoff
-	svcLogger  log.Logger
+type gRPCLogClientBuilder struct {
+	addr         *address.ConnAddr
+	opts         []grpc.DialOption
+	interceptors clientInterceptors
+	isUnary      bool
+	expBackoff   *ExpBackoff
+	svcLogger    log.Logger
 }
 
-func newGRPCLogClient(confs ...LogClientConfig) *GRPCLogClientBuilder {
-	builder := &GRPCLogClientBuilder{}
+func (b *gRPCLogClientBuilder) build() *GRPCLogClient {
+	// auto merge stream / unary interceptors as []grpc.DialOption
+	var opts []grpc.DialOption
+
+	if len(b.interceptors.streamItcp) > 0 {
+		var interceptors []grpc.StreamClientInterceptor
+		for _, i := range b.interceptors.streamItcp {
+
+			interceptors = append(interceptors, i)
+		}
+
+		sItcp := grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(interceptors...))
+		opts = append(opts, sItcp)
+	}
+
+	if len(b.interceptors.unaryItcp) > 0 {
+		var interceptors []grpc.UnaryClientInterceptor
+		for _, i := range b.interceptors.unaryItcp {
+			interceptors = append(interceptors, i)
+		}
+
+		uItcp := grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(interceptors...))
+		opts = append(b.opts, uItcp)
+	}
+
+	// define backoff
+	// TODO: make an interceptor for this
+	backoff = b.expBackoff
+
+	return &GRPCLogClient{
+		addr:      b.addr,
+		opts:      append(b.opts, opts...),
+		msgCh:     make(chan *log.LogMessage),
+		done:      make(chan struct{}),
+		svcLogger: b.svcLogger,
+	}
+}
+
+// clientInterceptors struct is a placeholder for different interceptors to be added
+// to the GRPCLogServer
+type clientInterceptors struct {
+	streamItcp map[string]grpc.StreamClientInterceptor
+	unaryItcp  map[string]grpc.UnaryClientInterceptor
+}
+
+func newGRPCLogClient(confs ...LogClientConfig) *gRPCLogClientBuilder {
+	builder := &gRPCLogClientBuilder{
+		interceptors: clientInterceptors{
+			streamItcp: make(map[string]grpc.StreamClientInterceptor),
+			unaryItcp:  make(map[string]grpc.UnaryClientInterceptor),
+		},
+	}
 
 	// enforce defaults
 	defaultConfig.Apply(builder)
@@ -97,8 +150,6 @@ func newGRPCLogClient(confs ...LogClientConfig) *GRPCLogClientBuilder {
 	for _, config := range confs {
 		config.Apply(builder)
 	}
-
-	backoff = builder.expBackoff
 
 	return builder
 }
@@ -112,13 +163,7 @@ func newGRPCLogClient(confs ...LogClientConfig) *GRPCLogClientBuilder {
 func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 	builder := newGRPCLogClient(opts...)
 
-	client := &GRPCLogClient{
-		addr:      builder.addr,
-		opts:      builder.opts,
-		msgCh:     make(chan *log.LogMessage),
-		done:      make(chan struct{}),
-		svcLogger: builder.svcLogger,
-	}
+	client := builder.build()
 
 	// check input type -- create an appropriate GRPCLogger
 	if builder.isUnary {
@@ -310,52 +355,19 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 		)
 
 		// send LogMessage to remote gRPC Log Server
-		response, err := client.Log(ctx, msg.Proto())
-
-		var res = log.Field{}
-
-		// verify response
-		if response != nil {
-			res["ok"] = response.GetOk()
-			res["id"] = response.GetReqID()
-
-			if response.GetBytes() > 0 {
-				res["bytes"] = response.GetBytes()
-			}
-
-			if response.GetErr() != "" {
-				res["error"] = response.GetErr()
-				if err == nil {
-					err = errors.New(response.GetErr())
-				}
-			}
-		}
+		// response is parsed by the interceptor; only the error is important
+		_, err := client.Log(ctx, msg.Proto())
 
 		// if the server returns any error, it's sent to the error channel, context cancelled,
-		// error logged and then return
+		// and then return
 		if err != nil {
 			errCh <- err
 			cancel()
-
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
-					"remote":   remote,
-					"error":    err.Error(),
-					"response": res,
-				}).Message("failed to send message to gRPC server").Build(),
-			)
-
 			return
 		}
 
 		// message sent; response retrieved; context is cancelled.
 		cancel()
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
-				"remote":   remote,
-				"response": res,
-			}).Message("message logged successfully").Build(),
-		)
 
 	}
 }

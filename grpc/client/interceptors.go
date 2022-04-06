@@ -11,7 +11,7 @@ import (
 	pb "github.com/zalgonoise/zlog/proto/message"
 )
 
-// UnaryServerInterceptor returns a new unary server interceptor that adds a gRPC Client Logger
+// UnaryClientLogging returns a new unary client interceptor that adds a gRPC Client Logger
 // which captures inbound / outbound interactions with the service
 func UnaryClientLogging(logger log.Logger) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
@@ -71,7 +71,7 @@ func UnaryClientLogging(logger log.Logger) grpc.UnaryClientInterceptor {
 	}
 }
 
-// StreamServerInterceptor returns a new stream server interceptor that adds a gRPC Client Logger
+// StreamClientLogging returns a new stream client interceptor that adds a gRPC Client Logger
 // which captures inbound / outbound interactions with the service
 func StreamClientLogging(logger log.Logger) grpc.StreamClientInterceptor {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {

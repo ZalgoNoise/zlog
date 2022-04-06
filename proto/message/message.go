@@ -81,7 +81,7 @@ func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageRespon
 		return nil, ErrNoResponse
 	}
 
-	// send OK response to
+	// send OK response
 	return res, nil
 }
 

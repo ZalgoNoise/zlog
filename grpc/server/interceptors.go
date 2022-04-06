@@ -1,4 +1,4 @@
-package grpclog
+package server
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	pb "github.com/zalgonoise/zlog/proto/message"
 )
 
-// UnaryServerInterceptor returns a new unary server interceptor that adds a gRPC Server Logger
+// UnaryServerLogging returns a new unary server interceptor that adds a gRPC Server Logger
 // which captures inbound / outbound interactions with the service
-func UnaryServerInterceptor(logger log.Logger) grpc.UnaryServerInterceptor {
+func UnaryServerLogging(logger log.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("recv").Message("unary RPC -- " + info.FullMethod).Build())
 
@@ -33,9 +33,9 @@ func UnaryServerInterceptor(logger log.Logger) grpc.UnaryServerInterceptor {
 	}
 }
 
-// StreamServerInterceptor returns a new stream server interceptor that adds a gRPC Server Logger
+// StreamServerLogging returns a new stream server interceptor that adds a gRPC Server Logger
 // which captures inbound / outbound interactions with the service
-func StreamServerInterceptor(logger log.Logger) grpc.StreamServerInterceptor {
+func StreamServerLogging(logger log.Logger) grpc.StreamServerInterceptor {
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("recv").Message("stream RPC -- " + info.FullMethod).Build())
 

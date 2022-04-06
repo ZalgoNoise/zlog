@@ -53,7 +53,7 @@ var (
 // Each feature should implement its own structs with their own methods; where they can implement
 // Apply(lb *GRPCLogClientBuilder) to set their own configurations to the input GRPCLogClientBuilder
 type LogClientConfig interface {
-	Apply(ls *GRPCLogClientBuilder)
+	Apply(ls *gRPCLogClientBuilder)
 }
 
 type multiconf struct {
@@ -77,7 +77,7 @@ func MultiConf(conf ...LogClientConfig) LogClientConfig {
 
 // Apply method will make a multiconf-type of LogClientConfig iterate through all its objects and
 // run the Apply method on the input pointer to a GRPCLogClient
-func (m multiconf) Apply(lb *GRPCLogClientBuilder) {
+func (m multiconf) Apply(lb *gRPCLogClientBuilder) {
 	for _, c := range m.confs {
 		c.Apply(lb)
 	}
@@ -100,7 +100,9 @@ type LSType struct {
 
 // LSLogger struct is a custom LogClientConfig to define the service logger for the new gRPC Log Client
 type LSLogger struct {
-	logger log.Logger
+	logger     log.Logger
+	unaryItcp  grpc.UnaryClientInterceptor
+	streamItcp grpc.StreamClientInterceptor
 }
 
 // LSExpBackoff struct is a custom LogClientConfig to define the backoff configuration for the new gRPC Log Client
@@ -108,28 +110,31 @@ type LSExpBackoff struct {
 	backoff *ExpBackoff
 }
 
-// Apply method will set this option's address as the input GRPCLogClientBuilder's
-func (l LSAddr) Apply(ls *GRPCLogClientBuilder) {
+// Apply method will set this option's address as the input gRPCLogClientBuilder's
+func (l LSAddr) Apply(ls *gRPCLogClientBuilder) {
 	ls.addr = &l.addr
 }
 
-// Apply method will set this option's Dial Options as the input GRPCLogClientBuilder's
-func (l LSOpts) Apply(ls *GRPCLogClientBuilder) {
+// Apply method will set this option's Dial Options as the input gRPCLogClientBuilder's
+func (l LSOpts) Apply(ls *gRPCLogClientBuilder) {
 	ls.opts = append(ls.opts, l.opts...)
 }
 
-// Apply method will set this option's type as the input GRPCLogClientBuilder's
-func (l LSType) Apply(ls *GRPCLogClientBuilder) {
+// Apply method will set this option's type as the input gRPCLogClientBuilder's
+func (l LSType) Apply(ls *gRPCLogClientBuilder) {
 	ls.isUnary = l.isUnary
 }
 
-// Apply method will set this option's logger as the input GRPCLogClientBuilder's
-func (l LSLogger) Apply(ls *GRPCLogClientBuilder) {
+// Apply method will set this option's logger as the input gRPCLogClientBuilder's
+func (l LSLogger) Apply(ls *gRPCLogClientBuilder) {
 	ls.svcLogger = l.logger
+
+	ls.interceptors.unaryItcp["logger"] = l.unaryItcp
+	ls.interceptors.streamItcp["logger"] = l.streamItcp
 }
 
-// Apply method will set this option's backoff as the input GRPCLogClientBuilder's
-func (l LSExpBackoff) Apply(ls *GRPCLogClientBuilder) {
+// Apply method will set this option's backoff as the input gRPCLogClientBuilder's
+func (l LSExpBackoff) Apply(ls *gRPCLogClientBuilder) {
 	ls.expBackoff = l.backoff
 }
 
@@ -175,21 +180,22 @@ func UnaryRPC() LogClientConfig {
 // any number of loggers. If no input is provided, then it will default to
 // setting this service logger as a nil logger (one which doesn't do anything)
 func WithLogger(loggers ...log.Logger) LogClientConfig {
-	if len(loggers) == 1 {
-		return &LSLogger{
-			logger: loggers[0],
-		}
-	}
+	var l log.Logger
 
-	if len(loggers) > 1 {
-		return &LSLogger{
-			logger: log.MultiLogger(loggers...),
-		}
+	if len(loggers) == 1 {
+		l = loggers[0]
+	} else if len(loggers) > 1 {
+		l = log.MultiLogger(loggers...)
+	} else {
+		l = log.New(log.NilConfig)
 	}
 
 	return &LSLogger{
-		logger: log.New(log.NilConfig),
+		logger:     l,
+		streamItcp: StreamClientLogging(l),
+		unaryItcp:  UnaryClientLogging(l),
 	}
+
 }
 
 // WithBackoff function will take in a time.Duration value to set as the

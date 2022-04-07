@@ -75,6 +75,7 @@ func UnaryClientLogging(logger log.Logger) grpc.UnaryClientInterceptor {
 // which captures inbound / outbound interactions with the service
 func StreamClientLogging(logger log.Logger) grpc.StreamClientInterceptor {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+
 		// TODO: add an interceptor to do measure time
 		now := time.Now()
 
@@ -92,7 +93,7 @@ func StreamClientLogging(logger log.Logger) grpc.StreamClientInterceptor {
 
 		}
 
-		logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("closed").Message("stream RPC was closed").Metadata(log.Field{
+		logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").Message("stream RPC was established").Metadata(log.Field{
 			"duration": time.Since(now).String(),
 		}).Build())
 

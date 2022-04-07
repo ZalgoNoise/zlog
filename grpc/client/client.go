@@ -94,6 +94,16 @@ func (b *gRPCLogClientBuilder) build() *GRPCLogClient {
 	// auto merge stream / unary interceptors as []grpc.DialOption
 	var opts []grpc.DialOption
 
+	if len(b.interceptors.unaryItcp) > 0 {
+		var interceptors []grpc.UnaryClientInterceptor
+		for _, i := range b.interceptors.unaryItcp {
+			interceptors = append(interceptors, i)
+		}
+
+		uItcp := grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(interceptors...))
+		opts = append(b.opts, uItcp)
+	}
+
 	if len(b.interceptors.streamItcp) > 0 {
 		var interceptors []grpc.StreamClientInterceptor
 		for _, i := range b.interceptors.streamItcp {
@@ -103,16 +113,6 @@ func (b *gRPCLogClientBuilder) build() *GRPCLogClient {
 
 		sItcp := grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(interceptors...))
 		opts = append(opts, sItcp)
-	}
-
-	if len(b.interceptors.unaryItcp) > 0 {
-		var interceptors []grpc.UnaryClientInterceptor
-		for _, i := range b.interceptors.unaryItcp {
-			interceptors = append(interceptors, i)
-		}
-
-		uItcp := grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(interceptors...))
-		opts = append(b.opts, uItcp)
 	}
 
 	// define backoff

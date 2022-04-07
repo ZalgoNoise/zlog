@@ -110,6 +110,9 @@ type LSExpBackoff struct {
 	backoff *ExpBackoff
 }
 
+// LSTiming struct is a custom LogClientConfig to add (debug) information on time taken to execute RPCs.
+type LSTiming struct{}
+
 // Apply method will set this option's address as the input gRPCLogClientBuilder's
 func (l LSAddr) Apply(ls *gRPCLogClientBuilder) {
 	ls.addr = &l.addr
@@ -129,13 +132,20 @@ func (l LSType) Apply(ls *gRPCLogClientBuilder) {
 func (l LSLogger) Apply(ls *gRPCLogClientBuilder) {
 	ls.svcLogger = l.logger
 
-	ls.interceptors.unaryItcp["logger"] = l.unaryItcp
-	ls.interceptors.streamItcp["logger"] = l.streamItcp
+	ls.interceptors.unaryItcp["logging"] = l.unaryItcp
+	ls.interceptors.streamItcp["logging"] = l.streamItcp
 }
 
 // Apply method will set this option's backoff as the input gRPCLogClientBuilder's
 func (l LSExpBackoff) Apply(ls *gRPCLogClientBuilder) {
 	ls.expBackoff = l.backoff
+}
+
+// Apply method will set this option's Timing interceptors as the input gRPCLogClientBuilder's
+// by defining its own service logger as target
+func (l LSTiming) Apply(ls *gRPCLogClientBuilder) {
+	ls.interceptors.streamItcp["timing"] = StreamClientTiming(ls.svcLogger)
+	ls.interceptors.unaryItcp["timing"] = UnaryClientTiming(ls.svcLogger)
 }
 
 // WithAddr function will take in any amount of addresses, and create a connections
@@ -213,6 +223,15 @@ func WithBackoff(t time.Duration) LogClientConfig {
 	return &LSExpBackoff{
 		backoff: NewBackoff().Time(t),
 	}
+}
+
+// WithTiming function will set a gRPC Log Client's service logger to measure
+// the time taken when executing RPCs. It is only an option, and is directly tied
+// to the configured service logger.
+//
+// Since defaults are enforced, the service logger value is never nil.
+func WithTiming() LogClientConfig {
+	return &LSTiming{}
 }
 
 // WithGRPCOpts will allow passing in any number of gRPC Dial Options, which

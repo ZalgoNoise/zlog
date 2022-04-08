@@ -538,21 +538,8 @@ func (c GRPCLogClient) handleStreamService(
 			// send received error to local error and register the event
 			// don't break off the loop; keep listening for messages
 			localErr <- err
-
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id":    in.ReqID,
-					"error": err.Error(),
-				}).Message("issue receiving message from stream").Build(),
-			)
 			continue
 		}
-
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"id": in.ReqID,
-			}).Message("response received from gRPC server").Build(),
-		)
 
 		// there are no errors in the response; check the response's OK value
 		// if not OK, register this as a local bad response error and continue
@@ -565,31 +552,8 @@ func (c GRPCLogClient) handleStreamService(
 			}
 
 			localErr <- err
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"id": in.ReqID,
-					"response": log.Field{
-						"ok":    in.GetOk(),
-						"bytes": in.GetBytes(),
-						"error": in.GetErr(),
-					},
-					"error": err.Error(),
-				}).Message("failed to write log message").Build(),
-			)
 			continue
 		}
-
-		// server response is OK, register this event
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"id": in.ReqID,
-				"response": log.Field{
-					"ok":    in.GetOk(),
-					"bytes": in.GetBytes(),
-				},
-			}).Message("registering server response").Build(),
-		)
-
 	}
 }
 
@@ -614,20 +578,11 @@ func (c GRPCLogClient) handleStreamMessages(
 		// LogMessage is received in the message channel -- send this message to the stream
 		case out := <-c.msgCh:
 
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Message("incoming log message to send").Build(),
-			)
-
 			// send the protofied message and check for errors (sinked to local error channel)
 			err := stream.Send(out.Proto())
+
 			if err != nil {
 				localErr <- err
-
-				c.svcLogger.Log(
-					log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-						"error": err.Error(),
-					}).Message("issue sending log message to gRPC server").Build(),
-				)
 			}
 
 		// done is received -- gracefully exit by cancelling context and closing the connection

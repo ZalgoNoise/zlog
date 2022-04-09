@@ -339,76 +339,92 @@ func (f *FmtText) capitalize(s string) string {
 
 func (f *FmtText) fmtMetadata(data map[string]interface{}) string {
 	size := len(data)
-	count := 0
 
+	// exit early
 	if size == 0 {
 		return ""
 	}
 
-	var meta string = "[ "
+	count := 0
+	var sb strings.Builder
+
+	sb.WriteString("[ ")
 
 	for k, v := range data {
 		switch value := v.(type) {
 		case []map[string]interface{}:
-			meta += k + " = [ "
+			sb.WriteString(k)
+			sb.WriteString(" = [ ")
 			for idx, m := range value {
-				meta += f.fmtMetadata(m)
+				sb.WriteString(f.fmtMetadata(m))
 				if idx < len(value)-1 {
-					meta += "; "
+					sb.WriteString("; ")
 				}
 			}
-			meta += "] "
+			sb.WriteString("] ")
 			count++
 			if count < size {
-				meta += "; "
+				sb.WriteString("; ")
 			}
 
 		case []Field:
-			meta += k + " = [ "
+			sb.WriteString(k)
+			sb.WriteString(" = [ ")
 			for idx, m := range value {
-				meta += f.fmtMetadata(m.ToMap())
+				sb.WriteString(f.fmtMetadata(m.ToMap()))
 				if idx < len(value)-1 {
-					meta += "; "
+					sb.WriteString("; ")
 				}
 			}
-			meta += "] "
+
+			sb.WriteString("] ")
 			count++
 			if count < size {
-				meta += "; "
+				sb.WriteString("; ")
 			}
 
 		case map[string]interface{}:
-			meta += k + " = " + f.fmtMetadata(value)
+			sb.WriteString(k)
+			sb.WriteString(" = ")
+			sb.WriteString(f.fmtMetadata(value))
 			count++
 			if count < size {
-				meta += "; "
+				sb.WriteString("; ")
 			}
 		case Field:
-			metadata := value.ToMap()
-			meta += k + " = " + f.fmtMetadata(metadata)
+			sb.WriteString(k)
+			sb.WriteString(" = ")
+			sb.WriteString(f.fmtMetadata(value.ToMap()))
 			count++
 			if count < size {
-				meta += "; "
+				sb.WriteString("; ")
 			}
 
 		case string:
-			meta += fmt.Sprintf("%s = \"%s\" ", k, v)
+			sb.WriteString(k)
+			sb.WriteString(" = \"")
+			sb.WriteString(v.(string))
+			sb.WriteString("\" ")
 			count++
 			if count < size {
-				meta += "; "
+				sb.WriteString("; ")
 			}
 		default:
-			meta += fmt.Sprintf("%s = %v ", k, v)
+
+			sb.WriteString(k)
+			sb.WriteString(" = ")
+			sb.WriteString(fmt.Sprint(v))
+			sb.WriteString(" ")
 			count++
 			if count < size {
-				meta += "; "
+				sb.WriteString("; ")
 			}
 		}
 	}
 
-	meta += "] "
+	sb.WriteString("] ")
 
-	return meta
+	return sb.String()
 }
 
 // Apply method implements the LoggerConfig interface, allowing a FmtText object to be passed on as an

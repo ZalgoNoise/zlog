@@ -53,13 +53,25 @@ func (b *gRPCLogServerBuilder) build() *GRPCLogServer {
 	var opts []grpc.ServerOption
 
 	if len(b.interceptors.streamItcp) > 0 {
-		sItcp := grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(b.interceptors.streamItcp...))
-		opts = append(opts, sItcp)
+		var interceptors []grpc.UnaryServerInterceptor
+
+		for _, i := range b.interceptors.unaryItcp {
+			interceptors = append(interceptors, i)
+		}
+
+		uItcp := grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(interceptors...))
+		opts = append(b.opts, uItcp)
 	}
 
 	if len(b.interceptors.unaryItcp) > 0 {
-		uItcp := grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(b.interceptors.unaryItcp...))
-		opts = append(b.opts, uItcp)
+		var interceptors []grpc.StreamServerInterceptor
+
+		for _, i := range b.interceptors.streamItcp {
+			interceptors = append(interceptors, i)
+		}
+
+		sItcp := grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(interceptors...))
+		opts = append(opts, sItcp)
 	}
 
 	return &GRPCLogServer{
@@ -76,8 +88,8 @@ func (b *gRPCLogServerBuilder) build() *GRPCLogServer {
 // serverInterceptors struct is a placeholder for different interceptors to be added
 // to the GRPCLogServer
 type serverInterceptors struct {
-	streamItcp []grpc.StreamServerInterceptor
-	unaryItcp  []grpc.UnaryServerInterceptor
+	streamItcp map[string]grpc.StreamServerInterceptor
+	unaryItcp  map[string]grpc.UnaryServerInterceptor
 }
 
 // New function will create a new gRPC Log Server, ensuring that at least the default
@@ -87,7 +99,12 @@ type serverInterceptors struct {
 // comms (the registerComms() method), which will route runtime-related log messages
 // to its SvcLogger
 func New(confs ...LogServerConfig) *GRPCLogServer {
-	builder := &gRPCLogServerBuilder{}
+	builder := &gRPCLogServerBuilder{
+		interceptors: serverInterceptors{
+			streamItcp: make(map[string]grpc.StreamServerInterceptor),
+			unaryItcp:  make(map[string]grpc.UnaryServerInterceptor),
+		},
+	}
 
 	// enforce defaults
 	defaultConfig.Apply(builder)

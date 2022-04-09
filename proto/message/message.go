@@ -153,22 +153,18 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 			if err != nil {
 
 				// error is EOF -- stream disconnected
-				// break from this loop / keep listening for connections
+				// keep listening for connections
 				if err == io.EOF {
-					s.Comm <- newComm(1, fName, "recv: got EOF from [", fallbackUUID, "]")
-					// break
 					continue
 				}
 
 				// context cancelled by client -- exit
 				if contextCancelledRegexp.MatchString(err.Error()) {
-					s.Comm <- newComm(2, fName, "recv: got context closure from [", fallbackUUID, "] :: ", err.Error())
 					return
 				}
 
-				// other errors are logged and sent to the error channel, response sent to client
+				// other errors are sent to the error channel, response sent to client
 				// -- then, exit
-				s.Comm <- newComm(4, fName, "recv: got error from [", fallbackUUID, "] :: ", err.Error())
 				s.ErrCh <- err
 
 				// send Not OK message to client
@@ -176,8 +172,6 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 				err = stream.Send(&MessageResponse{Ok: false, ReqID: fallbackUUID, Err: &errStr})
 				if err != nil {
 					// handle send errors if existing
-					// log level warning since it's an issue with the client
-					s.Comm <- newComm(3, fName, "send: got error from [", fallbackUUID, "] :: ", err.Error())
 					s.ErrCh <- err
 					return
 				}
@@ -185,8 +179,6 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 				return
 			}
 
-			// register a recv transaction with request ID
-			s.Comm <- newComm(1, fName, "recv")
 			// send new (valid) message to the messages channel to be logged
 			s.MsgCh <- in
 
@@ -201,14 +193,10 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 				}
 			}
 
-			// register a send transaction with request ID
-			s.Comm <- newComm(1, fName, "send: [", res.ReqID, "]")
 			// send OK response to client
 			err = stream.Send(res)
 			if err != nil {
 				// handle send errors if existing
-				// log level warning since it's an issue with the client
-				s.Comm <- newComm(3, fName, "send: got error with [", res.ReqID, "] :: ", err.Error())
 				s.ErrCh <- err
 				return
 			}

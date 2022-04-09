@@ -84,7 +84,7 @@ func StreamClientLogging(logger log.Logger) grpc.StreamClientInterceptor {
 
 		logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC logger -- connection was established").Build())
 
-		wStream := wrappedStream{
+		wStream := loggingStream{
 			stream: clientStream,
 			logger: logger,
 			method: method,
@@ -95,18 +95,18 @@ func StreamClientLogging(logger log.Logger) grpc.StreamClientInterceptor {
 	}
 }
 
-type wrappedStream struct {
+type loggingStream struct {
 	stream grpc.ClientStream
 	logger log.Logger
 	method string
 	name   string
 }
 
-func (w wrappedStream) Header() (metadata.MD, error) { return w.stream.Header() }
-func (w wrappedStream) Trailer() metadata.MD         { return w.stream.Trailer() }
-func (w wrappedStream) CloseSend() error             { return w.stream.CloseSend() }
-func (w wrappedStream) Context() context.Context     { return w.stream.Context() }
-func (w wrappedStream) SendMsg(m interface{}) error {
+func (w loggingStream) Header() (metadata.MD, error) { return w.stream.Header() }
+func (w loggingStream) Trailer() metadata.MD         { return w.stream.Trailer() }
+func (w loggingStream) CloseSend() error             { return w.stream.CloseSend() }
+func (w loggingStream) Context() context.Context     { return w.stream.Context() }
+func (w loggingStream) SendMsg(m interface{}) error {
 	err := w.stream.SendMsg(m)
 
 	if err != nil {
@@ -121,7 +121,7 @@ func (w wrappedStream) SendMsg(m interface{}) error {
 
 	return err
 }
-func (w wrappedStream) RecvMsg(m interface{}) error {
+func (w loggingStream) RecvMsg(m interface{}) error {
 	err := w.stream.RecvMsg(m)
 
 	// check server response for errors

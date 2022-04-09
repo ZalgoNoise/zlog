@@ -3,11 +3,18 @@ package server
 import (
 	"context"
 	"errors"
+	"io"
+	"regexp"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
+)
+
+var (
+	ErrContextCancelledRegexp = regexp.MustCompile(`rpc error: code = Canceled desc = context canceled`)
 )
 
 // UnaryServerLogging returns a new unary server interceptor that adds a gRPC Server Logger
@@ -36,91 +43,125 @@ func UnaryServerLogging(logger log.Logger) grpc.UnaryServerInterceptor {
 
 // StreamServerLogging returns a new stream server interceptor that adds a gRPC Server Logger
 // which captures inbound / outbound interactions with the service
+//
+// To be able to safely capture the message exchange within the stream, a wrapper is created
+// containing the logger, the stream and the method name. This wrapper will implement the
+// grpc.ServerStream interface, to add new actions when sending and receiving a message.
+//
+// This assures that the stream is untouched while still adding a new feature to each exchange.
 func StreamServerLogging(logger log.Logger) grpc.StreamServerInterceptor {
 	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[open] stream RPC -- " + info.FullMethod).Build())
+		method := info.FullMethod
 
-		err := handler(srv, stream)
+		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[open] stream RPC -- " + method).Build())
+
+		wStream := wrappedStream{stream: stream, logger: logger, method: method}
+
+		err := handler(srv, wStream)
 
 		if err != nil {
 			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC -- failed to initialize stream with an error").Metadata(log.Field{
 				"error":  err.Error(),
-				"method": info.FullMethod,
+				"method": method,
 			}).Build())
-		} else {
-			logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC -- " + info.FullMethod).Build())
-
-			go loggingStreamHandler(logger, stream, info.FullMethod)
+			return err
 		}
+
+		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC -- " + method).Build())
+
 		return err
 	}
 }
 
-func loggingStreamHandler(logger log.Logger, stream grpc.ServerStream, method string) {
-	var req *pb.MessageRequest
-	var res *pb.MessageResponse
+type wrappedStream struct {
+	stream grpc.ServerStream
+	logger log.Logger
+	method string
+}
 
-	for {
-		req = &pb.MessageRequest{}
-		err := stream.RecvMsg(req)
-		if err != nil {
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[recv] stream RPC logger -- error receiving message").Metadata(log.Field{
-				"error":  err.Error(),
-				"method": method,
-			}).Build())
-			continue
-		}
-		logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[recv] stream RPC logger -- received message from gRPC client").Build())
-
-		res = &pb.MessageResponse{}
-		err = stream.SendMsg(res)
-
-		if err != nil {
-			meta := log.Field{
-				"error":  err.Error(),
-				"method": method,
-			}
-			if res != nil && res.GetReqID() != "" {
-				meta["id"] = res.GetReqID()
-			}
-
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sending message resulted in an error").Metadata(meta).Build())
-			continue
+func (w wrappedStream) SetHeader(m metadata.MD) error  { return w.stream.SetHeader(m) }
+func (w wrappedStream) SendHeader(m metadata.MD) error { return w.stream.SendHeader(m) }
+func (w wrappedStream) SetTrailer(m metadata.MD)       { w.stream.SetTrailer(m) }
+func (w wrappedStream) Context() context.Context       { return w.stream.Context() }
+func (w wrappedStream) SendMsg(m interface{}) error {
+	err := w.stream.SendMsg(m)
+	if err != nil {
+		meta := log.Field{
+			"error":  err.Error(),
+			"method": w.method,
 		}
 
-		if !res.GetOk() {
-			var err error
-			if res.GetErr() != "" {
-				err = errors.New(res.GetErr())
-			} else {
-				err = ErrMessageParse
-			}
-			logger.Log(
-				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(log.Field{
-					"id":     res.GetReqID(),
-					"method": method,
-					"response": log.Field{
-						"ok":    res.GetOk(),
-						"bytes": res.GetBytes(),
-						"error": err.Error(),
-					},
-					"error": err.Error(),
-				}).Message("[send] stream RPC logger -- failed to send response message").Build(),
-			)
-			continue
-
+		if m.(*pb.MessageResponse).GetReqID() != "" {
+			meta["id"] = m.(*pb.MessageResponse).GetReqID()
 		}
 
-		logger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Metadata(log.Field{
-				"id":     res.GetReqID(),
-				"method": method,
+		w.logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- error sending message").Metadata(meta).Build())
+		return err
+	}
+
+	if !m.(*pb.MessageResponse).GetOk() {
+		var err error
+		if m.(*pb.MessageResponse).GetErr() != "" {
+			err = errors.New(m.(*pb.MessageResponse).GetErr())
+		} else {
+			err = ErrMessageParse
+		}
+		w.logger.Log(
+			log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(log.Field{
+				"id":     m.(*pb.MessageResponse).GetReqID(),
+				"method": w.method,
 				"response": log.Field{
-					"ok":    res.GetOk(),
-					"bytes": res.GetBytes(),
+					"ok":    m.(*pb.MessageResponse).GetOk(),
+					"bytes": m.(*pb.MessageResponse).GetBytes(),
+					"error": err.Error(),
 				},
-			}).Message("[send] stream RPC logger -- sent server response").Build(),
+				"error": err.Error(),
+			}).Message("[send] stream RPC logger -- failed to send response message").Build(),
 		)
+		return err
 
 	}
+
+	w.logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sent message to gRPC client").Metadata(log.Field{
+		"id":     m.(*pb.MessageResponse).GetReqID(),
+		"method": w.method,
+		"response": log.Field{
+			"ok":    m.(*pb.MessageResponse).GetOk(),
+			"bytes": m.(*pb.MessageResponse).GetBytes(),
+		},
+	}).Build())
+	return err
+}
+func (w wrappedStream) RecvMsg(m interface{}) error {
+	err := w.stream.RecvMsg(m)
+	if err != nil {
+
+		// handle EOF
+		if errors.Is(err, io.EOF) {
+			w.logger.Log(log.NewMessage().Level(log.LLInfo).Prefix("gRPC").Sub("logger").Message("[recv] stream RPC logger -- received EOF from client").Metadata(log.Field{
+				"error":  err.Error(),
+				"method": w.method,
+			}).Build())
+			return err
+		}
+
+		// handle context cancelled
+		if ErrContextCancelledRegexp.MatchString(err.Error()) {
+			w.logger.Log(log.NewMessage().Level(log.LLInfo).Prefix("gRPC").Sub("logger").Message("[recv] stream RPC logger -- received context closure from client").Metadata(log.Field{
+				"error":  err.Error(),
+				"method": w.method,
+			}).Build())
+			return err
+		}
+
+		// default error handling
+		w.logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[recv] stream RPC logger -- error receiving message").Metadata(log.Field{
+			"error":  err.Error(),
+			"method": w.method,
+		}).Build())
+		return err
+
+	}
+	w.logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[recv] stream RPC logger -- received message from gRPC client").Build())
+	return err
 }

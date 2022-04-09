@@ -7,6 +7,7 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 // UnaryClientLogging returns a new unary client interceptor that adds a gRPC Client Logger
@@ -83,92 +84,96 @@ func StreamClientLogging(logger log.Logger) grpc.StreamClientInterceptor {
 
 		logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC logger -- connection was established").Build())
 
-		go loggingStreamHandler(logger, clientStream, method, desc)
+		wStream := wrappedStream{
+			stream: clientStream,
+			logger: logger,
+			method: method,
+			name:   desc.StreamName,
+		}
 
-		return clientStream, err
+		return wStream, err
 	}
 }
 
-func loggingStreamHandler(logger log.Logger, clientStream grpc.ClientStream, method string, desc *grpc.StreamDesc) {
-	var req *pb.MessageRequest
-	var res *pb.MessageResponse
+type wrappedStream struct {
+	stream grpc.ClientStream
+	logger log.Logger
+	method string
+	name   string
+}
 
-	for {
-		req = &pb.MessageRequest{}
-		err := clientStream.SendMsg(req)
+func (w wrappedStream) Header() (metadata.MD, error) { return w.stream.Header() }
+func (w wrappedStream) Trailer() metadata.MD         { return w.stream.Trailer() }
+func (w wrappedStream) CloseSend() error             { return w.stream.CloseSend() }
+func (w wrappedStream) Context() context.Context     { return w.stream.Context() }
+func (w wrappedStream) SendMsg(m interface{}) error {
+	err := w.stream.SendMsg(m)
 
-		if err != nil {
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sending message resulted in an error").Metadata(log.Field{
-				"error":  err.Error(),
-				"method": method,
-				"stream": desc.StreamName,
-			}).Build())
-			continue
-		}
-		logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sent log message to gRPC server").Build())
-
-		res = &pb.MessageResponse{}
-		err = clientStream.RecvMsg(res)
-		if err != nil {
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- receiving message resulted in an error").Metadata(log.Field{
-				"error":  err.Error(),
-				"method": method,
-				"stream": desc.StreamName,
-			}).Build())
-		}
-
-		// check server response for errors
-		if err != nil {
-			meta := log.Field{
-				"error":  err.Error(),
-				"method": method,
-				"stream": desc.StreamName,
-			}
-
-			if res != nil && res.GetReqID() != "" {
-				meta["id"] = res.GetReqID()
-			}
-
-			logger.Log(
-				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(meta).Message("[recv] stream RPC logger -- issue receiving message from stream").Build(),
-			)
-			continue
-
-		}
-
-		// there are no errors in the response; check the response's OK value
-		// if not OK, register this as a local bad response error and continue
-		if !res.GetOk() {
-			var err error
-			if res.GetErr() != "" {
-				err = errors.New(res.GetErr())
-			} else {
-				err = ErrBadResponse
-			}
-			logger.Log(
-				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(log.Field{
-					"id": res.GetReqID(),
-					"response": log.Field{
-						"ok":    res.GetOk(),
-						"bytes": res.GetBytes(),
-						"error": err.Error(),
-					},
-					"error": err.Error(),
-				}).Message("[recv] stream RPC logger -- failed to write log message").Build(),
-			)
-			continue
-		}
-
-		// server response is OK, register this event
-		logger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Metadata(log.Field{
-				"id": res.GetReqID(),
-				"response": log.Field{
-					"ok":    res.GetOk(),
-					"bytes": res.GetBytes(),
-				},
-			}).Message("[recv] stream RPC logger -- registering server response").Build(),
-		)
-
+	if err != nil {
+		w.logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sending message resulted in an error").Metadata(log.Field{
+			"error":  err.Error(),
+			"method": w.method,
+			"stream": w.name,
+		}).Build())
+		return err
 	}
+	w.logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sent log message to gRPC server").Build())
+
+	return err
+}
+func (w wrappedStream) RecvMsg(m interface{}) error {
+	err := w.stream.RecvMsg(m)
+
+	// check server response for errors
+	if err != nil {
+		meta := log.Field{
+			"error":  err.Error(),
+			"method": w.method,
+			"stream": w.name,
+		}
+
+		if m.(*pb.MessageResponse) != nil && m.(*pb.MessageResponse).GetReqID() != "" {
+			meta["id"] = m.(*pb.MessageResponse).GetReqID()
+		}
+
+		w.logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(meta).Message("[recv] stream RPC logger -- issue receiving message from stream").Build())
+		return err
+	}
+
+	// there are no errors in the response; check the response's OK value
+	// if not OK, register this as a local bad response error and continue
+	if !m.(*pb.MessageResponse).GetOk() {
+		var err error
+		if m.(*pb.MessageResponse).GetErr() != "" {
+			err = errors.New(m.(*pb.MessageResponse).GetErr())
+		} else {
+			err = ErrBadResponse
+		}
+		w.logger.Log(
+			log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(log.Field{
+				"id": m.(*pb.MessageResponse).GetReqID(),
+				"response": log.Field{
+					"ok":    m.(*pb.MessageResponse).GetOk(),
+					"bytes": m.(*pb.MessageResponse).GetBytes(),
+					"error": err.Error(),
+				},
+				"error": err.Error(),
+			}).Message("[recv] stream RPC logger -- failed to write log message").Build(),
+		)
+		return err
+	}
+
+	// server response is OK, register this event
+	w.logger.Log(
+		log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Metadata(log.Field{
+			"id": m.(*pb.MessageResponse).GetReqID(),
+			"response": log.Field{
+				"ok":    m.(*pb.MessageResponse).GetOk(),
+				"bytes": m.(*pb.MessageResponse).GetBytes(),
+			},
+		}).Message("[recv] stream RPC logger -- registering server response").Build(),
+	)
+
+	return err
+
 }

@@ -21,17 +21,19 @@ var (
 // which captures inbound / outbound interactions with the service
 func UnaryServerLogging(logger log.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("recv").Message("unary RPC -- " + info.FullMethod).Build())
+		method := info.FullMethod
+
+		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC -- " + method).Build())
 
 		res, err := handler(ctx, req)
 
 		if err != nil {
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("Log").Message("unary RPC -- message handling failed with an error").Metadata(log.Field{
+			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- message handling failed with an error").Metadata(log.Field{
 				"error":  err.Error(),
-				"method": info.FullMethod,
+				"method": method,
 			}).Build())
 		} else {
-			logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("Log").Message("unary RPC -- " + info.FullMethod).Metadata(log.Field{
+			logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- " + method).Metadata(log.Field{
 				"id": res.(*pb.MessageResponse).GetReqID(),
 				"ok": res.(*pb.MessageResponse).GetOk(),
 			}).Build())

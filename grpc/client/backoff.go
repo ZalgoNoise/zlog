@@ -25,7 +25,7 @@ const (
 
 type streamFunc func(chan error)
 type logFunc func(*log.LogMessage, chan error)
-type BackoffFunc func(attempt uint) time.Duration
+type BackoffFunc func(uint) time.Duration
 
 // ExpBackoff struct defines the elements of an Exponential Backoff module,
 // which is configured by setting a time.Duration deadline and by registering
@@ -50,12 +50,26 @@ type ExpBackoff struct {
 	wait        time.Duration
 	call        interface{}
 	errCh       chan error
-	exit        *chan struct{}
 	msg         []*log.LogMessage
 	backoffFunc BackoffFunc
 	locked      bool
 	mu          sync.Mutex
 }
+
+// type Retry interface {
+// 	Increment()
+// 	Wait() (func(), error)
+// 	WaitContext(ctx context.Context) (func(), error)
+// 	Register(call interface{}, errCh chan error)
+// 	Time(t time.Duration)
+// 	AddMessage(msg *log.LogMessage)
+// 	Counter() int
+// 	Max() string
+// 	Current() string
+// 	Lock()
+// 	Unlock()
+// 	IsLocked() bool
+// }
 
 func LinearBackoff() BackoffFunc {
 	return func(attempt uint) time.Duration {
@@ -91,16 +105,13 @@ func NewBackoff() *ExpBackoff {
 // Increment method will increase the wait time exponentially, on each iteration.
 //
 // It's chained with a Wait() call right after.
-func (b *ExpBackoff) Increment() *ExpBackoff {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
+func (b *ExpBackoff) Increment() error {
 	if b.locked {
-		return b
+		return ErrBackoffLocked
 	}
 	b.counter = b.counter + 1
 	b.wait = b.backoffFunc(b.counter)
-	return b
+	return nil
 }
 
 // Wait method will wait for the currently set wait time, if the module is unlocked.
@@ -111,14 +122,15 @@ func (b *ExpBackoff) Increment() *ExpBackoff {
 // If the waiting time is grater than the deadline set, it will return with an
 // ErrFailedRetry
 func (b *ExpBackoff) Wait() (func(), error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
 
 	if b.locked {
 		return nil, ErrBackoffLocked
 	}
 	if b.wait <= b.max {
-		b.Lock()
+		ok := b.TryLock()
+		if !ok {
+			return nil, ErrBackoffLocked
+		}
 		defer b.Unlock()
 
 		timer := time.NewTimer(b.wait)
@@ -149,14 +161,15 @@ func (b *ExpBackoff) Wait() (func(), error) {
 }
 
 func (b *ExpBackoff) WaitContext(ctx context.Context) (func(), error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
 
 	if b.locked {
 		return nil, ErrBackoffLocked
 	}
 	if b.wait <= b.max {
-		b.Lock()
+		ok := b.TryLock()
+		if !ok {
+			return nil, ErrBackoffLocked
+		}
 		defer b.Unlock()
 
 		timer := time.NewTimer(b.wait)
@@ -194,7 +207,8 @@ func (b *ExpBackoff) WaitContext(ctx context.Context) (func(), error) {
 
 // Register method will take in a function with the same signature as a stream() function
 // and the error channel of the gRPC Log Client; and returns a pointer to itself for method chaining
-func (b *ExpBackoff) Register(call interface{}, errCh chan error) *ExpBackoff {
+func (b *ExpBackoff) Register(call interface{}, errCh chan error) {
+
 	switch call.(type) {
 	case logFunc:
 		b.call = call.(logFunc)
@@ -203,28 +217,31 @@ func (b *ExpBackoff) Register(call interface{}, errCh chan error) *ExpBackoff {
 	default:
 	}
 	b.errCh = errCh
-	return b
+	return
 }
 
-// WithDone method will register a gRPC Log Client's done channel, and returns a pointer to
-// itself for chaining
-func (b *ExpBackoff) WithDone(done *chan struct{}) *ExpBackoff {
-	b.exit = done
-	return b
-}
+// // WithDone method will register a gRPC Log Client's done channel, and returns a pointer to
+// // itself for chaining
+// func (b *ExpBackoff) WithDone(done *chan struct{}) {
+
+// 	b.exit = done
+// 	return
+// }
 
 // Time method will set the ExpBackoff's deadline, and returns a pointer to
 // itself for chaining
-func (b *ExpBackoff) Time(t time.Duration) *ExpBackoff {
+func (b *ExpBackoff) Time(t time.Duration) {
+
 	b.max = t
-	return b
+	return
 }
 
 // AddMessage method will append a new message to the exponential backoff's
 // message queue
-func (b *ExpBackoff) AddMessage(msg *log.LogMessage) *ExpBackoff {
+func (b *ExpBackoff) AddMessage(msg *log.LogMessage) {
+
 	b.msg = append(b.msg, msg)
-	return b
+	return
 }
 
 // Counter method will return the current amount of retries since the connection
@@ -246,13 +263,20 @@ func (b *ExpBackoff) Current() string {
 // Lock method will set the ExpBackoff's locked element to true, preventing future calls
 // from proceeding.
 func (b *ExpBackoff) Lock() {
+	b.mu.Lock()
 	b.locked = true
 }
 
 // Unlock method will set the ExpBackoff's locked element to false, allowing future calls
 // to proceed.
 func (b *ExpBackoff) Unlock() {
+	b.mu.Unlock()
 	b.locked = false
+}
+
+func (b *ExpBackoff) TryLock() bool {
+	b.locked = b.mu.TryLock()
+	return b.locked
 }
 
 // IsLocked method will return the ExpBackoff's locked status

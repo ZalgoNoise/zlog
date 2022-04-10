@@ -18,7 +18,10 @@ var (
 	ErrBackoffLocked error = errors.New("operations locked during exponential backoff")
 )
 
-const defaultRetryTime time.Duration = time.Second * 30
+const (
+	defaultRetryTime   time.Duration = time.Second * 30
+	defaultWaitBetween time.Duration = time.Second * 3
+)
 
 type streamFunc func(chan error)
 type logFunc func(*log.LogMessage, chan error)
@@ -54,11 +57,25 @@ type ExpBackoff struct {
 	mu          sync.Mutex
 }
 
-func ExponentialBackoff(attempt uint) time.Duration {
-	return time.Millisecond * time.Duration(
-		int64(math.Pow(2, float64(attempt)))+rand.New(
-			rand.NewSource(time.Now().UnixNano())).Int63n(1000),
-	)
+func LinearBackoff() BackoffFunc {
+	return func(attempt uint) time.Duration {
+		return defaultWaitBetween
+	}
+}
+
+func IncrementalBackoff(scalar time.Duration) BackoffFunc {
+	return func(attempt uint) time.Duration {
+		return scalar * time.Duration((1<<attempt)>>1)
+	}
+}
+
+func ExponentialBackoff() BackoffFunc {
+	return func(attempt uint) time.Duration {
+		return time.Millisecond * time.Duration(
+			int64(math.Pow(2, float64(attempt)))+rand.New(
+				rand.NewSource(time.Now().UnixNano())).Int63n(1000),
+		)
+	}
 }
 
 // NewBackoff function initializes a simple exponential backoff module with
@@ -66,7 +83,7 @@ func ExponentialBackoff(attempt uint) time.Duration {
 func NewBackoff() *ExpBackoff {
 	b := &ExpBackoff{
 		max:         defaultRetryTime,
-		backoffFunc: ExponentialBackoff,
+		backoffFunc: ExponentialBackoff(),
 	}
 	return b
 }

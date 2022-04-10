@@ -64,6 +64,7 @@ type GRPCLogClient struct {
 	opts  []grpc.DialOption
 	msgCh chan *log.LogMessage
 	done  chan struct{}
+	errCh chan error
 
 	svcLogger log.Logger
 	backoff   *Backoff
@@ -84,6 +85,13 @@ type gRPCLogClientBuilder struct {
 	isUnary      bool
 	backoff      *Backoff
 	svcLogger    log.Logger
+}
+
+// clientInterceptors struct is a placeholder for different interceptors to be added
+// to the GRPCLogServer
+type clientInterceptors struct {
+	streamItcp map[string]grpc.StreamClientInterceptor
+	unaryItcp  map[string]grpc.UnaryClientInterceptor
 }
 
 func (b *gRPCLogClientBuilder) build() *GRPCLogClient {
@@ -111,21 +119,20 @@ func (b *gRPCLogClientBuilder) build() *GRPCLogClient {
 		opts = append(opts, sItcp)
 	}
 
-	return &GRPCLogClient{
+	client := &GRPCLogClient{
 		addr:      b.addr,
 		opts:      append(b.opts, opts...),
 		msgCh:     make(chan *log.LogMessage),
 		done:      make(chan struct{}),
+		errCh:     make(chan error),
 		svcLogger: b.svcLogger,
 		backoff:   b.backoff,
 	}
-}
 
-// clientInterceptors struct is a placeholder for different interceptors to be added
-// to the GRPCLogServer
-type clientInterceptors struct {
-	streamItcp map[string]grpc.StreamClientInterceptor
-	unaryItcp  map[string]grpc.UnaryClientInterceptor
+	client.backoff.init(b, client)
+
+	return client
+
 }
 
 func newGRPCLogClient(confs ...LogClientConfig) *gRPCLogClientBuilder {
@@ -161,37 +168,27 @@ func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 	// check input type -- create an appropriate GRPCLogger
 	if builder.isUnary {
 		client.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Unary gRPC client").Build())
+
 		return newUnaryLogger(client)
 	} else {
 		client.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Stream gRPC client").Build())
+
 		return newStreamLogger(client)
 	}
 }
 
 func newUnaryLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
-	errCh := make(chan error)
-
-	// register log() function and error channel in the backoff module
-	var logF logFunc = c.log
-	c.backoff.Register(logF, errCh)
-
 	// launch log listener in a goroutine
-	go c.listen(errCh)
+	go c.listen()
 
-	return c, errCh
+	return c, c.errCh
 }
 
 func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
-	errCh := make(chan error)
-
-	// register stream() function and error channel in the backoff module
-	var streamF streamFunc = c.stream
-	c.backoff.Register(streamF, errCh)
-
 	// launch log listener in a goroutine
-	go c.stream(errCh)
+	go c.stream()
 
-	return c, errCh
+	return c, c.errCh
 }
 
 // connect method will iterate the connections map and dial each remote
@@ -218,12 +215,18 @@ func (c GRPCLogClient) connect() error {
 
 		// handle dial errors
 		if err != nil {
-			retryErr := c.handleConnErrors(err, remote)
+			retryErr := c.backoff.UnaryBackoffHandler(err, c.svcLogger)
 			if errors.Is(retryErr, ErrBackoffLocked) {
 				return retryErr
 			} else if errors.Is(retryErr, ErrFailedConn) {
 				return retryErr
 			} else {
+				c.svcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("retry").Metadata(log.Field{
+					"error": err.Error(),
+				}).Message("removing address after failed dial attempt").Build())
+
+				// address is removed from connections map
+				c.addr.Unset(remote)
 				continue
 			}
 		}
@@ -247,59 +250,19 @@ func (c GRPCLogClient) connect() error {
 	return nil
 }
 
-func (c GRPCLogClient) handleConnErrors(err error, remote string) error {
-	// retry with backoff
-	c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("retry").Metadata(log.Field{
-		"error":      err,
-		"iterations": c.backoff.Counter(),
-		"maxWait":    c.backoff.Max(),
-		"curWait":    c.backoff.Current(),
-	}).Message("retrying connection").Build())
-
-	// backoff locked -- skip retry until unlocked
-	if c.backoff.IsLocked() {
-		return ErrBackoffLocked
-	} else {
-
-		// backoff unlocked -- increment timer and wait
-		// the Wait() method returns a registered func() to execute
-		// and an error in case the backoff reaches its deadline
-		if err := c.backoff.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
-			return err
-		}
-
-		call, err := c.backoff.Wait()
-
-		// handle backoff deadline errors
-		if err != nil && err != ErrBackoffLocked {
-			c.svcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("retry").Metadata(log.Field{
-				"error": err.Error(),
-			}).Message("removing address after failed dial attempt").Build())
-
-			// address is removed from connections map
-			c.addr.Unset(remote)
-			return err
-		}
-
-		// execute registered call
-		go call()
-		return ErrFailedConn
-	}
-}
-
 // listen method is middleware to allow the backoff module to register an
 // action call (in this case log()), which will be retried in case of failure
-func (c GRPCLogClient) listen(errCh chan error) {
+func (c GRPCLogClient) listen() {
 	for {
 		msg := <-c.msgCh
 		c.backoff.AddMessage(msg)
-		go c.log(msg, errCh)
+		go c.log(msg)
 	}
 }
 
 // log method is a go-routine function which will send all configured connections
 // a Log() request.
-func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
+func (c GRPCLogClient) log(msg *log.LogMessage) {
 
 	// establish connections
 	err := c.connect()
@@ -315,7 +278,7 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 
 		// any other errors will be sent to the error channel and logged locally;
 		// then cancelling this action
-		errCh <- err
+		c.errCh <- err
 
 		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
 			"error": err.Error(),
@@ -349,20 +312,19 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 		// if the server returns any error, it's sent to the error channel, context cancelled,
 		// and then return
 		if err != nil {
-			errCh <- err
+			c.errCh <- err
 			cancel()
 			return
 		}
 
 		// message sent; response retrieved; context is cancelled.
 		cancel()
-
 	}
 }
 
 // stream method is a go-routine function which will establish a connection with
 // all configured addresses to create a Stream().
-func (c GRPCLogClient) stream(errCh chan error) {
+func (c GRPCLogClient) stream() {
 
 	localErr := make(chan error)
 
@@ -380,7 +342,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 		// any other errors will be sent to the error channel and logged locally;
 		// then cancelling this action
-		errCh <- err
+		c.errCh <- err
 
 		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
 			"error": err.Error(),
@@ -414,12 +376,12 @@ func (c GRPCLogClient) stream(errCh chan error) {
 
 			// if it's connection refused or EOF, kick-off the backoff routine
 			if errCode := status.Code(err); errCode == codes.Unavailable || errors.Is(err, io.EOF) {
-				c.streamBackoff(errCh, cancel)
+				c.backoff.StreamBackoffHandler(c.errCh, cancel, c.svcLogger, c.done)
 			}
 
 			// otherwise, error is sent to the error channel, conn closed, context cancelled,
 			// error logged and then return
-			errCh <- err
+			c.errCh <- err
 			conn.Close()
 			cancel()
 
@@ -448,52 +410,10 @@ func (c GRPCLogClient) stream(errCh chan error) {
 			c.handleStreamMessages(
 				stream,
 				localErr,
-				errCh,
 				cancel,
 			)
 		}()
 	}
-}
-
-// streamBackoff method is the Stream gRPC Log Client's standard backoff flow, which
-// is used when setting up a stream and when receiving an error from the gRPC Log Server
-func (c GRPCLogClient) streamBackoff(
-	errCh chan error,
-	cancel context.CancelFunc,
-) {
-	// increment timer and wait
-	// the Wait() method returns a registered func() to execute
-	// and an error in case the backoff reaches its deadline
-	if err := c.backoff.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
-		errCh <- err
-		return
-	}
-
-	call, err := c.backoff.Wait()
-
-	// handle backoff deadline errors by closing the stream
-	if err != nil {
-		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-			"error":      err.Error(),
-			"numRetries": c.backoff.Counter(),
-		}).Message("closing stream after too many failed attempts to reconnect").Build())
-
-		c.done <- struct{}{}
-		errCh <- ErrFailedRetry
-		cancel()
-		return
-	}
-
-	// otherwise the stream will be recreated
-	c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-		"error":      err,
-		"iterations": c.backoff.Counter(),
-		"maxWait":    c.backoff.Max(),
-		"curWait":    c.backoff.Current(),
-	}).Message("retrying connection").Build())
-
-	go call()
-	return
 }
 
 // handleStreamService method is in place to break-down stream()'s functionality
@@ -550,7 +470,6 @@ func (c GRPCLogClient) handleStreamService(
 func (c GRPCLogClient) handleStreamMessages(
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
-	errCh chan error,
 	cancel context.CancelFunc,
 ) {
 	for {
@@ -588,22 +507,22 @@ func (c GRPCLogClient) handleStreamMessages(
 					"error": err.Error(),
 				}).Message("stream timed-out -- starting a new connection").Build())
 
-				go c.stream(errCh)
+				go c.stream()
 
 				// Connection Refused or EOF error -- trigger backoff routine
 			} else if errCode := status.Code(err); errCode == codes.Unavailable || errors.Is(err, io.EOF) {
 
-				c.streamBackoff(errCh, cancel)
+				c.backoff.StreamBackoffHandler(c.errCh, cancel, c.svcLogger, c.done)
 
 				// Bad Response -- send to error channel, continue
 			} else if errors.Is(err, ErrBadResponse) {
 
-				errCh <- err
+				c.errCh <- err
 				continue
 
 				// default -- send to error channel, close the client
 			} else {
-				errCh <- err
+				c.errCh <- err
 				defer c.Close()
 
 				c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{

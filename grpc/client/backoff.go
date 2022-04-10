@@ -44,7 +44,7 @@ type BackoffFunc func(uint) time.Duration
 // Notes on exponential backoff: https://en.wikipedia.org/wiki/Exponential_backoff
 //
 //
-type ExpBackoff struct {
+type Backoff struct {
 	counter     uint
 	max         time.Duration
 	wait        time.Duration
@@ -94,8 +94,8 @@ func ExponentialBackoff() BackoffFunc {
 
 // NewBackoff function initializes a simple exponential backoff module with
 // a set default retry time of 300 seconds
-func NewBackoff() *ExpBackoff {
-	b := &ExpBackoff{
+func NewBackoff() *Backoff {
+	b := &Backoff{
 		max:         defaultRetryTime,
 		backoffFunc: ExponentialBackoff(),
 	}
@@ -105,7 +105,7 @@ func NewBackoff() *ExpBackoff {
 // Increment method will increase the wait time exponentially, on each iteration.
 //
 // It's chained with a Wait() call right after.
-func (b *ExpBackoff) Increment() error {
+func (b *Backoff) Increment() error {
 	if b.locked {
 		return ErrBackoffLocked
 	}
@@ -121,7 +121,7 @@ func (b *ExpBackoff) Increment() error {
 //
 // If the waiting time is grater than the deadline set, it will return with an
 // ErrFailedRetry
-func (b *ExpBackoff) Wait() (func(), error) {
+func (b *Backoff) Wait() (func(), error) {
 
 	if b.locked {
 		return nil, ErrBackoffLocked
@@ -160,7 +160,7 @@ func (b *ExpBackoff) Wait() (func(), error) {
 
 }
 
-func (b *ExpBackoff) WaitContext(ctx context.Context) (func(), error) {
+func (b *Backoff) WaitContext(ctx context.Context) (func(), error) {
 
 	if b.locked {
 		return nil, ErrBackoffLocked
@@ -207,7 +207,7 @@ func (b *ExpBackoff) WaitContext(ctx context.Context) (func(), error) {
 
 // Register method will take in a function with the same signature as a stream() function
 // and the error channel of the gRPC Log Client; and returns a pointer to itself for method chaining
-func (b *ExpBackoff) Register(call interface{}, errCh chan error) {
+func (b *Backoff) Register(call interface{}, errCh chan error) {
 
 	switch call.(type) {
 	case logFunc:
@@ -220,25 +220,16 @@ func (b *ExpBackoff) Register(call interface{}, errCh chan error) {
 	return
 }
 
-// // WithDone method will register a gRPC Log Client's done channel, and returns a pointer to
-// // itself for chaining
-// func (b *ExpBackoff) WithDone(done *chan struct{}) {
-
-// 	b.exit = done
-// 	return
-// }
-
 // Time method will set the ExpBackoff's deadline, and returns a pointer to
 // itself for chaining
-func (b *ExpBackoff) Time(t time.Duration) {
-
+func (b *Backoff) Time(t time.Duration) {
 	b.max = t
 	return
 }
 
 // AddMessage method will append a new message to the exponential backoff's
 // message queue
-func (b *ExpBackoff) AddMessage(msg *log.LogMessage) {
+func (b *Backoff) AddMessage(msg *log.LogMessage) {
 
 	b.msg = append(b.msg, msg)
 	return
@@ -246,40 +237,40 @@ func (b *ExpBackoff) AddMessage(msg *log.LogMessage) {
 
 // Counter method will return the current amount of retries since the connection
 // failed to be established
-func (b *ExpBackoff) Counter() int {
+func (b *Backoff) Counter() int {
 	return int(b.counter)
 }
 
 // Max method will return the ExpBackoff's deadline, in a string format
-func (b *ExpBackoff) Max() string {
+func (b *Backoff) Max() string {
 	return b.max.String()
 }
 
 // Current method will return the current ExpBackoff's wait time, in a string format
-func (b *ExpBackoff) Current() string {
+func (b *Backoff) Current() string {
 	return b.wait.String()
 }
 
 // Lock method will set the ExpBackoff's locked element to true, preventing future calls
 // from proceeding.
-func (b *ExpBackoff) Lock() {
+func (b *Backoff) Lock() {
 	b.mu.Lock()
 	b.locked = true
 }
 
 // Unlock method will set the ExpBackoff's locked element to false, allowing future calls
 // to proceed.
-func (b *ExpBackoff) Unlock() {
+func (b *Backoff) Unlock() {
 	b.mu.Unlock()
 	b.locked = false
 }
 
-func (b *ExpBackoff) TryLock() bool {
+func (b *Backoff) TryLock() bool {
 	b.locked = b.mu.TryLock()
 	return b.locked
 }
 
 // IsLocked method will return the ExpBackoff's locked status
-func (b *ExpBackoff) IsLocked() bool {
+func (b *Backoff) IsLocked() bool {
 	return b.locked
 }

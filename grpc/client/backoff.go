@@ -16,7 +16,7 @@ var (
 	ErrBackoffLocked error = errors.New("operations locked during exponential backoff")
 )
 
-const defaultRetryTime time.Duration = time.Second * 300
+const defaultRetryTime time.Duration = time.Second * 30
 
 type streamFunc func(chan error)
 type logFunc func(*log.LogMessage, chan error)
@@ -109,18 +109,16 @@ func (b *ExpBackoff) Wait() (func(), error) {
 
 }
 
-// RegisterStream method will take in a function with the same signature as a stream() function
+// Register method will take in a function with the same signature as a stream() function
 // and the error channel of the gRPC Log Client; and returns a pointer to itself for method chaining
-func (b *ExpBackoff) RegisterStream(call streamFunc, errCh chan error) *ExpBackoff {
-	b.call = call
-	b.errCh = errCh
-	return b
-}
-
-// RegisterLog method will take in a function with the same signature as a log() function
-// and the error channel of the gRPC Log Client; and returns a pointer to itself for method chaining
-func (b *ExpBackoff) RegisterLog(call logFunc, errCh chan error) *ExpBackoff {
-	b.call = call
+func (b *ExpBackoff) Register(call interface{}, errCh chan error) *ExpBackoff {
+	switch call.(type) {
+	case logFunc:
+		b.call = call.(logFunc)
+	case streamFunc:
+		b.call = call.(streamFunc)
+	default:
+	}
 	b.errCh = errCh
 	return b
 }

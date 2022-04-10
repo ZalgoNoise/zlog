@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 	"io"
-	"regexp"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
 )
 
 var (
-	ErrContextCancelledRegexp = regexp.MustCompile(`rpc error: code = Canceled desc = context canceled`)
+// ErrContextCancelledRegexp = regexp.MustCompile(`rpc error: code = Canceled desc = context canceled`)
 )
 
 // UnaryServerLogging returns a new unary server interceptor that adds a gRPC Server Logger
@@ -152,7 +153,7 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 		}
 
 		// handle context cancelled
-		if ErrContextCancelledRegexp.MatchString(err.Error()) {
+		if errCode := status.Code(err); errCode == codes.DeadlineExceeded {
 			w.logger.Log(log.NewMessage().Level(log.LLInfo).Prefix("gRPC").Sub("logger").Message("[recv] stream RPC logger -- received context closure from client").Metadata(log.Field{
 				"error":  err.Error(),
 				"method": w.method,

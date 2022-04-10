@@ -213,15 +213,18 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 //
 // If unset (or set as 0), it will be configured with defaultRetryTime.
 func WithBackoff(t time.Duration) LogClientConfig {
+	b := NewBackoff()
+
 	// default config
 	if t == 0 || t == defaultRetryTime {
 		return &LSExpBackoff{
-			backoff: NewBackoff().Time(defaultRetryTime),
+			backoff: b,
 		}
 	}
 
+	b.Time(t)
 	return &LSExpBackoff{
-		backoff: NewBackoff().Time(t),
+		backoff: b,
 	}
 }
 

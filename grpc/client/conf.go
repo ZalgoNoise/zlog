@@ -29,14 +29,14 @@ var (
 			WithGRPCOpts(),
 			Insecure(),
 			WithLogger(),
-			WithBackoff(0),
+			WithBackoff(0, BackoffExponential()),
 		},
 	}
 
 	LogClientConfigs = map[int]LogClientConfig{
 		0: defaultConfig,
-		1: WithBackoff(0),
-		2: WithBackoff(time.Second * 30),
+		1: WithBackoff(0, BackoffExponential()),
+		2: WithBackoff(time.Second*30, BackoffExponential()),
 	}
 
 	DefaultCfg     LogClientConfig = LogClientConfigs[0] // placeholder for an initialized default LogClientConfig
@@ -209,20 +209,33 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 }
 
 // WithBackoff function will take in a time.Duration value to set as the
-// exponential backoff module's retry deadline.
+// exponential backoff module's retry deadline, and a BackoffFunc to
+// customize the backoff pattern
 //
-// If unset (or set as 0), it will be configured with defaultRetryTime.
-func WithBackoff(t time.Duration) LogClientConfig {
+// If deadline is set to 0 and no BackoffFunc is provided, then no backoff
+// logic is applied.
+//
+// Otherwise, defaults are set:
+//   - if a BackoffFunc is set but deadline is zero: default retry time is set
+//   - if no BackoffFunc is provided, but a deadline is set: Exponential with input deadline.
+func WithBackoff(deadline time.Duration, backoffFunc BackoffFunc) LogClientConfig {
 	b := NewBackoff()
 
-	// default config
-	if t == 0 || t == defaultRetryTime {
+	if deadline == 0 && backoffFunc == nil {
+		b.BackoffFunc(NoBackoff())
 		return &LSExpBackoff{
 			backoff: b,
 		}
+	} else if backoffFunc != nil {
+		b.Time(defaultRetryTime)
+	} else {
+		b.Time(deadline)
 	}
 
-	b.Time(t)
+	if backoffFunc == nil {
+		b.BackoffFunc(BackoffExponential())
+	}
+
 	return &LSExpBackoff{
 		backoff: b,
 	}

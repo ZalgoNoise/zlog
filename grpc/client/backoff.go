@@ -23,8 +23,8 @@ const (
 	defaultWaitBetween time.Duration = time.Second * 3
 )
 
-type streamFunc func(chan error)
-type logFunc func(*log.LogMessage, chan error)
+type streamFunc func()
+type logFunc func(*log.LogMessage)
 type BackoffFunc func(uint) time.Duration
 
 // ExpBackoff struct defines the elements of an Exponential Backoff module,
@@ -49,27 +49,11 @@ type Backoff struct {
 	max         time.Duration
 	wait        time.Duration
 	call        interface{}
-	errCh       chan error
 	msg         []*log.LogMessage
 	backoffFunc BackoffFunc
 	locked      bool
 	mu          sync.Mutex
 }
-
-// type Retry interface {
-// 	Increment()
-// 	Wait() (func(), error)
-// 	WaitContext(ctx context.Context) (func(), error)
-// 	Register(call interface{}, errCh chan error)
-// 	Time(t time.Duration)
-// 	AddMessage(msg *log.LogMessage)
-// 	Counter() int
-// 	Max() string
-// 	Current() string
-// 	Lock()
-// 	Unlock()
-// 	IsLocked() bool
-// }
 
 func LinearBackoff() BackoffFunc {
 	return func(attempt uint) time.Duration {
@@ -93,11 +77,25 @@ func ExponentialBackoff() BackoffFunc {
 }
 
 // NewBackoff function initializes a simple exponential backoff module with
-// a set default retry time of 300 seconds
+// an exponential backoff with set default retry time of 30 seconds
 func NewBackoff() *Backoff {
 	b := &Backoff{
 		max:         defaultRetryTime,
 		backoffFunc: ExponentialBackoff(),
+		counter:     0,
+	}
+	return b
+}
+
+func (b *Backoff) init(cb *gRPCLogClientBuilder, c *GRPCLogClient) *Backoff {
+	if cb.isUnary {
+		// register log() function in the backoff module
+		var logF logFunc = c.log
+		b.Register(logF)
+	} else {
+		// register stream() function in the backoff module
+		var streamF streamFunc = c.stream
+		b.Register(streamF)
 	}
 	return b
 }
@@ -112,6 +110,10 @@ func (b *Backoff) Increment() error {
 	b.counter = b.counter + 1
 	b.wait = b.backoffFunc(b.counter)
 	return nil
+}
+
+func (b *Backoff) Flush() {
+	b.msg = []*log.LogMessage{}
 }
 
 // Wait method will wait for the currently set wait time, if the module is unlocked.
@@ -141,13 +143,13 @@ func (b *Backoff) Wait() (func(), error) {
 		switch v := b.call.(type) {
 		case streamFunc:
 			return func() {
-				v(b.errCh)
+				v()
 			}, nil
 		case logFunc:
 			list := b.msg
 			f := func() {
 				for _, msg := range list {
-					v(msg, b.errCh)
+					v(msg)
 				}
 			}
 			return f, nil
@@ -186,13 +188,14 @@ func (b *Backoff) WaitContext(ctx context.Context) (func(), error) {
 		switch v := b.call.(type) {
 		case streamFunc:
 			return func() {
-				v(b.errCh)
+				v()
 			}, err
 		case logFunc:
 			list := b.msg
+
 			f := func() {
 				for _, msg := range list {
-					v(msg, b.errCh)
+					v(msg)
 				}
 			}
 			return f, err
@@ -207,7 +210,7 @@ func (b *Backoff) WaitContext(ctx context.Context) (func(), error) {
 
 // Register method will take in a function with the same signature as a stream() function
 // and the error channel of the gRPC Log Client; and returns a pointer to itself for method chaining
-func (b *Backoff) Register(call interface{}, errCh chan error) {
+func (b *Backoff) Register(call interface{}) {
 
 	switch call.(type) {
 	case logFunc:
@@ -216,7 +219,83 @@ func (b *Backoff) Register(call interface{}, errCh chan error) {
 		b.call = call.(streamFunc)
 	default:
 	}
-	b.errCh = errCh
+	return
+}
+
+func (b *Backoff) UnaryBackoffHandler(err error, logger log.Logger) error {
+	// retry with backoff
+	logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("retry").Metadata(log.Field{
+		"error":      err,
+		"iterations": b.Counter(),
+		"maxWait":    b.Max(),
+		"curWait":    b.Current(),
+	}).Message("retrying connection").Build())
+
+	// backoff locked -- skip retry until unlocked
+	if b.IsLocked() {
+		return ErrBackoffLocked
+	} else {
+		// backoff unlocked -- increment timer and wait
+		// the Wait() method returns a registered func() to execute
+		// and an error in case the backoff reaches its deadline
+		if err := b.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
+			return err
+		}
+
+		call, err := b.Wait()
+
+		// handle backoff deadline errors
+		if err != nil && err != ErrBackoffLocked {
+			return err
+		}
+
+		// execute registered call and propagate cancelation across
+		// involved goroutines
+		go call()
+		return ErrFailedConn
+	}
+}
+
+// StreamBackoffHandler method is the Stream gRPC Log Client's standard backoff flow, which
+// is used when setting up a stream and when receiving an error from the gRPC Log Server
+func (b *Backoff) StreamBackoffHandler(
+	errCh chan error,
+	cancel context.CancelFunc,
+	logger log.Logger,
+	done chan struct{},
+) {
+	// increment timer and wait
+	// the Wait() method returns a registered func() to execute
+	// and an error in case the backoff reaches its deadline
+	if err := b.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
+		errCh <- err
+		return
+	}
+
+	call, err := b.Wait()
+
+	// handle backoff deadline errors by closing the stream
+	if err != nil {
+		logger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+			"error":      err.Error(),
+			"numRetries": b.Counter(),
+		}).Message("closing stream after too many failed attempts to reconnect").Build())
+
+		done <- struct{}{}
+		errCh <- ErrFailedRetry
+		cancel()
+		return
+	}
+
+	// otherwise the stream will be recreated
+	logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+		"error":      err,
+		"iterations": b.Counter(),
+		"maxWait":    b.Max(),
+		"curWait":    b.Current(),
+	}).Message("retrying connection").Build())
+
+	go call()
 	return
 }
 
@@ -237,8 +316,8 @@ func (b *Backoff) AddMessage(msg *log.LogMessage) {
 
 // Counter method will return the current amount of retries since the connection
 // failed to be established
-func (b *Backoff) Counter() int {
-	return int(b.counter)
+func (b *Backoff) Counter() uint {
+	return b.counter
 }
 
 // Max method will return the ExpBackoff's deadline, in a string format

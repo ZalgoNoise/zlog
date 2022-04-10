@@ -177,7 +177,8 @@ func newUnaryLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 
 	// register log() function and error channel in the backoff module
 	var logF logFunc = c.log
-	backoff.Register(logF, errCh).WithDone(&c.done)
+	backoff.Register(logF, errCh)
+	// backoff.WithDone(&c.done)
 
 	// launch log listener in a goroutine
 	go c.listen(errCh)
@@ -190,7 +191,8 @@ func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 
 	// register stream() function and error channel in the backoff module
 	var streamF streamFunc = c.stream
-	backoff.Register(streamF, errCh).WithDone(&c.done)
+	backoff.Register(streamF, errCh)
+	// backoff.WithDone(&c.done)
 
 	// launch log listener in a goroutine
 	go c.stream(errCh)
@@ -268,7 +270,11 @@ func (c GRPCLogClient) handleConnErrors(err error, remote string) error {
 		// backoff unlocked -- increment timer and wait
 		// the Wait() method returns a registered func() to execute
 		// and an error in case the backoff reaches its deadline
-		call, err := backoff.Increment().Wait()
+		if err := backoff.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
+			return err
+		}
+
+		call, err := backoff.Wait()
 
 		// handle backoff deadline errors
 		if err != nil && err != ErrBackoffLocked {
@@ -279,12 +285,11 @@ func (c GRPCLogClient) handleConnErrors(err error, remote string) error {
 			// address is removed from connections map
 			c.addr.Unset(remote)
 			return err
-		} else {
-
-			// execute registered call
-			go call()
-			return ErrFailedConn
 		}
+
+		// execute registered call
+		go call()
+		return ErrFailedConn
 	}
 }
 
@@ -318,11 +323,9 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 		// then cancelling this action
 		errCh <- err
 
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
-				"error": err.Error(),
-			}).Message("failed to connect").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("log").Metadata(log.Field{
+			"error": err.Error(),
+		}).Message("failed to connect").Build())
 
 		return
 	}
@@ -332,22 +335,18 @@ func (c GRPCLogClient) log(msg *log.LogMessage, errCh chan error) {
 		defer conn.Close()
 		client := pb.NewLogServiceClient(conn)
 
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
-				"remote": remote,
-			}).Message("setting up log service with connection").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
+			"remote": remote,
+		}).Message("setting up log service with connection").Build())
 
 		// generate a new context with a timeout
 		bgCtx := context.Background()
 		ctx, cancel := context.WithTimeout(bgCtx, defaultTimeout)
 
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
-				"timeout": timeoutSeconds,
-				"remote":  remote,
-			}).Message("received a new log message to register").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("log").Metadata(log.Field{
+			"timeout": timeoutSeconds,
+			"remote":  remote,
+		}).Message("received a new log message to register").Build())
 
 		// send LogMessage to remote gRPC Log Server
 		// response is parsed by the interceptor; only the error is important
@@ -389,11 +388,9 @@ func (c GRPCLogClient) stream(errCh chan error) {
 		// then cancelling this action
 		errCh <- err
 
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"error": err.Error(),
-			}).Message("failed to connect").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+			"error": err.Error(),
+		}).Message("failed to connect").Build())
 
 		return
 	}
@@ -402,22 +399,18 @@ func (c GRPCLogClient) stream(errCh chan error) {
 	for remote, conn := range c.addr.Map() {
 		logClient := pb.NewLogServiceClient(conn)
 
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"remote": remote,
-			}).Message("setting up log service with connection").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+			"remote": remote,
+		}).Message("setting up log service with connection").Build())
 
 		// generate a new context with a timeout
 		bgCtx := context.Background()
 		ctx, cancel := context.WithTimeout(bgCtx, defaultStreamTimeout)
 
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"timeout": streamTimeoutSeconds,
-				"remote":  remote,
-			}).Message("setting request ID for long-lived connection").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+			"timeout": streamTimeoutSeconds,
+			"remote":  remote,
+		}).Message("setting request ID for long-lived connection").Build())
 
 		// setup a stream with the remote gRPC Log Server
 		stream, err := logClient.LogStream(ctx)
@@ -436,12 +429,10 @@ func (c GRPCLogClient) stream(errCh chan error) {
 			conn.Close()
 			cancel()
 
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-					"remote": remote,
-					"error":  err.Error(),
-				}).Message("failed to setup stream connection with gRPC server").Build(),
-			)
+			c.svcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+				"remote": remote,
+				"error":  err.Error(),
+			}).Message("failed to setup stream connection with gRPC server").Build())
 
 			return
 		}
@@ -479,16 +470,19 @@ func (c GRPCLogClient) streamBackoff(
 	// increment timer and wait
 	// the Wait() method returns a registered func() to execute
 	// and an error in case the backoff reaches its deadline
-	call, err := backoff.Increment().Wait()
+	if err := backoff.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
+		errCh <- err
+		return
+	}
+
+	call, err := backoff.Wait()
 
 	// handle backoff deadline errors by closing the stream
 	if err != nil {
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-				"error":      err.Error(),
-				"numRetries": backoff.Counter(),
-			}).Message("closing stream after too many failed attempts to reconnect").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+			"error":      err.Error(),
+			"numRetries": backoff.Counter(),
+		}).Message("closing stream after too many failed attempts to reconnect").Build())
 
 		c.done <- struct{}{}
 		errCh <- ErrFailedRetry
@@ -497,14 +491,12 @@ func (c GRPCLogClient) streamBackoff(
 	}
 
 	// otherwise the stream will be recreated
-	c.svcLogger.Log(
-		log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-			"error":      err,
-			"iterations": backoff.Counter(),
-			"maxWait":    backoff.Max(),
-			"curWait":    backoff.Current(),
-		}).Message("retrying connection").Build(),
-	)
+	c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+		"error":      err,
+		"iterations": backoff.Counter(),
+		"maxWait":    backoff.Max(),
+		"curWait":    backoff.Current(),
+	}).Message("retrying connection").Build())
 
 	go call()
 	return
@@ -598,11 +590,9 @@ func (c GRPCLogClient) handleStreamMessages(
 			// Stream Deadline Exceeded -- reconnect to gRPC Log Server
 			if errCode := status.Code(err); errCode == codes.DeadlineExceeded {
 
-				c.svcLogger.Log(
-					log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-						"error": err.Error(),
-					}).Message("stream timed-out -- starting a new connection").Build(),
-				)
+				c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+					"error": err.Error(),
+				}).Message("stream timed-out -- starting a new connection").Build())
 
 				go c.stream(errCh)
 
@@ -622,11 +612,9 @@ func (c GRPCLogClient) handleStreamMessages(
 				errCh <- err
 				defer c.Close()
 
-				c.svcLogger.Log(
-					log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
-						"error": err.Error(),
-					}).Message("critical error -- closing stream").Build(),
-				)
+				c.svcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+					"error": err.Error(),
+				}).Message("critical error -- closing stream").Build())
 
 			}
 			return
@@ -697,23 +685,17 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 		// if not, skip this writer and register this event
 		if r, ok := remote.(*address.ConnAddr); !ok {
 
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLWarn).
-					Prefix("gRPC").Sub("SetOuts()").
-					Metadata(log.Field{"error": ErrBadWriter.Error()}).
-					Message("invalid writer warning").Build(),
-			)
+			c.svcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("SetOuts()").Metadata(log.Field{
+				"error": ErrBadWriter.Error(),
+			}).Message("invalid writer warning").Build())
 
 			// writer is valid -- add it to connections map; register this event
 		} else {
 			c.addr.Add(r.Keys()...)
 
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLDebug).
-					Prefix("gRPC").Sub("SetOuts()").
-					Metadata(log.Field{"addrs": r.Keys()}).
-					Message("added address to connection address map").Build(),
-			)
+			c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("SetOuts()").Metadata(log.Field{
+				"addrs": r.Keys(),
+			}).Message("added address to connection address map").Build())
 		}
 	}
 
@@ -753,23 +735,17 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 		// if not, skip this writer and register this event
 		if r, ok := remote.(*address.ConnAddr); !ok {
 
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLWarn).
-					Prefix("gRPC").Sub("AddOuts()").
-					Metadata(log.Field{"error": ErrBadWriter.Error()}).
-					Message("invalid writer warning").Build(),
-			)
+			c.svcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("AddOuts()").Metadata(log.Field{
+				"error": ErrBadWriter.Error(),
+			}).Message("invalid writer warning").Build())
 
 			// writer is valid -- add it to connections map; register this event
 		} else {
 			c.addr.Add(r.Keys()...)
 
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLDebug).
-					Prefix("gRPC").Sub("AddOuts()").
-					Metadata(log.Field{"addrs": r.Keys()}).
-					Message("added address to connection address map").Build(),
-			)
+			c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("AddOuts()").Metadata(log.Field{
+				"addrs": r.Keys(),
+			}).Message("added address to connection address map").Build())
 		}
 	}
 

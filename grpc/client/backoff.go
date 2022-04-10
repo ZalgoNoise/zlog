@@ -55,19 +55,25 @@ type Backoff struct {
 	mu          sync.Mutex
 }
 
-func LinearBackoff() BackoffFunc {
+func NoBackoff() BackoffFunc {
+	return func(attempt uint) time.Duration {
+		return 0
+	}
+}
+
+func BackoffLinear() BackoffFunc {
 	return func(attempt uint) time.Duration {
 		return defaultWaitBetween
 	}
 }
 
-func IncrementalBackoff(scalar time.Duration) BackoffFunc {
+func BackoffIncremental(scalar time.Duration) BackoffFunc {
 	return func(attempt uint) time.Duration {
 		return scalar * time.Duration((1<<attempt)>>1)
 	}
 }
 
-func ExponentialBackoff() BackoffFunc {
+func BackoffExponential() BackoffFunc {
 	return func(attempt uint) time.Duration {
 		return time.Millisecond * time.Duration(
 			int64(math.Pow(2, float64(attempt)))+rand.New(
@@ -81,7 +87,7 @@ func ExponentialBackoff() BackoffFunc {
 func NewBackoff() *Backoff {
 	b := &Backoff{
 		max:         defaultRetryTime,
-		backoffFunc: ExponentialBackoff(),
+		backoffFunc: BackoffExponential(),
 		counter:     0,
 	}
 	return b
@@ -100,20 +106,8 @@ func (b *Backoff) init(cb *gRPCLogClientBuilder, c *GRPCLogClient) *Backoff {
 	return b
 }
 
-// Increment method will increase the wait time exponentially, on each iteration.
-//
-// It's chained with a Wait() call right after.
-func (b *Backoff) Increment() error {
-	if b.locked {
-		return ErrBackoffLocked
-	}
-	b.counter = b.counter + 1
-	b.wait = b.backoffFunc(b.counter)
-	return nil
-}
-
-func (b *Backoff) Flush() {
-	b.msg = []*log.LogMessage{}
+func (b *Backoff) BackoffFunc(f BackoffFunc) {
+	b.backoffFunc = f
 }
 
 // Wait method will wait for the currently set wait time, if the module is unlocked.
@@ -128,12 +122,22 @@ func (b *Backoff) Wait() (func(), error) {
 	if b.locked {
 		return nil, ErrBackoffLocked
 	}
+
+	ok := b.TryLock()
+	if !ok {
+		return nil, ErrBackoffLocked
+	}
+	defer b.Unlock()
+
+	b.counter = b.counter + 1
+	b.wait = b.backoffFunc(b.counter)
+
+	// exit early
+	if b.wait == 0 {
+		return nil, ErrFailedConn
+	}
+
 	if b.wait <= b.max {
-		ok := b.TryLock()
-		if !ok {
-			return nil, ErrBackoffLocked
-		}
-		defer b.Unlock()
 
 		timer := time.NewTimer(b.wait)
 		select {
@@ -238,9 +242,9 @@ func (b *Backoff) UnaryBackoffHandler(err error, logger log.Logger) error {
 		// backoff unlocked -- increment timer and wait
 		// the Wait() method returns a registered func() to execute
 		// and an error in case the backoff reaches its deadline
-		if err := b.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
-			return err
-		}
+		// if err := b.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
+		// 	return err
+		// }
 
 		call, err := b.Wait()
 
@@ -267,10 +271,10 @@ func (b *Backoff) StreamBackoffHandler(
 	// increment timer and wait
 	// the Wait() method returns a registered func() to execute
 	// and an error in case the backoff reaches its deadline
-	if err := b.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
-		errCh <- err
-		return
-	}
+	// if err := b.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
+	// 	errCh <- err
+	// 	return
+	// }
 
 	call, err := b.Wait()
 

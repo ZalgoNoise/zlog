@@ -212,75 +212,34 @@ func (c GRPCLogClient) connect() error {
 	var liveConns int = 0
 
 	for idx, remote := range c.addr.Keys() {
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").
-				Metadata(log.Field{
-					"index": idx,
-					"addr":  remote,
-				}).
-				Message("connecting to remote").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").Metadata(log.Field{
+			"index": idx,
+			"addr":  remote,
+		}).Message("connecting to remote").Build())
 
 		var conn *grpc.ClientConn
 		conn, err := grpc.Dial(remote, c.opts...)
 
 		// handle dial errors
 		if err != nil {
-			// retry with backoff
-			c.svcLogger.Log(
-				log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").Metadata(log.Field{
-					"error":      err,
-					"iterations": backoff.Counter(),
-					"maxWait":    backoff.Max(),
-					"curWait":    backoff.Current(),
-				}).Message("retrying connection").Build(),
-			)
-
-			// backoff locked -- skip retry until unlocked
-			if backoff.IsLocked() {
-				return ErrBackoffLocked
+			retryErr := c.handleConnErrors(err, remote)
+			if errors.Is(retryErr, ErrBackoffLocked) {
+				return retryErr
+			} else if errors.Is(retryErr, ErrFailedConn) {
+				return retryErr
 			} else {
-
-				// backoff unlocked -- increment timer and wait
-				// the Wait() method returns a registered func() to execute
-				// and an error in case the backoff reaches its deadline
-				call, err := backoff.Increment().Wait()
-
-				// handle backoff deadline errors
-				if err != nil && err != ErrBackoffLocked {
-					c.svcLogger.Log(
-						log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("conn").
-							Metadata(log.Field{
-								"error": err.Error(),
-							}).
-							Message("removing address after failed dial attempt").Build(),
-					)
-
-					// address is removed from connections map
-					c.addr.Unset(remote)
-					continue
-				} else {
-
-					// execute registered call
-					go call()
-					return ErrFailedConn
-				}
+				continue
 			}
-
 		}
 
 		// once the connection is established, it's mapped to its (string) address
 		c.addr.Set(remote, conn)
 		liveConns++
 
-		c.svcLogger.Log(
-			log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").
-				Metadata(log.Field{
-					"index": idx,
-					"addr":  remote,
-				}).
-				Message("dialed the address successfully").Build(),
-		)
+		c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("conn").Metadata(log.Field{
+			"index": idx,
+			"addr":  remote,
+		}).Message("dialed the address successfully").Build())
 	}
 
 	// return ErrNoConns if the counter for live connections hasn't increased
@@ -290,6 +249,43 @@ func (c GRPCLogClient) connect() error {
 	}
 
 	return nil
+}
+
+func (c GRPCLogClient) handleConnErrors(err error, remote string) error {
+	// retry with backoff
+	c.svcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("retry").Metadata(log.Field{
+		"error":      err,
+		"iterations": backoff.Counter(),
+		"maxWait":    backoff.Max(),
+		"curWait":    backoff.Current(),
+	}).Message("retrying connection").Build())
+
+	// backoff locked -- skip retry until unlocked
+	if backoff.IsLocked() {
+		return ErrBackoffLocked
+	} else {
+
+		// backoff unlocked -- increment timer and wait
+		// the Wait() method returns a registered func() to execute
+		// and an error in case the backoff reaches its deadline
+		call, err := backoff.Increment().Wait()
+
+		// handle backoff deadline errors
+		if err != nil && err != ErrBackoffLocked {
+			c.svcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("retry").Metadata(log.Field{
+				"error": err.Error(),
+			}).Message("removing address after failed dial attempt").Build())
+
+			// address is removed from connections map
+			c.addr.Unset(remote)
+			return err
+		} else {
+
+			// execute registered call
+			go call()
+			return ErrFailedConn
+		}
+	}
 }
 
 // listen method is middleware to allow the backoff module to register an

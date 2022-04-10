@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
 	"time"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -16,6 +15,8 @@ import (
 
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -33,10 +34,6 @@ const (
 )
 
 var (
-	ErrDeadlineRegexp    = regexp.MustCompile(`rpc error: code = DeadlineExceeded desc = context deadline exceeded`)
-	ErrEOFRegexp         = regexp.MustCompile(`rpc error: code = Unavailable desc = error reading from server: EOF`)
-	ErrConnRefusedRegexp = regexp.MustCompile(`rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing dial tcp .*: connect: connection refused"`)
-
 	ErrNoAddr      error = errors.New("cannot connect to gRPC server since no addresses were provided")
 	ErrNoConns     error = errors.New("could not establish any successful connection with the provided address(es)")
 	ErrBadResponse error = errors.New("failed to write log message in remote gRPC server")
@@ -248,7 +245,7 @@ func (c GRPCLogClient) connect() error {
 				call, err := backoff.Increment().Wait()
 
 				// handle backoff deadline errors
-				if err != nil {
+				if err != nil && err != ErrBackoffLocked {
 					c.svcLogger.Log(
 						log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("conn").
 							Metadata(log.Field{
@@ -431,7 +428,7 @@ func (c GRPCLogClient) stream(errCh chan error) {
 		if err != nil {
 
 			// if it's connection refused or EOF, kick-off the backoff routine
-			if ErrConnRefusedRegexp.MatchString(err.Error()) || ErrEOFRegexp.MatchString(err.Error()) {
+			if errCode := status.Code(err); errCode == codes.Unavailable || errors.Is(err, io.EOF) {
 				c.streamBackoff(errCh, cancel)
 			}
 
@@ -601,7 +598,7 @@ func (c GRPCLogClient) handleStreamMessages(
 		case err := <-localErr:
 
 			// Stream Deadline Exceeded -- reconnect to gRPC Log Server
-			if ErrDeadlineRegexp.MatchString(err.Error()) {
+			if errCode := status.Code(err); errCode == codes.DeadlineExceeded {
 
 				c.svcLogger.Log(
 					log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
@@ -612,7 +609,7 @@ func (c GRPCLogClient) handleStreamMessages(
 				go c.stream(errCh)
 
 				// Connection Refused or EOF error -- trigger backoff routine
-			} else if ErrEOFRegexp.MatchString(err.Error()) || ErrConnRefusedRegexp.MatchString(err.Error()) {
+			} else if errCode := status.Code(err); errCode == codes.Unavailable || errors.Is(err, io.EOF) {
 
 				c.streamBackoff(errCh, cancel)
 

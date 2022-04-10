@@ -1,9 +1,11 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"math"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/zalgonoise/zlog/log"
@@ -20,6 +22,7 @@ const defaultRetryTime time.Duration = time.Second * 30
 
 type streamFunc func(chan error)
 type logFunc func(*log.LogMessage, chan error)
+type BackoffFunc func(attempt uint) time.Duration
 
 // ExpBackoff struct defines the elements of an Exponential Backoff module,
 // which is configured by setting a time.Duration deadline and by registering
@@ -39,21 +42,32 @@ type logFunc func(*log.LogMessage, chan error)
 //
 //
 type ExpBackoff struct {
-	counter float64
-	max     time.Duration
-	wait    time.Duration
-	call    interface{}
-	errCh   chan error
-	exit    *chan struct{}
-	msg     []*log.LogMessage
-	locked  bool
+	counter     uint
+	max         time.Duration
+	wait        time.Duration
+	call        interface{}
+	errCh       chan error
+	exit        *chan struct{}
+	msg         []*log.LogMessage
+	backoffFunc BackoffFunc
+	locked      bool
+	mu          sync.Mutex
+}
+
+func ExponentialBackoff(attempt uint) time.Duration {
+	return time.Millisecond * time.Duration(
+		int64(math.Pow(2, float64(attempt)))+rand.New(
+			rand.NewSource(time.Now().UnixNano())).Int63n(1000),
+	)
 }
 
 // NewBackoff function initializes a simple exponential backoff module with
 // a set default retry time of 300 seconds
 func NewBackoff() *ExpBackoff {
-	b := &ExpBackoff{}
-	b.Time(defaultRetryTime)
+	b := &ExpBackoff{
+		max:         defaultRetryTime,
+		backoffFunc: ExponentialBackoff,
+	}
 	return b
 }
 
@@ -61,14 +75,14 @@ func NewBackoff() *ExpBackoff {
 //
 // It's chained with a Wait() call right after.
 func (b *ExpBackoff) Increment() *ExpBackoff {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	if b.locked {
 		return b
 	}
 	b.counter = b.counter + 1
-	b.wait = time.Millisecond * time.Duration(
-		int64(math.Pow(2, b.counter))+rand.New(
-			rand.NewSource(time.Now().UnixNano())).Int63n(1000),
-	)
+	b.wait = b.backoffFunc(b.counter)
 	return b
 }
 
@@ -80,13 +94,21 @@ func (b *ExpBackoff) Increment() *ExpBackoff {
 // If the waiting time is grater than the deadline set, it will return with an
 // ErrFailedRetry
 func (b *ExpBackoff) Wait() (func(), error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	if b.locked {
 		return nil, ErrBackoffLocked
 	}
 	if b.wait <= b.max {
 		b.Lock()
 		defer b.Unlock()
-		time.Sleep(b.wait)
+
+		timer := time.NewTimer(b.wait)
+		select {
+		case <-timer.C:
+		}
+
 		switch v := b.call.(type) {
 		case streamFunc:
 			return func() {
@@ -100,6 +122,50 @@ func (b *ExpBackoff) Wait() (func(), error) {
 				}
 			}
 			return f, nil
+		default:
+			return nil, ErrInvalidType
+		}
+	}
+
+	return nil, ErrFailedRetry
+
+}
+
+func (b *ExpBackoff) WaitContext(ctx context.Context) (func(), error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.locked {
+		return nil, ErrBackoffLocked
+	}
+	if b.wait <= b.max {
+		b.Lock()
+		defer b.Unlock()
+
+		timer := time.NewTimer(b.wait)
+
+		var err error
+
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			err = ctx.Err()
+		case <-timer.C:
+		}
+
+		switch v := b.call.(type) {
+		case streamFunc:
+			return func() {
+				v(b.errCh)
+			}, err
+		case logFunc:
+			list := b.msg
+			f := func() {
+				for _, msg := range list {
+					v(msg, b.errCh)
+				}
+			}
+			return f, err
 		default:
 			return nil, ErrInvalidType
 		}

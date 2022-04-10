@@ -176,7 +176,8 @@ func newUnaryLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 	errCh := make(chan error)
 
 	// register log() function and error channel in the backoff module
-	backoff.RegisterLog(c.log, errCh).WithDone(&c.done)
+	var logF logFunc = c.log
+	backoff.Register(logF, errCh).WithDone(&c.done)
 
 	// launch log listener in a goroutine
 	go c.listen(errCh)
@@ -188,7 +189,8 @@ func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 	errCh := make(chan error)
 
 	// register stream() function and error channel in the backoff module
-	backoff.RegisterStream(c.stream, errCh).WithDone(&c.done)
+	var streamF streamFunc = c.stream
+	backoff.Register(streamF, errCh).WithDone(&c.done)
 
 	// launch log listener in a goroutine
 	go c.stream(errCh)

@@ -107,7 +107,7 @@ type LSLogger struct {
 
 // LSExpBackoff struct is a custom LogClientConfig to define the backoff configuration for the new gRPC Log Client
 type LSExpBackoff struct {
-	backoff *ExpBackoff
+	backoff *Backoff
 }
 
 // LSTiming struct is a custom LogClientConfig to add (debug) information on time taken to execute RPCs.
@@ -138,7 +138,7 @@ func (l LSLogger) Apply(ls *gRPCLogClientBuilder) {
 
 // Apply method will set this option's backoff as the input gRPCLogClientBuilder's
 func (l LSExpBackoff) Apply(ls *gRPCLogClientBuilder) {
-	ls.expBackoff = l.backoff
+	ls.backoff = l.backoff
 }
 
 // Apply method will set this option's Timing interceptors as the input gRPCLogClientBuilder's

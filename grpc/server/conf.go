@@ -113,11 +113,12 @@ func (l LSLogger) Apply(ls *gRPCLogServerBuilder) {
 	ls.logger = l.logger
 }
 
-// Apply method will set this option's logger as the input GRPCLogServer's service logger
+// Apply method will set this option's logger as the input GRPCLogServer's service logger,
+// and its logger interceptors
 func (l LSServiceLogger) Apply(ls *gRPCLogServerBuilder) {
 	ls.svcLogger = l.logger
-	ls.interceptors.streamItcp["logging"] = l.streamItcp
-	ls.interceptors.unaryItcp["logging"] = l.unaryItcp
+	ls.interceptors.streamItcp["logger"] = l.streamItcp
+	ls.interceptors.unaryItcp["logger"] = l.unaryItcp
 }
 
 // Apply method will set this option's Dial Options as the input GRPCLogServer's

@@ -100,9 +100,7 @@ type LSType struct {
 
 // LSLogger struct is a custom LogClientConfig to define the service logger for the new gRPC Log Client
 type LSLogger struct {
-	logger     log.Logger
-	unaryItcp  grpc.UnaryClientInterceptor
-	streamItcp grpc.StreamClientInterceptor
+	logger log.Logger
 }
 
 // LSExpBackoff struct is a custom LogClientConfig to define the backoff configuration for the new gRPC Log Client
@@ -133,8 +131,8 @@ func (l LSType) Apply(ls *gRPCLogClientBuilder) {
 func (l LSLogger) Apply(ls *gRPCLogClientBuilder) {
 	ls.svcLogger = l.logger
 
-	ls.interceptors.unaryItcp["logging"] = l.unaryItcp
-	ls.interceptors.streamItcp["logging"] = l.streamItcp
+	ls.interceptors.unaryItcp["logging"] = UnaryClientLogging(l.logger, false)
+	ls.interceptors.streamItcp["logging"] = StreamClientLogging(l.logger, false)
 }
 
 // Apply method will set this option's backoff as the input gRPCLogClientBuilder's
@@ -145,6 +143,14 @@ func (l LSExpBackoff) Apply(ls *gRPCLogClientBuilder) {
 // Apply method will set this option's Timing interceptors as the input gRPCLogClientBuilder's
 // by defining its own service logger as target
 func (l LSTiming) Apply(ls *gRPCLogClientBuilder) {
+	// if there is a logging interceptor configured, reconfigure it to register time
+	if _, ok := ls.interceptors.streamItcp["logging"]; ok && ls.svcLogger != nil {
+		ls.interceptors.streamItcp["logging"] = StreamClientLogging(ls.svcLogger, true)
+		ls.interceptors.unaryItcp["logging"] = UnaryClientLogging(ls.svcLogger, true)
+		return
+	}
+
+	// otherwise, if there is no logging interceptor, add a new independent timing interceptor
 	ls.interceptors.streamItcp["timing"] = StreamClientTiming(ls.svcLogger)
 	ls.interceptors.unaryItcp["timing"] = UnaryClientTiming(ls.svcLogger)
 }
@@ -204,9 +210,7 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 	}
 
 	return &LSLogger{
-		logger:     l,
-		streamItcp: StreamClientLogging(l),
-		unaryItcp:  UnaryClientLogging(l),
+		logger: l,
 	}
 
 }

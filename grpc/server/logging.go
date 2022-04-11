@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -20,24 +21,42 @@ var (
 
 // UnaryServerLogging returns a new unary server interceptor that adds a gRPC Server Logger
 // which captures inbound / outbound interactions with the service
-func UnaryServerLogging(logger log.Logger) grpc.UnaryServerInterceptor {
+func UnaryServerLogging(logger log.Logger, withTimer bool) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		var now time.Time
+		var after time.Duration
+
+		if withTimer {
+			now = time.Now()
+		}
+
 		method := info.FullMethod
 
 		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC -- " + method).Build())
 
 		res, err := handler(ctx, req)
 
+		if withTimer {
+			after = time.Since(now)
+		}
+
+		var meta = log.Field{}
+
+		meta["method"] = method
+
+		if withTimer {
+			meta["time"] = after.String()
+		}
+
 		if err != nil {
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- message handling failed with an error").Metadata(log.Field{
-				"error":  err.Error(),
-				"method": method,
-			}).Build())
+			meta["error"] = err.Error()
+
+			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- message handling failed with an error").Metadata(meta).Build())
 		} else {
-			logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- " + method).Metadata(log.Field{
-				"id": res.(*pb.MessageResponse).GetReqID(),
-				"ok": res.(*pb.MessageResponse).GetOk(),
-			}).Build())
+			meta["id"] = res.(*pb.MessageResponse).GetReqID()
+			meta["ok"] = res.(*pb.MessageResponse).GetOk()
+
+			logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- " + method).Metadata(meta).Build())
 		}
 
 		return res, err

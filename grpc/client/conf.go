@@ -100,7 +100,8 @@ type LSType struct {
 
 // LSLogger struct is a custom LogClientConfig to define the service logger for the new gRPC Log Client
 type LSLogger struct {
-	logger log.Logger
+	logger  log.Logger
+	verbose bool
 }
 
 // LSExpBackoff struct is a custom LogClientConfig to define the backoff configuration for the new gRPC Log Client
@@ -131,8 +132,10 @@ func (l LSType) Apply(ls *gRPCLogClientBuilder) {
 func (l LSLogger) Apply(ls *gRPCLogClientBuilder) {
 	ls.svcLogger = l.logger
 
-	ls.interceptors.unaryItcp["logging"] = UnaryClientLogging(l.logger, false)
-	ls.interceptors.streamItcp["logging"] = StreamClientLogging(l.logger, false)
+	if l.verbose {
+		ls.interceptors.unaryItcp["logging"] = UnaryClientLogging(l.logger, false)
+		ls.interceptors.streamItcp["logging"] = StreamClientLogging(l.logger, false)
+	}
 }
 
 // Apply method will set this option's backoff as the input gRPCLogClientBuilder's
@@ -211,6 +214,33 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 
 	return &LSLogger{
 		logger: l,
+	}
+
+}
+
+// WithLogger function will define this gRPC Log Client's service logger.
+// This logger will register the gRPC Client transactions; and not the log
+// messages it is handling.
+//
+// This function's loggers input parameter is variadic -- it supports setting
+// any number of loggers. If no input is provided, then it will default to
+// setting this service logger as a nil logger (one which doesn't do anything)
+//
+// This function configures the gRPC client's logger interceptors
+func WithLoggerV(loggers ...log.Logger) LogClientConfig {
+	var l log.Logger
+
+	if len(loggers) == 1 {
+		l = loggers[0]
+	} else if len(loggers) > 1 {
+		l = log.MultiLogger(loggers...)
+	} else {
+		l = log.New(log.NilConfig)
+	}
+
+	return &LSLogger{
+		logger:  l,
+		verbose: true,
 	}
 
 }

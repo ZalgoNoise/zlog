@@ -101,6 +101,9 @@ type LSOpts struct {
 	opts []grpc.ServerOption
 }
 
+// LSTiming struct is a custom LogServerConfig to add a timing module to exchanged RPCs
+type LSTiming struct{}
+
 // Apply method will set this option's address as the input GRPCLogServer's
 func (l LSAddr) Apply(ls *gRPCLogServerBuilder) {
 	ls.addr = l.addr
@@ -115,13 +118,28 @@ func (l LSLogger) Apply(ls *gRPCLogServerBuilder) {
 // and its logger interceptors
 func (l LSServiceLogger) Apply(ls *gRPCLogServerBuilder) {
 	ls.svcLogger = l.logger
-	ls.interceptors.streamItcp["logger"] = StreamServerLogging(l.logger, false)
-	ls.interceptors.unaryItcp["logger"] = UnaryServerLogging(l.logger, false)
+	ls.interceptors.streamItcp["logging"] = StreamServerLogging(l.logger, false)
+	ls.interceptors.unaryItcp["logging"] = UnaryServerLogging(l.logger, false)
 }
 
 // Apply method will set this option's Dial Options as the input GRPCLogServer's
 func (l LSOpts) Apply(ls *gRPCLogServerBuilder) {
 	ls.opts = append(ls.opts, l.opts...)
+}
+
+// Apply method will set this option's logger as the input GRPCLogServer's service logger,
+// and its logger interceptors
+func (l LSTiming) Apply(ls *gRPCLogServerBuilder) {
+	// if there is a logging interceptor configured, reconfigure it to register time
+	if _, ok := ls.interceptors.streamItcp["logging"]; ok && ls.svcLogger != nil {
+		ls.interceptors.streamItcp["logging"] = StreamServerLogging(ls.svcLogger, true)
+		ls.interceptors.unaryItcp["logging"] = UnaryServerLogging(ls.svcLogger, true)
+		return
+	}
+
+	// otherwise, if there is no logging interceptor, add a new independent timing interceptor
+	ls.interceptors.streamItcp["timing"] = StreamServerTiming(ls.svcLogger)
+	ls.interceptors.unaryItcp["timing"] = UnaryServerTiming(ls.svcLogger)
 }
 
 // WithAddr function will take one address for the gRPC Log Server to listen to.

@@ -88,10 +88,20 @@ type timingStream struct {
 	name   string
 }
 
+// Header method is a wrapper for the grpc.ClientStream.Header() method
 func (w timingStream) Header() (metadata.MD, error) { return w.stream.Header() }
-func (w timingStream) Trailer() metadata.MD         { return w.stream.Trailer() }
-func (w timingStream) CloseSend() error             { return w.stream.CloseSend() }
-func (w timingStream) Context() context.Context     { return w.stream.Context() }
+
+// Trailer method is a wrapper for the grpc.ClientStream.Trailer() method
+func (w timingStream) Trailer() metadata.MD { return w.stream.Trailer() }
+
+// CloseSend method is a wrapper for the grpc.ClientStream.CloseSend() method
+func (w timingStream) CloseSend() error { return w.stream.CloseSend() }
+
+// Context method is a wrapper for the grpc.ClientStream.Context() method
+func (w timingStream) Context() context.Context { return w.stream.Context() }
+
+// SendMsg method is a wrapper for the grpc.ClientStream.SendMsg(m) method, for which the
+// configured logger will register outbound messages' timing
 func (w timingStream) SendMsg(m interface{}) error {
 	start := time.Now()
 	err := w.stream.SendMsg(m)
@@ -103,6 +113,9 @@ func (w timingStream) SendMsg(m interface{}) error {
 
 	return err
 }
+
+// RecvMsg method is a wrapper for the grpc.ClientStream.RecvMsg(m) method, for which the
+// configured logger will register inbound messages' timing
 func (w timingStream) RecvMsg(m interface{}) error {
 	start := time.Now()
 	err := w.stream.RecvMsg(m)

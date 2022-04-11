@@ -93,7 +93,8 @@ type LSLogger struct {
 
 // LSServiceLogger struct is a custom LogServerConfig to define the service logger for the new gRPC Log Server
 type LSServiceLogger struct {
-	logger log.Logger
+	logger  log.Logger
+	verbose bool
 }
 
 // LSOpts struct is a custom LogServerConfig to define gRPC Dial Options to new gRPC Log Server
@@ -118,8 +119,11 @@ func (l LSLogger) Apply(ls *gRPCLogServerBuilder) {
 // and its logger interceptors
 func (l LSServiceLogger) Apply(ls *gRPCLogServerBuilder) {
 	ls.svcLogger = l.logger
-	ls.interceptors.streamItcp["logging"] = StreamServerLogging(l.logger, false)
-	ls.interceptors.unaryItcp["logging"] = UnaryServerLogging(l.logger, false)
+
+	if l.verbose {
+		ls.interceptors.streamItcp["logging"] = StreamServerLogging(l.logger, false)
+		ls.interceptors.unaryItcp["logging"] = UnaryServerLogging(l.logger, false)
+	}
 }
 
 // Apply method will set this option's Dial Options as the input GRPCLogServer's
@@ -204,7 +208,33 @@ func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
 	return &LSServiceLogger{
 		logger: l,
 	}
+}
 
+// WithServiceLoggerV function will define this gRPC Log Server's service logger,
+// in verbose mode -- capturing interactions for each RPC. This differs from a log
+// level filter as it will add a logging interceptor as a module.
+//
+// This logger will register the gRPC Server's transactions, and not the client's
+// incoming log messages.
+//
+// This function's loggers input parameter is variadic -- it supports setting
+// any number of loggers. If no input is provided, then it will default to
+// setting this service logger as a nil logger (one which doesn't do anything)
+func WithServiceLoggerV(loggers ...log.Logger) LogServerConfig {
+	var l log.Logger
+
+	if len(loggers) == 1 {
+		l = loggers[0]
+	} else if len(loggers) > 1 {
+		l = log.MultiLogger(loggers...)
+	} else {
+		l = log.New(log.NilConfig)
+	}
+
+	return &LSServiceLogger{
+		logger:  l,
+		verbose: true,
+	}
 }
 
 // WithTiming function will set a gRPC Log Server's service logger to measure

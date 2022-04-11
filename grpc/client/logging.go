@@ -195,7 +195,7 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 	}
 
 	var meta = log.Field{}
-
+	var res = log.Field{}
 	meta["method"] = w.method
 	meta["stream"] = w.name
 
@@ -208,16 +208,15 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 		meta["error"] = err.Error()
 
 		if m.(*pb.MessageResponse) != nil && m.(*pb.MessageResponse).GetReqID() != "" {
-			meta["id"] = m.(*pb.MessageResponse).GetReqID()
+			res["id"] = m.(*pb.MessageResponse).GetReqID()
+			meta["response"] = res
 		}
 
 		w.logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(meta).Message("[recv] stream RPC logger -- issue receiving message from stream").Build())
 		return err
 	}
 
-	meta["id"] = m.(*pb.MessageResponse).GetReqID()
-
-	var res = log.Field{}
+	res["id"] = m.(*pb.MessageResponse).GetReqID()
 	res["ok"] = m.(*pb.MessageResponse).GetOk()
 	res["bytes"] = m.(*pb.MessageResponse).GetBytes()
 
@@ -234,20 +233,16 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 		meta["error"] = err.Error()
 		meta["response"] = res
 
-		w.logger.Log(
-			log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(meta).
-				Message("[recv] stream RPC logger -- failed to write log message").Build(),
-		)
+		w.logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Metadata(meta).
+			Message("[recv] stream RPC logger -- failed to write log message").Build())
 		return err
 	}
 
 	// server response is OK, register this event
 	meta["response"] = res
 
-	w.logger.Log(
-		log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Metadata(meta).
-			Message("[recv] stream RPC logger -- registering server response").Build(),
-	)
+	w.logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Metadata(meta).
+		Message("[recv] stream RPC logger -- registering server response").Build())
 
 	return err
 

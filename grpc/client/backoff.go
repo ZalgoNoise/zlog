@@ -27,23 +27,15 @@ type streamFunc func()
 type logFunc func(*log.LogMessage)
 type BackoffFunc func(uint) time.Duration
 
-// ExpBackoff struct defines the elements of an Exponential Backoff module,
-// which is configured by setting a time.Duration deadline and by registering
-// a (concurrent) function, named call.
+// Backoff struct defines the elements of a backoff module, which is configured
+// by setting a BackoffFunc to define the interval between each attempt.
 //
-// ExpBackoff will also try to act as a message buffer in case the server connection
+// Backoff will also try to act as a message buffer in case the server connection
 // cannot be established -- as it will attempt to flush these records to the server
 // as soon as connected.
 //
 // Also it has a simple lock / unlock switch for concurrent calls to be able to
 // verify its state and halt by themselves
-//
-// The ExpBackoff object is initialized with a package-scope so it can be
-// referenced by any function
-//
-// Notes on exponential backoff: https://en.wikipedia.org/wiki/Exponential_backoff
-//
-//
 type Backoff struct {
 	counter     uint
 	max         time.Duration
@@ -55,24 +47,40 @@ type Backoff struct {
 	mu          sync.Mutex
 }
 
+// NoBackoff function will return a BackoffFunc that overrides the
+// backoff module by setting a zero wait-between duration. This is
+// detected as a sign that the module should be overriden.
 func NoBackoff() BackoffFunc {
 	return func(attempt uint) time.Duration {
 		return 0
 	}
 }
 
-func BackoffLinear() BackoffFunc {
+// BackoffLinear function will return a BackoffFunc that calculates
+// a linear backoff according to the input duration. If the input
+// duration is 0, then the default wait-between time is set.
+func BackoffLinear(t time.Duration) BackoffFunc {
+	if t == 0 {
+		t = defaultWaitBetween
+	}
+
 	return func(attempt uint) time.Duration {
-		return defaultWaitBetween
+		return t
 	}
 }
 
+// BackoffIncremental function will return a BackoffFunc that calculates
+// exponential backoff according to a scalar method
 func BackoffIncremental(scalar time.Duration) BackoffFunc {
 	return func(attempt uint) time.Duration {
 		return scalar * time.Duration((1<<attempt)>>1)
 	}
 }
 
+// BackoffExponential function will return a BackoffFunc that calculates
+// exponential backoff according to its standard
+//
+// Notes on exponential backoff: https://en.wikipedia.org/wiki/Exponential_backoff
 func BackoffExponential() BackoffFunc {
 	return func(attempt uint) time.Duration {
 		return time.Millisecond * time.Duration(
@@ -166,6 +174,14 @@ func (b *Backoff) Wait() (func(), error) {
 
 }
 
+// WaitContext method will wait for the currently set wait time, if the module is
+// unlocked. It also takes in a context, for which it will listen to its Done() signal.
+//
+// After waiting, it returns a func() to call (depending on what it is handling),
+// and and an error.
+//
+// If the waiting time is grater than the deadline set, it will return with an
+// ErrFailedRetry
 func (b *Backoff) WaitContext(ctx context.Context) (func(), error) {
 
 	if b.locked {
@@ -226,6 +242,8 @@ func (b *Backoff) Register(call interface{}) {
 	return
 }
 
+// UnaryBackoffHandler method is the Unary gRPC Log Client's standard backoff flow, which
+// is used when exchanging unary requests and responses with a gRPC server.
 func (b *Backoff) UnaryBackoffHandler(err error, logger log.Logger) error {
 	// retry with backoff
 	logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("retry").Metadata(log.Field{
@@ -242,10 +260,6 @@ func (b *Backoff) UnaryBackoffHandler(err error, logger log.Logger) error {
 		// backoff unlocked -- increment timer and wait
 		// the Wait() method returns a registered func() to execute
 		// and an error in case the backoff reaches its deadline
-		// if err := b.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
-		// 	return err
-		// }
-
 		call, err := b.Wait()
 
 		// handle backoff deadline errors
@@ -271,11 +285,6 @@ func (b *Backoff) StreamBackoffHandler(
 	// increment timer and wait
 	// the Wait() method returns a registered func() to execute
 	// and an error in case the backoff reaches its deadline
-	// if err := b.Increment(); err != nil && errors.Is(err, ErrBackoffLocked) {
-	// 	errCh <- err
-	// 	return
-	// }
-
 	call, err := b.Wait()
 
 	// handle backoff deadline errors by closing the stream
@@ -348,6 +357,10 @@ func (b *Backoff) Unlock() {
 	b.locked = false
 }
 
+// TryLock method is similar to the mutex.TryLock() one; to allow checking for a locked status
+// as the method also tries to lock the mutex.
+//
+// It is used to get a status from the mutex as the call is made.
 func (b *Backoff) TryLock() bool {
 	b.locked = b.mu.TryLock()
 	return b.locked

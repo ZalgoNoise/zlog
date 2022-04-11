@@ -15,10 +15,6 @@ import (
 	pb "github.com/zalgonoise/zlog/proto/message"
 )
 
-var (
-// ErrContextCancelledRegexp = regexp.MustCompile(`rpc error: code = Canceled desc = context canceled`)
-)
-
 // UnaryServerLogging returns a new unary server interceptor that adds a gRPC Server Logger
 // which captures inbound / outbound interactions with the service
 func UnaryServerLogging(logger log.Logger, withTimer bool) grpc.UnaryServerInterceptor {
@@ -52,8 +48,11 @@ func UnaryServerLogging(logger log.Logger, withTimer bool) grpc.UnaryServerInter
 
 			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- message handling failed with an error").Metadata(meta).Build())
 		} else {
-			meta["id"] = res.(*pb.MessageResponse).GetReqID()
-			meta["ok"] = res.(*pb.MessageResponse).GetOk()
+			meta["response"] = log.Field{
+				"id":    res.(*pb.MessageResponse).GetReqID(),
+				"ok":    res.(*pb.MessageResponse).GetOk(),
+				"bytes": res.(*pb.MessageResponse).GetBytes(),
+			}
 
 			logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- " + method).Metadata(meta).Build())
 		}

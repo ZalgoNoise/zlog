@@ -93,9 +93,7 @@ type LSLogger struct {
 
 // LSServiceLogger struct is a custom LogServerConfig to define the service logger for the new gRPC Log Server
 type LSServiceLogger struct {
-	logger     log.Logger
-	streamItcp grpc.StreamServerInterceptor
-	unaryItcp  grpc.UnaryServerInterceptor
+	logger log.Logger
 }
 
 // LSOpts struct is a custom LogServerConfig to define gRPC Dial Options to new gRPC Log Server
@@ -117,8 +115,8 @@ func (l LSLogger) Apply(ls *gRPCLogServerBuilder) {
 // and its logger interceptors
 func (l LSServiceLogger) Apply(ls *gRPCLogServerBuilder) {
 	ls.svcLogger = l.logger
-	ls.interceptors.streamItcp["logger"] = l.streamItcp
-	ls.interceptors.unaryItcp["logger"] = l.unaryItcp
+	ls.interceptors.streamItcp["logger"] = StreamServerLogging(l.logger, false)
+	ls.interceptors.unaryItcp["logger"] = UnaryServerLogging(l.logger, false)
 }
 
 // Apply method will set this option's Dial Options as the input GRPCLogServer's
@@ -186,9 +184,7 @@ func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
 	}
 
 	return &LSServiceLogger{
-		logger:     l,
-		streamItcp: StreamServerLogging(l),
-		unaryItcp:  UnaryServerLogging(l),
+		logger: l,
 	}
 
 }

@@ -127,8 +127,8 @@ func (l LSOpts) Apply(ls *gRPCLogServerBuilder) {
 	ls.opts = append(ls.opts, l.opts...)
 }
 
-// Apply method will set this option's logger as the input GRPCLogServer's service logger,
-// and its logger interceptors
+// Apply method will set the input GRPCLogServer's service logger to time the exchanged
+// messages (if existing), otherwise to configure a new module for timing
 func (l LSTiming) Apply(ls *gRPCLogServerBuilder) {
 	// if there is a logging interceptor configured, reconfigure it to register time
 	if _, ok := ls.interceptors.streamItcp["logging"]; ok && ls.svcLogger != nil {
@@ -205,6 +205,17 @@ func WithServiceLogger(loggers ...log.Logger) LogServerConfig {
 		logger: l,
 	}
 
+}
+
+// WithTiming function will set a gRPC Log Server's service logger to measure
+// the time taken when executing RPCs. It is only an option, and is directly tied
+// to the configured service logger.
+//
+// Since defaults are enforced, the service logger value is never nil.
+//
+// This function configures the gRPC server's timer interceptors
+func WithTiming() LogServerConfig {
+	return &LSTiming{}
 }
 
 // WithGRPCOpts will allow passing in any number of gRPC Server Options, which

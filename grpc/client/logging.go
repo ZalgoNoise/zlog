@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/zalgonoise/zlog/log"
 	pb "github.com/zalgonoise/zlog/proto/message"
@@ -12,12 +13,23 @@ import (
 
 // UnaryClientLogging returns a new unary client interceptor that adds a gRPC Client Logger
 // which captures inbound / outbound interactions with the service
-func UnaryClientLogging(logger log.Logger) grpc.UnaryClientInterceptor {
+func UnaryClientLogging(logger log.Logger, withTimer bool) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+
+		var now time.Time
+		var after time.Duration
+
+		if withTimer {
+			now = time.Now()
+		}
 
 		logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[send] unary RPC logger -- " + method).Build())
 
 		err := invoker(ctx, method, req, reply, cc, opts...)
+
+		if withTimer {
+			after = time.Since(now)
+		}
 
 		// validate response fields
 		var res = log.Field{}
@@ -36,30 +48,29 @@ func UnaryClientLogging(logger log.Logger) grpc.UnaryClientInterceptor {
 				}
 			}
 		}
+		var meta = log.Field{}
+
+		meta["method"] = method
+		meta["response"] = res
+
+		if withTimer {
+			meta["time"] = after.String()
+		}
 
 		if err != nil {
 			// handle errors in the transaction
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message handling failed with an error").Metadata(log.Field{
-				"error":    err.Error(),
-				"method":   method,
-				"response": res,
-			}).Build())
+			meta["error"] = err.Error()
+			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message handling failed with an error").Metadata(meta).Build())
 		} else if !reply.(*pb.MessageResponse).GetOk() {
 			// handle errors in the response; return the error in the message
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message returned a not-OK status").Metadata(log.Field{
-				"error":    reply.(*pb.MessageResponse).GetErr(),
-				"method":   method,
-				"response": res,
-			}).Build())
+			meta["error"] = reply.(*pb.MessageResponse).GetErr()
+			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message returned a not-OK status").Metadata(meta).Build())
 
 			return errors.New(reply.(*pb.MessageResponse).GetErr())
 
 		} else {
 			// log an OK transaction
-			logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger").Metadata(log.Field{
-				"method":   method,
-				"response": res,
-			}).Build())
+			logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger").Metadata(meta).Build())
 		}
 		return err
 	}

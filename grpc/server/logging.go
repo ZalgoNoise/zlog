@@ -86,10 +86,20 @@ type loggingStream struct {
 	method string
 }
 
-func (w loggingStream) SetHeader(m metadata.MD) error  { return w.stream.SetHeader(m) }
+// Header method is a wrapper for the grpc.ServerStream.Header() method
+func (w loggingStream) SetHeader(m metadata.MD) error { return w.stream.SetHeader(m) }
+
+// Trailer method is a wrapper for the grpc.ServerStream.Trailer() method
 func (w loggingStream) SendHeader(m metadata.MD) error { return w.stream.SendHeader(m) }
-func (w loggingStream) SetTrailer(m metadata.MD)       { w.stream.SetTrailer(m) }
-func (w loggingStream) Context() context.Context       { return w.stream.Context() }
+
+// CloseSend method is a wrapper for the grpc.ServerStream.CloseSend() method
+func (w loggingStream) SetTrailer(m metadata.MD) { w.stream.SetTrailer(m) }
+
+// Context method is a wrapper for the grpc.ServerStream.Context() method
+func (w loggingStream) Context() context.Context { return w.stream.Context() }
+
+// SendMsg method is a wrapper for the grpc.ServerStream.SendMsg(m) method, for which the
+// configured logger will register outbound messages or errors
 func (w loggingStream) SendMsg(m interface{}) error {
 	err := w.stream.SendMsg(m)
 	if err != nil {
@@ -139,6 +149,9 @@ func (w loggingStream) SendMsg(m interface{}) error {
 	}).Build())
 	return err
 }
+
+// RecvMsg method is a wrapper for the grpc.ServerStream.RecvMsg(m) method, for which the
+// configured logger will register inbound messages or errors
 func (w loggingStream) RecvMsg(m interface{}) error {
 	err := w.stream.RecvMsg(m)
 	if err != nil {

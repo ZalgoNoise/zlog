@@ -128,7 +128,8 @@ func (l LSType) Apply(ls *gRPCLogClientBuilder) {
 	ls.isUnary = l.isUnary
 }
 
-// Apply method will set this option's logger as the input gRPCLogClientBuilder's
+// Apply method will set this option's logger as the input gRPCLogClientBuilder's,
+// along with defining its logging interceptors with the same logger.
 func (l LSLogger) Apply(ls *gRPCLogClientBuilder) {
 	ls.svcLogger = l.logger
 
@@ -189,6 +190,8 @@ func UnaryRPC() LogClientConfig {
 // This function's loggers input parameter is variadic -- it supports setting
 // any number of loggers. If no input is provided, then it will default to
 // setting this service logger as a nil logger (one which doesn't do anything)
+//
+// This function configures the gRPC client's logger interceptors
 func WithLogger(loggers ...log.Logger) LogClientConfig {
 	var l log.Logger
 
@@ -246,6 +249,8 @@ func WithBackoff(deadline time.Duration, backoffFunc BackoffFunc) LogClientConfi
 // to the configured service logger.
 //
 // Since defaults are enforced, the service logger value is never nil.
+//
+// This function configures the gRPC client's timer interceptors
 func WithTiming() LogClientConfig {
 	return &LSTiming{}
 }

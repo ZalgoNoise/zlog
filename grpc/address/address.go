@@ -99,3 +99,17 @@ func (a *ConnAddr) Write(p []byte) (n int, err error) {
 	a.Add(string(p))
 	return a.Len(), nil
 }
+
+// New function will take in any number of addr and initialize a ConnAddr object with
+// those addresses. Then, returns a pointer to this ConnAddr object.
+func New(addr ...string) *ConnAddr {
+	if len(addr) == 0 {
+		return nil
+	}
+
+	var a = &ConnAddr{}
+	a.Add(addr...)
+
+	return a
+
+}

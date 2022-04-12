@@ -1,121 +1,59 @@
 package sqlite
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
-	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/store/sql"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
-const (
-	dbCreateTable string = `CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY, time TEXT KEY, level TEXT, prefix TEXT, sub TEXT, message TEXT, metadata TEXT);`
-	dbInsertValue string = `INSERT INTO %s (time, level, prefix, sub, message, metadata) VALUES (?, ?, ?, ?, ?, ?);`
-)
-
-var (
-	ErrDBNotSetUp error = errors.New("database is not setup -- nil pointer")
-)
-
-// SQLite3 struct is a wrapper for a SQLite database to be used as a Log Writer
-type SQLite3 struct {
-	path  string
-	table string
-	db    *sql.DB
+// SQLite struct is a wrapper for a SQLite database to be used as a Log Writer
+type SQLite struct {
+	path string
+	db   *gorm.DB
 }
 
-// New function will take in a path to a .db file, and a table name; and create a new
+// New function will take in a path to a .db file; and create a new
 // instance of a SQLite3 object; returning a pointer to one and an error.
-func New(path, table string) (*SQLite3, error) {
+func New(path string) (sqldb *SQLite, err error) {
+	db, err := initialMigration(path)
 
-	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err
 	}
 
-	op, err := db.Prepare(fmt.Sprintf(dbCreateTable, table))
-	if err != nil {
-		return nil, err
+	sqldb = &SQLite{
+		path: path,
+		db:   db,
 	}
 
-	defer op.Close()
-
-	_, err = op.Exec()
-	if err != nil {
-		return nil, err
-	}
-
-	return &SQLite3{
-		path:  path,
-		table: table,
-		db:    db,
-	}, nil
-
+	return
 }
 
-// Load function will take in a path to a .db file, and a table name; and create a new
-// instance of a SQLite3 object based on an existing database; returning a pointer to
-// one and an error.
-func Load(path, table string) (*SQLite3, error) {
-	db, err := sql.Open("sqlite3", path)
-	if err != nil {
-		return nil, err
-	}
-
-	err = verify(db, table)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SQLite3{
-		path:  path,
-		table: table,
-		db:    db,
-	}, nil
-}
-
-// Insert method will register any number of LogMessages in the SQLite database, returning
+// Create method will register any number of LogMessages in the SQLite database, returning
 // an error
-func (s *SQLite3) Insert(msg ...*log.LogMessage) error {
-
+func (o *SQLite) Create(msg ...*log.LogMessage) error {
 	if len(msg) == 0 {
 		return nil
 	}
 
+	var msgs []*sql.LogMessage
+
 	for _, m := range msg {
-		// unix
-		// t := strconv.FormatInt(m.Time.Unix(), 10)
-		// RFC3339
-		t := m.Time.Format(time.RFC3339)
-		meta, err := json.Marshal(m.Metadata)
-		if err != nil {
+		var entry = &sql.LogMessage{}
+
+		if err := entry.From(m); err != nil {
 			return err
 		}
-
-		op, err := s.db.Prepare(fmt.Sprintf(dbInsertValue, s.table))
-		if err != nil {
-			return err
-		}
-
-		_, err = op.Exec(
-			t,
-			m.Level,
-			m.Prefix,
-			m.Sub,
-			m.Msg,
-			string(meta),
-		)
-
-		if err != nil {
-			return err
-		}
+		msgs = append(msgs, entry)
 	}
 
+	o.db.Create(msgs)
 	return nil
 }
 
@@ -125,9 +63,13 @@ func (s *SQLite3) Insert(msg ...*log.LogMessage) error {
 // This implementation relies on JSON or gob-encoding the messages, so they are passed onto
 // this writer. Then, it is unmarshalled into a message object which is sent in an Insert()
 // call.
-func (s *SQLite3) Write(p []byte) (n int, err error) {
-	if s.db == nil {
-		return 0, ErrDBNotSetUp
+func (s *SQLite) Write(p []byte) (n int, err error) {
+	if s.db == nil && s.path != "" {
+		new, err := New(s.path)
+		if err != nil {
+			return 0, err
+		}
+		s = new
 	}
 
 	var out *log.LogMessage
@@ -146,12 +88,23 @@ func (s *SQLite3) Write(p []byte) (n int, err error) {
 		out = msg
 	}
 
-	err = s.Insert(out)
+	err = s.Create(out)
 	if err != nil {
 		return 0, err
 	}
 
 	return len(p), nil
+}
+
+func initialMigration(path string) (*gorm.DB, error) {
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Migrate the schema
+	db.AutoMigrate(&sql.LogMessage{})
+	return db, nil
 }
 
 // LCSQLite struct defines the Logger Config object that adds a SQLite writer to a Logger
@@ -162,19 +115,15 @@ type LCSQLite struct {
 
 // WithSQLite function takes in a path to a .db file, and a table name; and returns a LoggerConfig
 // so that this type of writer is defined in a Logger
-func WithSQLite(path, table string) log.LoggerConfig {
-	var db = &SQLite3{}
-	var lerr, nerr error
-
-	db, lerr = Load(path, table)
-	if lerr != nil {
-		db, nerr = New(path, table)
-		if nerr != nil {
-			fmt.Printf("failed to open or create database with errors; open: %s ; create: %s", lerr, nerr)
-			os.Exit(1)
-		}
+func WithSQLite(path string) log.LoggerConfig {
+	db, err := New(path)
+	if err != nil {
+		fmt.Printf("failed to open or create database with an error: %s", err)
+		os.Exit(1)
 	}
 
+	//TODO(zalgonoise): benchmark this decision -- confirm if gob is more performant,
+	// considering that JSON will (usually) have less bytes per (small) message
 	return &LCSQLite{
 		out: db,
 		fmt: log.FormatJSON,

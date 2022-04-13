@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 const (
@@ -77,21 +79,22 @@ var LogFormatters = map[int]LogFormatter{
 	2:  &FmtCSV{},
 	3:  &FmtXML{},
 	4:  &FmtGob{},
-	5:  NewTextFormat().Time(LTRFC3339).Build(),
-	6:  NewTextFormat().Time(LTRFC822Z).Build(),
-	7:  NewTextFormat().Time(LTRubyDate).Build(),
-	8:  NewTextFormat().DoubleSpace().Build(),
-	9:  NewTextFormat().DoubleSpace().LevelFirst().Build(),
-	10: NewTextFormat().LevelFirst().Build(),
-	11: NewTextFormat().DoubleSpace().Color().Build(),
-	12: NewTextFormat().DoubleSpace().LevelFirst().Color().Build(),
-	13: NewTextFormat().LevelFirst().Color().Build(),
-	14: NewTextFormat().Color().Build(),
-	15: NewTextFormat().NoHeaders().NoTimestamp().NoLevel().Build(),
-	16: NewTextFormat().NoHeaders().Build(),
-	17: NewTextFormat().NoTimestamp().Build(),
-	18: NewTextFormat().NoTimestamp().Color().Build(),
-	19: NewTextFormat().NoTimestamp().Color().Upper().Build(),
+	5:  &FmtBSON{},
+	6:  NewTextFormat().Time(LTRFC3339).Build(),
+	7:  NewTextFormat().Time(LTRFC822Z).Build(),
+	8:  NewTextFormat().Time(LTRubyDate).Build(),
+	9:  NewTextFormat().DoubleSpace().Build(),
+	10: NewTextFormat().DoubleSpace().LevelFirst().Build(),
+	11: NewTextFormat().LevelFirst().Build(),
+	12: NewTextFormat().DoubleSpace().Color().Build(),
+	13: NewTextFormat().DoubleSpace().LevelFirst().Color().Build(),
+	14: NewTextFormat().LevelFirst().Color().Build(),
+	15: NewTextFormat().Color().Build(),
+	16: NewTextFormat().NoHeaders().NoTimestamp().NoLevel().Build(),
+	17: NewTextFormat().NoHeaders().Build(),
+	18: NewTextFormat().NoTimestamp().Build(),
+	19: NewTextFormat().NoTimestamp().Color().Build(),
+	20: NewTextFormat().NoTimestamp().Color().Upper().Build(),
 }
 
 var (
@@ -100,21 +103,22 @@ var (
 	FormatCSV                 LogFormatter = LogFormatters[2]  // placeholder for an initialized CSV LogFormatter
 	FormatXML                 LogFormatter = LogFormatters[3]  // placeholder for an initialized XML LogFormatter
 	FormatGob                 LogFormatter = LogFormatters[4]  // placeholder for an initialized Gob LogFormatter
-	TextLongDate              LogFormatter = LogFormatters[5]  // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
-	TextShortDate             LogFormatter = LogFormatters[6]  // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
-	TextRubyDate              LogFormatter = LogFormatters[7]  // placeholder for an initialized Text LogFormatter, with a RubyDate date format
-	TextDoubleSpace           LogFormatter = LogFormatters[8]  // placeholder for an initialized Text LogFormatter, with double spaces
-	TextLevelFirstSpaced      LogFormatter = LogFormatters[9]  // placeholder for an initialized  LogFormatter, with level-first and double spaces
-	TextLevelFirst            LogFormatter = LogFormatters[10] // placeholder for an initialized  LogFormatter, with level-first
-	TextColorDoubleSpace      LogFormatter = LogFormatters[11] // placeholder for an initialized  LogFormatter, with color and double spaces
-	TextColorLevelFirstSpaced LogFormatter = LogFormatters[12] // placeholder for an initialized  LogFormatter, with color, level-first and double spaces
-	TextColorLevelFirst       LogFormatter = LogFormatters[13] // placeholder for an initialized  LogFormatter, with color and level-first
-	TextColor                 LogFormatter = LogFormatters[14] // placeholder for an initialized  LogFormatter, with color
-	TextOnly                  LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, with only the text content
-	TextNoHeaders             LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without headers
-	TextNoTimestamp           LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp
-	TextColorNoTimestamp      LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp
-	TextColorUpperNoTimestamp LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, without timestamp and uppercase headers
+	FormatBSON                LogFormatter = LogFormatters[5]  // placeholder for an initialized JSON LogFormatter
+	TextLongDate              LogFormatter = LogFormatters[6]  // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
+	TextShortDate             LogFormatter = LogFormatters[7]  // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
+	TextRubyDate              LogFormatter = LogFormatters[8]  // placeholder for an initialized Text LogFormatter, with a RubyDate date format
+	TextDoubleSpace           LogFormatter = LogFormatters[9]  // placeholder for an initialized Text LogFormatter, with double spaces
+	TextLevelFirstSpaced      LogFormatter = LogFormatters[10] // placeholder for an initialized  LogFormatter, with level-first and double spaces
+	TextLevelFirst            LogFormatter = LogFormatters[11] // placeholder for an initialized  LogFormatter, with level-first
+	TextColorDoubleSpace      LogFormatter = LogFormatters[12] // placeholder for an initialized  LogFormatter, with color and double spaces
+	TextColorLevelFirstSpaced LogFormatter = LogFormatters[13] // placeholder for an initialized  LogFormatter, with color, level-first and double spaces
+	TextColorLevelFirst       LogFormatter = LogFormatters[14] // placeholder for an initialized  LogFormatter, with color and level-first
+	TextColor                 LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, with color
+	TextOnly                  LogFormatter = LogFormatters[16] // placeholder for an initialized  LogFormatter, with only the text content
+	TextNoHeaders             LogFormatter = LogFormatters[17] // placeholder for an initialized  LogFormatter, without headers
+	TextNoTimestamp           LogFormatter = LogFormatters[18] // placeholder for an initialized  LogFormatter, without timestamp
+	TextColorNoTimestamp      LogFormatter = LogFormatters[19] // placeholder for an initialized  LogFormatter, without timestamp
+	TextColorUpperNoTimestamp LogFormatter = LogFormatters[20] // placeholder for an initialized  LogFormatter, without timestamp and uppercase headers
 )
 
 // FmtText struct describes the different manipulations and processing that a
@@ -616,5 +620,27 @@ func (f *FmtGob) Format(log *LogMessage) ([]byte, error) {
 // Apply method implements the LoggerConfig interface, allowing a FmtGob object to be passed on as an
 // argument, when creating a new Logger. It will define the logger's formatter as a Gob LogFormatter
 func (f *FmtGob) Apply(lb *LoggerBuilder) {
+	lb.Fmt = f
+}
+
+// FmtBSON struct describes the different manipulations and processing that a BSON LogFormatter
+// can apply to a LogMessage
+type FmtBSON struct{}
+
+// Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
+//
+// This method will process the input LogMessage and marshal it according to this LogFormatter
+func (f *FmtBSON) Format(log *LogMessage) (buf []byte, err error) {
+	// remove trailing newline on JSON format
+	if log.Msg[len(log.Msg)-1] == 10 {
+		log.Msg = log.Msg[:len(log.Msg)-1]
+	}
+
+	return bson.Marshal(log)
+}
+
+// Apply method implements the LoggerConfig interface, allowing a FmtBSON object to be passed on as an
+// argument, when creating a new Logger. It will define the logger's formatter as a JSON LogFormatter
+func (f *FmtBSON) Apply(lb *LoggerBuilder) {
 	lb.Fmt = f
 }

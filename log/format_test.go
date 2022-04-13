@@ -970,7 +970,7 @@ func TestGobFmt(t *testing.T) {
 
 	g := &FmtGob{}
 
-	var verify = func(id int, test test) {
+	var verifyFormat = func(id int, test test) ([]byte, error) {
 		b, err := g.Format(test.msg)
 
 		if err != nil {
@@ -982,7 +982,19 @@ func TestGobFmt(t *testing.T) {
 				err,
 				test.name,
 			)
-			return
+			return nil, err
+		}
+		return b, nil
+	}
+
+	var verify = func(id int, test test, b []byte) {
+
+		if b == nil || len(b) == 0 {
+			buf, err := verifyFormat(id, test)
+			if err != nil {
+				return
+			}
+			b = buf
 		}
 
 		new, err := NewMessage().FromGob(b)
@@ -1072,8 +1084,18 @@ func TestGobFmt(t *testing.T) {
 		}
 	}
 
+	var buf = &bytes.Buffer{}
+	var logGob = New(WithOut(buf), FormatGob, SkipExit)
+
 	for id, test := range tests {
-		verify(id, test)
+		verify(id, test, nil)
+	}
+
+	for id, test := range tests {
+		buf.Reset()
+		logGob.Log(test.msg)
+		verify(id, test, buf.Bytes())
+		buf.Reset()
 	}
 
 	// ensure FromGob can fail:

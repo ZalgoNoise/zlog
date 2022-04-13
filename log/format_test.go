@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func TestFmtTextFormat(t *testing.T) {
@@ -1084,5 +1086,148 @@ func TestGobFmt(t *testing.T) {
 			funcname,
 		)
 		return
+	}
+}
+
+func TestBSONFmt(t *testing.T) {
+	module := "FormatBSON"
+	funcname := "Format()"
+	type test struct {
+		name string
+		msg  *LogMessage
+	}
+
+	var tests = []test{
+		{
+			name: "simple message",
+			msg:  NewMessage().Message("hello world").Build(),
+		},
+		{
+			name: "complete message w/o metadata",
+			msg:  NewMessage().Level(LLWarn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
+		},
+		{
+			name: "complete message w/ metadata",
+			msg: NewMessage().Level(LLWarn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(Field{
+				"a": true,
+				"b": 1,
+				"c": "data",
+				"d": map[string]interface{}{
+					"e": "inner",
+					"f": []string{
+						"g", "h", "i",
+					},
+				},
+			}).Build(),
+		},
+	}
+
+	g := &FmtBSON{}
+
+	var verify = func(id int, test test) {
+		b, err := g.Format(test.msg)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- error when formatting message: %s -- action: %s",
+				id,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		var new = &LogMessage{}
+		err = bson.Unmarshal(b, new)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- error when converting gob to message: %s -- action: %s",
+				id,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		fmt.Println(msg, test.msg)
+
+		if new.Time.Unix() != test.msg.Time.Unix() {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message time mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Time,
+				new.Time,
+				test.name,
+			)
+			return
+		}
+		if new.Level != test.msg.Level {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message level mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Level,
+				new.Level,
+				test.name,
+			)
+			return
+		}
+		if new.Prefix != test.msg.Prefix {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message prefix mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Prefix,
+				new.Prefix,
+				test.name,
+			)
+			return
+		}
+		if new.Sub != test.msg.Sub {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message sub-prefix mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Sub,
+				new.Sub,
+				test.name,
+			)
+			return
+		}
+		if new.Msg != test.msg.Msg {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- message body mismatch -- wanted %v ; got %v -- action: %s",
+				id,
+				module,
+				funcname,
+				test.msg.Msg,
+				new.Msg,
+				test.name,
+			)
+			return
+		}
+
+		if len(new.Metadata) != len(test.msg.Metadata) {
+			return
+		}
+		for k := range new.Metadata {
+			if _, ok := test.msg.Metadata[k]; !ok {
+				return
+			}
+		}
+	}
+
+	for id, test := range tests {
+		verify(id, test)
 	}
 }

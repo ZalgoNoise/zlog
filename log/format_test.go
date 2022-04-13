@@ -1124,7 +1124,8 @@ func TestBSONFmt(t *testing.T) {
 
 	g := &FmtBSON{}
 
-	var verify = func(id int, test test) {
+	var verifyFormat = func(id int, test test) ([]byte, error) {
+
 		b, err := g.Format(test.msg)
 
 		if err != nil {
@@ -1136,11 +1137,23 @@ func TestBSONFmt(t *testing.T) {
 				err,
 				test.name,
 			)
-			return
+			return nil, err
+		}
+		return b, nil
+	}
+
+	var verify = func(id int, test test, b []byte) {
+
+		if b == nil || len(b) == 0 {
+			buf, err := verifyFormat(id, test)
+			if err != nil {
+				return
+			}
+			b = buf
 		}
 
 		var new = &LogMessage{}
-		err = bson.Unmarshal(b, new)
+		err := bson.Unmarshal(b, new)
 
 		if err != nil {
 			t.Errorf(
@@ -1227,7 +1240,22 @@ func TestBSONFmt(t *testing.T) {
 		}
 	}
 
+	var buf = &bytes.Buffer{}
+	var logBSON = New(WithOut(buf), FormatBSON, SkipExit)
+
 	for id, test := range tests {
-		verify(id, test)
+		verify(id, test, nil)
 	}
+
+	for id, test := range tests {
+		buf.Reset()
+		logBSON.Log(test.msg)
+		verify(id, test, buf.Bytes())
+		buf.Reset()
+	}
+
+	buf.Reset()
+	logBSON.Infoln(tests[0].msg.Msg)
+	verify(0, tests[0], buf.Bytes())
+	buf.Reset()
 }

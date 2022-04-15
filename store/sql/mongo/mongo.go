@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/zalgonoise/zlog/log"
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,8 +20,8 @@ var (
 )
 
 type Mongo struct {
-	env        string
 	uri        string
+	addr       string
 	database   string
 	collection string
 	db         *mongo.Client
@@ -28,50 +29,37 @@ type Mongo struct {
 	cancel     context.CancelFunc
 }
 
-func New(envURI, database, collection string) (*Mongo, error) {
-	uri, err := checkEnv(envURI)
+func New(address, database, collection string) (*Mongo, error) {
+	// getting the target URI
+	//   mongodb://user:password@127.0.0.1:27017/?maxPoolSize=20&w=majority
+	var uri = strings.Builder{}
 
-	if err != nil {
-		return nil, err
-	}
+	uri.WriteString("mongodb://")
+	uri.WriteString(os.Getenv("MONGO_USER"))
+	uri.WriteString(":")
+	uri.WriteString(os.Getenv("MONGO_PASSWORD"))
+	uri.WriteString("@")
+	uri.WriteString(address)
+	uri.WriteString("/?maxPoolSize=20&w=majority")
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri.String()))
 	if err != nil {
 		defer cancel()
 		return nil, err
 	}
 
 	return &Mongo{
-		env:        envURI,
-		uri:        uri,
+		uri:        uri.String(),
+		addr:       address,
 		database:   database,
 		collection: collection,
 		db:         client,
 		ctx:        ctx,
 		cancel:     cancel,
 	}, nil
-}
-
-func checkEnv(env string) (string, error) {
-	if env == "" {
-		uri := os.Getenv("MONGODB_URI")
-
-		if uri == "" {
-			return "", ErrNoURI
-		}
-
-		return uri, nil
-	}
-	uri := os.Getenv(env)
-
-	if uri == "" {
-		return "", ErrNoURI
-	}
-
-	return uri, nil
 }
 
 func (d *Mongo) Close() error {
@@ -86,8 +74,6 @@ func (d *Mongo) Create(msg ...*log.LogMessage) error {
 	if len(msg) == 0 {
 		return nil
 	}
-
-	fmt.Println("database: ", d.database, "; collection: ", d.collection)
 
 	var coll = d.db.Database(d.database).Collection(d.collection)
 	var msgs []interface{}
@@ -120,7 +106,7 @@ func (d *Mongo) Create(msg ...*log.LogMessage) error {
 }
 
 func (d *Mongo) Write(p []byte) (n int, err error) {
-	if d.db == nil && d.env != "" {
+	if d.db == nil && d.addr != "" {
 		if d.database == "" {
 			d.database = "logging"
 		}
@@ -128,7 +114,7 @@ func (d *Mongo) Write(p []byte) (n int, err error) {
 			d.collection = "logs"
 		}
 
-		new, err := New(d.env, d.database, d.collection)
+		new, err := New(d.addr, d.database, d.collection)
 		if err != nil {
 			return 0, err
 		}

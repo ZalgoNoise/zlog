@@ -25,13 +25,15 @@ func (m *LogMessage) From(msg *log.LogMessage) error {
 	m.Level = msg.Level
 	m.Msg = msg.Msg
 
-	meta, err := json.Marshal(msg.Msg)
+	meta, err := json.Marshal(msg.Metadata)
 
 	if err != nil {
 		return err
 	}
 
-	m.Metadata = string(meta)
+	if metafmt := string(meta); metafmt != "{}" {
+		m.Metadata = metafmt
+	}
 
 	return nil
 }

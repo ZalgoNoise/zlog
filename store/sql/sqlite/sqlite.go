@@ -126,7 +126,7 @@ func WithSQLite(path string) log.LoggerConfig {
 	// considering that JSON will (usually) have less bytes per (small) message
 	return &LCSQLite{
 		out: db,
-		fmt: log.FormatJSON,
+		fmt: log.FormatGob,
 	}
 }
 

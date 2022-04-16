@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/zalgonoise/zlog/log"
+	model "github.com/zalgonoise/zlog/store/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -27,7 +28,7 @@ type Mongo struct {
 	db         *mongo.Client
 }
 
-func New(address, database, collection string) (*Mongo, error) {
+func New(address, database, collection string) (model.Database, error) {
 	// getting the target URI
 	//   mongodb://user:password@127.0.0.1:27017/?maxPoolSize=20&w=majority
 	var uri = strings.Builder{}
@@ -110,7 +111,7 @@ func (d *Mongo) Write(p []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		d = new
+		d = new.(*Mongo)
 	}
 
 	var out *log.LogMessage

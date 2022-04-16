@@ -28,7 +28,7 @@ type Mongo struct {
 	db         *mongo.Client
 }
 
-func New(address, database, collection string) (model.Database, error) {
+func New(address, database, collection string) (model.DBWriter, error) {
 	// getting the target URI
 	//   mongodb://user:password@127.0.0.1:27017/?maxPoolSize=20&w=majority
 	var uri = strings.Builder{}

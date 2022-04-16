@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -138,29 +137,17 @@ func (d *Mongo) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// LCMongo struct defines the Logger Config object that adds a Mongo writer to a Logger
-type LCMongo struct {
-	out io.Writer
-	fmt log.LogFormatter
-}
-
-// WithMongo function takes in a path to a .db file, and a table name; and returns a LoggerConfig
-// so that this type of writer is defined in a Logger
-func WithMongo(envURI, database, collection string) log.LoggerConfig {
-	db, err := New(envURI, database, collection)
+// WithMongo function takes in the address to the mongo server, and a database and collection name;
+// and returns a LoggerConfig so that this type of writer is defined in a Logger
+func WithMongo(addr, database, collection string) log.LoggerConfig {
+	db, err := New(addr, database, collection)
 	if err != nil {
 		fmt.Printf("failed to open or create database with an error: %s", err)
 		os.Exit(1)
 	}
 
-	return &LCMongo{
-		out: db,
-		fmt: log.FormatJSON,
+	return &log.LCDatabase{
+		Out: db,
+		Fmt: log.FormatJSON,
 	}
-}
-
-// Apply method will set the input LoggerBuilder's outputs and format to the LCMongo object's.
-func (c *LCMongo) Apply(lb *log.LoggerBuilder) {
-	lb.Out = c.out
-	lb.Fmt = c.fmt
 }

@@ -108,6 +108,12 @@ func (s *MySQL) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// Close method is implemented for compatibility with the Database interface.
+//
+// While this ORM doesn't force users to close the connection, MongoDB does, and the
+// method should be available for use
+func (d *MySQL) Close() error { return nil }
+
 func initialMigration(address, database string) (*gorm.DB, error) {
 	// "gorm:gorm@tcp(127.0.0.1:3306)/gorm?charset=utf8&parseTime=True&loc=Local"
 	var uri = strings.Builder{}

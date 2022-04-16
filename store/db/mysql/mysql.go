@@ -9,7 +9,8 @@ import (
 	"strings"
 
 	"github.com/zalgonoise/zlog/log"
-	model "github.com/zalgonoise/zlog/store/db"
+	dbw "github.com/zalgonoise/zlog/store/db"
+	model "github.com/zalgonoise/zlog/store/db/message"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -26,7 +27,7 @@ type MySQL struct {
 
 // New function will take in a mysql DB address and database name; and create
 // a new instance of a MySQL object; returning a pointer to one and an error.
-func New(address, database string) (sqldb model.DBWriter, err error) {
+func New(address, database string) (sqldb dbw.DBWriter, err error) {
 	db, err := initialMigration(address, database)
 
 	if err != nil {

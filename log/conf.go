@@ -206,9 +206,21 @@ func WithFilter(level LogLevel) LoggerConfig {
 //
 // TODO(zalgonoise): benchmark this and Gob encoding -- timing thousands of requests show that JSON is
 // faster (probably because of complex metadata) but this needs to be verified
-func WithDatabase(db db.DBWriter) LoggerConfig {
+func WithDatabase(dbs ...db.DBWriter) LoggerConfig {
+	if len(dbs) == 0 {
+		return nil
+	}
+
+	var w io.WriteCloser
+
+	if len(dbs) == 1 {
+		w = dbs[0]
+	} else if len(dbs) > 1 {
+		w = db.MultiWriteCloser(dbs...)
+	}
+
 	return &LCDatabase{
-		Out: db,
+		Out: w,
 		Fmt: FormatJSON,
 	}
 }

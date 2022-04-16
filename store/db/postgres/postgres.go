@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -155,16 +154,10 @@ func initialMigration(address, port, database string) (*gorm.DB, error) {
 	return db, nil
 }
 
-// LCPostgres struct defines the Logger Config object that adds a Postgres writer to a Logger
-type LCPostgres struct {
-	out io.Writer
-	fmt log.LogFormatter
-}
-
-// WithPostgres function takes in a path to a .db file, and a table name; and returns a LoggerConfig
-// so that this type of writer is defined in a Logger
-func WithPostgres(address, port, database string) log.LoggerConfig {
-	db, err := New(address, port, database)
+// WithPostgres function takes in an address and port to a Postgres server, and a database name;
+// and returns a LoggerConfig so that this type of writer is defined in a Logger
+func WithPostgres(addr, port, database string) log.LoggerConfig {
+	db, err := New(addr, port, database)
 	if err != nil {
 		fmt.Printf("failed to open or create database with an error: %s", err)
 		os.Exit(1)
@@ -172,14 +165,8 @@ func WithPostgres(address, port, database string) log.LoggerConfig {
 
 	//TODO(zalgonoise): benchmark this decision -- confirm if gob is more performant,
 	// considering that JSON will (usually) have less bytes per (small) message
-	return &LCPostgres{
-		out: db,
-		fmt: log.FormatJSON,
+	return &log.LCDatabase{
+		Out: db,
+		Fmt: log.FormatJSON,
 	}
-}
-
-// Apply method will set the input LoggerBuilder's outputs and format to the LCPostgres object's.
-func (c *LCPostgres) Apply(lb *log.LoggerBuilder) {
-	lb.Out = c.out
-	lb.Fmt = c.fmt
 }

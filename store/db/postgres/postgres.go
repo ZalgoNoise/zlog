@@ -22,13 +22,12 @@ type Postgres struct {
 	addr     string
 	port     string
 	database string
-	// table    string
-	db *gorm.DB
+	db       *gorm.DB
 }
 
 // New function will take in a postgres DB address, port and database name; and create
 // a new instance of a Postgres object; returning a pointer to one and an error.
-func New(address, port, database string) (sqldb *Postgres, err error) {
+func New(address, port, database string) (sqldb model.DBWriter, err error) {
 	db, err := initialMigration(address, port, database)
 
 	if err != nil {
@@ -87,7 +86,7 @@ func (s *Postgres) Write(p []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		s = new
+		s = new.(*Postgres)
 	}
 
 	var out *log.LogMessage

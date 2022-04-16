@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/zalgonoise/zlog/store"
+	"github.com/zalgonoise/zlog/store/db"
 )
 
 // LoggerConfig interface describes the behavior that a LoggerConfig object should have
@@ -104,6 +105,12 @@ type LCFilter struct {
 	l LogLevel
 }
 
+// LCDatabase struct defines the Logger Config object that adds a DBWriter as a Logger writer
+type LCDatabase struct {
+	Out io.WriteCloser
+	Fmt LogFormatter
+}
+
 // Apply method will set the configured prefix string to the input pointer to a LoggerBuilder
 func (c *LCPrefix) Apply(lb *LoggerBuilder) {
 	lb.Prefix = c.p
@@ -129,6 +136,12 @@ func (c LCSkipExit) Apply(lb *LoggerBuilder) {
 // Apply method will set the configured level filter to the input pointer to a LoggerBuilder
 func (c LCFilter) Apply(lb *LoggerBuilder) {
 	lb.LevelFilter = c.l.Int()
+}
+
+// Apply method will set the input LoggerBuilder's outputs and format to the LCDatabase object's.
+func (c *LCDatabase) Apply(lb *LoggerBuilder) {
+	lb.Out = c.Out
+	lb.Fmt = c.Fmt
 }
 
 // NilLogger function will create a minimal LoggerConfig with an empty writer, and that does not
@@ -185,5 +198,17 @@ func WithOut(out ...io.Writer) LoggerConfig {
 func WithFilter(level LogLevel) LoggerConfig {
 	return &LCFilter{
 		l: level,
+	}
+}
+
+// WithDatabase function creates a Logger config to use a database as a writer, with the most efficient
+// encoder in terms of encoding speed and percision.
+//
+// TODO(zalgonoise): benchmark this and Gob encoding -- timing thousands of requests show that JSON is
+// faster (probably because of complex metadata) but this needs to be verified
+func WithDatabase(db db.DBWriter) LoggerConfig {
+	return &LCDatabase{
+		Out: db,
+		Fmt: FormatJSON,
 	}
 }

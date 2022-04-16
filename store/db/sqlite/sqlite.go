@@ -7,7 +7,8 @@ import (
 	"os"
 
 	"github.com/zalgonoise/zlog/log"
-	model "github.com/zalgonoise/zlog/store/db"
+	dbw "github.com/zalgonoise/zlog/store/db"
+	model "github.com/zalgonoise/zlog/store/db/message"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -20,7 +21,7 @@ type SQLite struct {
 
 // New function will take in a path to a .db file; and create a new
 // instance of a SQLite3 object; returning a pointer to one and an error.
-func New(path string) (sqldb model.DBWriter, err error) {
+func New(path string) (sqldb dbw.DBWriter, err error) {
 	db, err := initialMigration(path)
 
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 	"github.com/zalgonoise/zlog/log"
 )
 
-type Database interface {
+type DBWriter interface {
 	io.Writer
 	Create(msg ...*log.LogMessage) error
 	Close() error

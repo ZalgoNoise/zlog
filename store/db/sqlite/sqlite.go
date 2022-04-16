@@ -96,6 +96,12 @@ func (s *SQLite) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// Close method is implemented for compatibility with the Database interface.
+//
+// While this ORM doesn't force users to close the connection, MongoDB does, and the
+// method should be available for use
+func (d *SQLite) Close() error { return nil }
+
 func initialMigration(path string) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
 	if err != nil {

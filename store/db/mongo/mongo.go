@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/zalgonoise/zlog/log"
-	model "github.com/zalgonoise/zlog/store/db"
+	dbw "github.com/zalgonoise/zlog/store/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -28,7 +28,7 @@ type Mongo struct {
 	db         *mongo.Client
 }
 
-func New(address, database, collection string) (model.DBWriter, error) {
+func New(address, database, collection string) (dbw.DBWriter, error) {
 	// getting the target URI
 	//   mongodb://user:password@127.0.0.1:27017/?maxPoolSize=20&w=majority
 	var uri = strings.Builder{}
@@ -155,7 +155,7 @@ func WithMongo(envURI, database, collection string) log.LoggerConfig {
 
 	return &LCMongo{
 		out: db,
-		fmt: log.FormatGob,
+		fmt: log.FormatJSON,
 	}
 }
 

@@ -21,13 +21,12 @@ var (
 type MySQL struct {
 	addr     string
 	database string
-	// table    string
-	db *gorm.DB
+	db       *gorm.DB
 }
 
 // New function will take in a mysql DB address and database name; and create
 // a new instance of a MySQL object; returning a pointer to one and an error.
-func New(address, database string) (sqldb *MySQL, err error) {
+func New(address, database string) (sqldb model.DBWriter, err error) {
 	db, err := initialMigration(address, database)
 
 	if err != nil {
@@ -81,7 +80,7 @@ func (s *MySQL) Write(p []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		s = new
+		s = new.(*MySQL)
 	}
 
 	var out *log.LogMessage

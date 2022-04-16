@@ -20,7 +20,7 @@ type SQLite struct {
 
 // New function will take in a path to a .db file; and create a new
 // instance of a SQLite3 object; returning a pointer to one and an error.
-func New(path string) (sqldb *SQLite, err error) {
+func New(path string) (sqldb model.DBWriter, err error) {
 	db, err := initialMigration(path)
 
 	if err != nil {
@@ -69,7 +69,7 @@ func (s *SQLite) Write(p []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		s = new
+		s = new.(*SQLite)
 	}
 
 	var out *log.LogMessage

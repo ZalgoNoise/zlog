@@ -114,6 +114,12 @@ func (s *Postgres) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// Close method is implemented for compatibility with the Database interface.
+//
+// While this ORM doesn't force users to close the connection, MongoDB does, and the
+// method should be available for use
+func (d *Postgres) Close() error { return nil }
+
 func initialMigration(address, port, database string) (*gorm.DB, error) {
 	// "host=localhost user=gorm password=gorm dbname=gorm port=9920 sslmode=disable TimeZone=UTC"
 	var uri = strings.Builder{}

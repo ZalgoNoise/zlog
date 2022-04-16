@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -150,16 +149,10 @@ func initialMigration(address, database string) (*gorm.DB, error) {
 	return db, nil
 }
 
-// LCMySQL struct defines the Logger Config object that adds a MySQL writer to a Logger
-type LCMySQL struct {
-	out io.Writer
-	fmt log.LogFormatter
-}
-
-// WithMySQL function takes in a path to a .db file, and a table name; and returns a LoggerConfig
+// WithMySQL function takes in an address to a MySQL server, and a database name; and returns a LoggerConfig
 // so that this type of writer is defined in a Logger
-func WithMySQL(address, database string) log.LoggerConfig {
-	db, err := New(address, database)
+func WithMySQL(addr, database string) log.LoggerConfig {
+	db, err := New(addr, database)
 	if err != nil {
 		fmt.Printf("failed to open or create database with an error: %s", err)
 		os.Exit(1)
@@ -167,14 +160,8 @@ func WithMySQL(address, database string) log.LoggerConfig {
 
 	//TODO(zalgonoise): benchmark this decision -- confirm if gob is more performant,
 	// considering that JSON will (usually) have less bytes per (small) message
-	return &LCMySQL{
-		out: db,
-		fmt: log.FormatGob,
+	return &log.LCDatabase{
+		Out: db,
+		Fmt: log.FormatGob,
 	}
-}
-
-// Apply method will set the input LoggerBuilder's outputs and format to the LCMySQL object's.
-func (c *LCMySQL) Apply(lb *log.LoggerBuilder) {
-	lb.Out = c.out
-	lb.Fmt = c.fmt
 }

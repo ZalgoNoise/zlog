@@ -9,7 +9,8 @@ import (
 	"strings"
 
 	"github.com/zalgonoise/zlog/log"
-	model "github.com/zalgonoise/zlog/store/db"
+	dbw "github.com/zalgonoise/zlog/store/db"
+	model "github.com/zalgonoise/zlog/store/db/message"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -27,7 +28,7 @@ type Postgres struct {
 
 // New function will take in a postgres DB address, port and database name; and create
 // a new instance of a Postgres object; returning a pointer to one and an error.
-func New(address, port, database string) (sqldb model.DBWriter, err error) {
+func New(address, port, database string) (sqldb dbw.DBWriter, err error) {
 	db, err := initialMigration(address, port, database)
 
 	if err != nil {

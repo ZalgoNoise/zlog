@@ -1,20 +1,22 @@
 package log
 
+import "github.com/zalgonoise/zlog/log/event"
+
 // ChanneledLogger interface defines the behavior of a channeled logger in a goroutine.
 //
 // This interface is a bit more specific in the sense that it has also methods to interact
 // with the goroutine, and not just to spawn it and retrieve the needed channels.
 type ChanneledLogger interface {
-	Log(msg ...*LogMessage)
+	Log(msg ...*event.Event)
 	Close()
-	Channels() (logCh chan *LogMessage, done chan struct{})
+	Channels() (logCh chan *event.Event, done chan struct{})
 }
 
 // LogChannel struct defines what a minimal logging channel must contain:
 //   - a channel to receive pointers to LogMessages
 //   - a channel to receive a done signal (to close the goroutine)
 type LogChannel struct {
-	logCh chan *LogMessage
+	logCh chan *event.Event
 	done  chan struct{}
 }
 
@@ -42,7 +44,7 @@ type LogChannel struct {
 //     done <- struct{}{}
 func NewLogCh(logger Logger) (logCh ChanneledLogger) {
 
-	msgCh := make(chan *LogMessage)
+	msgCh := make(chan *event.Event)
 	done := make(chan struct{})
 
 	logCh = &LogChannel{
@@ -83,7 +85,7 @@ func NewLogCh(logger Logger) (logCh ChanneledLogger) {
 //
 //     logCh.Close()
 //
-func (c LogChannel) Log(msg ...*LogMessage) {
+func (c LogChannel) Log(msg ...*event.Event) {
 	if len(msg) == 0 {
 		return
 	}
@@ -122,6 +124,6 @@ func (c LogChannel) Close() {
 //
 //     done <- struct{}{}
 //
-func (c LogChannel) Channels() (logCh chan *LogMessage, done chan struct{}) {
+func (c LogChannel) Channels() (logCh chan *event.Event, done chan struct{}) {
 	return c.logCh, c.done
 }

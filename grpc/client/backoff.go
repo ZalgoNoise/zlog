@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
 )
 
 var (
@@ -24,7 +25,7 @@ const (
 )
 
 type streamFunc func()
-type logFunc func(*log.LogMessage)
+type logFunc func(*event.Event)
 type BackoffFunc func(uint) time.Duration
 
 // Backoff struct defines the elements of a backoff module, which is configured
@@ -41,7 +42,7 @@ type Backoff struct {
 	max         time.Duration
 	wait        time.Duration
 	call        interface{}
-	msg         []*log.LogMessage
+	msg         []*event.Event
 	backoffFunc BackoffFunc
 	locked      bool
 	mu          sync.Mutex
@@ -246,7 +247,7 @@ func (b *Backoff) Register(call interface{}) {
 // is used when exchanging unary requests and responses with a gRPC server.
 func (b *Backoff) UnaryBackoffHandler(err error, logger log.Logger) error {
 	// retry with backoff
-	logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("retry").Metadata(log.Field{
+	logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("retry").Metadata(event.Field{
 		"error":      err,
 		"iterations": b.Counter(),
 		"maxWait":    b.Max(),
@@ -289,7 +290,7 @@ func (b *Backoff) StreamBackoffHandler(
 
 	// handle backoff deadline errors by closing the stream
 	if err != nil {
-		logger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+		logger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 			"error":      err.Error(),
 			"numRetries": b.Counter(),
 		}).Message("closing stream after too many failed attempts to reconnect").Build())
@@ -301,7 +302,7 @@ func (b *Backoff) StreamBackoffHandler(
 	}
 
 	// otherwise the stream will be recreated
-	logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("stream").Metadata(log.Field{
+	logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 		"error":      err,
 		"iterations": b.Counter(),
 		"maxWait":    b.Max(),
@@ -321,7 +322,7 @@ func (b *Backoff) Time(t time.Duration) {
 
 // AddMessage method will append a new message to the exponential backoff's
 // message queue
-func (b *Backoff) AddMessage(msg *log.LogMessage) {
+func (b *Backoff) AddMessage(msg *event.Event) {
 
 	b.msg = append(b.msg, msg)
 	return

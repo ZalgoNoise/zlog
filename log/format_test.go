@@ -8,12 +8,17 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zalgonoise/zlog/log/event"
+	zbson "github.com/zalgonoise/zlog/log/format/bson"
+	"github.com/zalgonoise/zlog/log/format/csv"
+	"github.com/zalgonoise/zlog/log/format/gob"
+	"github.com/zalgonoise/zlog/log/format/text"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
 func TestFmtTextFormat(t *testing.T) {
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		rgx *regexp.Regexp
 	}
 
@@ -30,12 +35,12 @@ func TestFmtTextFormat(t *testing.T) {
 			for c := 0; c < len(testAllMessages); c++ {
 
 				// skip os.Exit(1) and panic() events
-				if mockLogLevelsOK[a] == LLFatal || mockLogLevelsOK[a] == LLPanic {
+				if mockLogLevelsOK[a] == event.LLFatal || mockLogLevelsOK[a] == event.LLPanic {
 					continue
 				}
 
 				obj := test{
-					msg: NewMessage().
+					msg: event.New().
 						Level(mockLogLevelsOK[a]).
 						Prefix(mockPrefixes[b]).
 						Message(testAllMessages[c]).
@@ -57,7 +62,7 @@ func TestFmtTextFormat(t *testing.T) {
 	var verify = func(id int, test test, b []byte) {
 		if len(b) == 0 {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- empty buffer error",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- empty buffer error",
 				id,
 			)
 			return
@@ -65,7 +70,7 @@ func TestFmtTextFormat(t *testing.T) {
 
 		if !test.rgx.Match(b) {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- log message mismatch, expected output to match regex %s -- %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- log message mismatch, expected output to match regex %s -- %s",
 				id,
 				test.rgx,
 				string(b),
@@ -74,7 +79,7 @@ func TestFmtTextFormat(t *testing.T) {
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [TextFormat] Format(*LogMessage) -- %s",
+			"#%v -- PASSED -- [TextFormat] Format(*event.Event) -- %s",
 			id,
 			*test.msg,
 		)
@@ -87,7 +92,7 @@ func TestFmtTextFormat(t *testing.T) {
 		b, err := txt.Format(test.msg)
 		if err != nil {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- failed to format message: %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- failed to format message: %s",
 				id,
 				err,
 			)
@@ -195,7 +200,7 @@ func TestFmtTextFmtMetadata(t *testing.T) {
 	}
 
 	type fieldTest struct {
-		obj Field
+		obj event.Field
 		rgx *regexp.Regexp
 	}
 
@@ -203,12 +208,12 @@ func TestFmtTextFmtMetadata(t *testing.T) {
 	// [ objList = [ [ a = 1 ] ; [ b = 2 ] ] ; same = [ [ a = 1 ] ; [ b = 2 ] ] ]
 	var fieldTests = []fieldTest{
 		{
-			obj: Field{
-				"a-map": Field{
+			obj: event.Field{
+				"a-map": event.Field{
 					"a": 1,
 					"b": 2,
 				},
-				"b-map": Field{
+				"b-map": event.Field{
 					"a": 1,
 					"b": 2,
 				},
@@ -216,8 +221,8 @@ func TestFmtTextFmtMetadata(t *testing.T) {
 			rgx: regexp.MustCompile(`\[ ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) ; ((a-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])|(b-map = \[ ((a = 1)|(b = 2)) ; ((a = 1)|(b = 2)) \])) \]`),
 		},
 		{
-			obj: Field{
-				"objList": []Field{
+			obj: event.Field{
+				"objList": []event.Field{
 					{
 						"a": 1,
 					},
@@ -225,7 +230,7 @@ func TestFmtTextFmtMetadata(t *testing.T) {
 						"b": 2,
 					},
 				},
-				"same": []Field{
+				"same": []event.Field{
 					{
 						"a": 1,
 					},
@@ -258,17 +263,17 @@ func TestFmtTextFmtMetadata(t *testing.T) {
 	}
 
 	for id, test := range mapTests {
-		txt := &FmtText{}
+		txt := &text.FmtText{}
 
-		result := txt.fmtMetadata(test.obj)
+		result := txt.FmtMetadata(test.obj)
 
 		verify(id, test.rgx, result)
 	}
 
 	for id, test := range fieldTests {
-		txt := &FmtText{}
+		txt := &text.FmtText{}
 
-		result := txt.fmtMetadata(test.obj)
+		result := txt.FmtMetadata(test.obj)
 
 		verify(id, test.rgx, result)
 	}
@@ -277,7 +282,7 @@ func TestFmtTextFmtMetadata(t *testing.T) {
 
 func TestJSONFmtFormat(t *testing.T) {
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 	}
 
 	var testAllMessages []string
@@ -293,12 +298,12 @@ func TestJSONFmtFormat(t *testing.T) {
 			for c := 0; c < len(testAllMessages); c++ {
 
 				// skip os.Exit(1) and panic() events
-				if mockLogLevelsOK[a] == LLFatal || mockLogLevelsOK[a] == LLPanic {
+				if mockLogLevelsOK[a] == event.LLFatal || mockLogLevelsOK[a] == event.LLPanic {
 					continue
 				}
 
 				obj := test{
-					msg: NewMessage().
+					msg: event.New().
 						Level(mockLogLevelsOK[a]).
 						Prefix(mockPrefixes[b]).
 						Message(testAllMessages[c]).
@@ -314,17 +319,17 @@ func TestJSONFmtFormat(t *testing.T) {
 	var verify = func(id int, test test, b []byte) {
 		if len(b) == 0 {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- empty buffer error",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- empty buffer error",
 				id,
 			)
 			return
 		}
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(b, logEntry); err != nil {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- unmarshal error: %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- unmarshal error: %s",
 				id,
 				err,
 			)
@@ -332,7 +337,7 @@ func TestJSONFmtFormat(t *testing.T) {
 		}
 		if logEntry.Msg != test.msg.Msg {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- message mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
 				logEntry.Msg,
@@ -342,9 +347,9 @@ func TestJSONFmtFormat(t *testing.T) {
 
 		if logEntry.Level != test.msg.Level {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- log level mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- log level mismatch: wanted %s ; got %s",
 				id,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -352,7 +357,7 @@ func TestJSONFmtFormat(t *testing.T) {
 
 		if logEntry.Prefix != test.msg.Prefix {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- log prefix mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- log prefix mismatch: wanted %s ; got %s",
 				id,
 				test.msg.Prefix,
 				logEntry.Prefix,
@@ -361,7 +366,7 @@ func TestJSONFmtFormat(t *testing.T) {
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [TextFormat] Format(*LogMessage) -- %s",
+			"#%v -- PASSED -- [TextFormat] Format(*event.Event) -- %s",
 			id,
 			*test.msg,
 		)
@@ -374,7 +379,7 @@ func TestJSONFmtFormat(t *testing.T) {
 		b, err := jsn.Format(test.msg)
 		if err != nil {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- failed to format message: %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- failed to format message: %s",
 				id,
 				err,
 			)
@@ -383,222 +388,222 @@ func TestJSONFmtFormat(t *testing.T) {
 	}
 }
 
-func TestNewTextFormatter(t *testing.T) {
+func TestNewTextFormat(t *testing.T) {
 
 	type test struct {
 		desc string
-		msg  *LogMessage
-		fmt  *FmtText
+		msg  *event.Event
+		fmt  *text.FmtText
 		rgx  *regexp.Regexp
 	}
 
-	var msg = NewMessage().Prefix("formatter-tests").Level(LLInfo).Message("test content").Build()
-	var msgSub = NewMessage().Prefix("formatter-tests").Sub("fmt").Level(LLInfo).Message("test content").Build()
-	var msgMeta = NewMessage().Prefix("formatter-tests").Sub("fmt").Level(LLInfo).Message("test content").Metadata(Field{"a": 0}).Build()
+	var msg = event.New().Prefix("formatter-tests").Level(event.LLInfo).Message("test content").Build()
+	var msgSub = event.New().Prefix("formatter-tests").Sub("fmt").Level(event.LLInfo).Message("test content").Build()
+	var msgMeta = event.New().Prefix("formatter-tests").Sub("fmt").Level(event.LLInfo).Message("test content").Metadata(event.Field{"a": 0}).Build()
 
 	tests := []test{
 		{
 			desc: "default",
 			msg:  msg,
-			fmt:  NewTextFormat().Build(),
+			fmt:  text.New().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set RFC3339Nano",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTRFC3339Nano).Build(),
+			fmt:  text.New().Time(text.LTRFC3339Nano).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set RFC3339",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTRFC3339).Build(),
+			fmt:  text.New().Time(text.LTRFC3339).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set RFC822Z",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTRFC822Z).Build(),
+			fmt:  text.New().Time(text.LTRFC822Z).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{2}\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{2}\s\d{2}:\d{2}\s\+\d{4}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set RubyDate",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTRubyDate).Build(),
+			fmt:  text.New().Time(text.LTRubyDate).Build(),
 			rgx:  regexp.MustCompile(`^\[(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{2}\s\d{2}:\d{2}:\d{2}\s\+\d{4}\s\d{4}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set UnixNano",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).Build(),
+			fmt:  text.New().Time(text.LTUnixNano).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set UnixMilli",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixMilli).Build(),
+			fmt:  text.New().Time(text.LTUnixMilli).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{13}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "time: set UnixMicro",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixMicro).Build(),
+			fmt:  text.New().Time(text.LTUnixMicro).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{16}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "level first",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).LevelFirst().Build(),
 			rgx:  regexp.MustCompile(`^\[info\]\s*\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "level first double-space",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().DoubleSpace().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).LevelFirst().DoubleSpace().Build(),
 			rgx:  regexp.MustCompile(`^\[info\]\s*\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "no level",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).NoLevel().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).NoLevel().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "no level: override level-first",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().NoLevel().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).LevelFirst().NoLevel().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "no level: override level-first inverse",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).NoLevel().LevelFirst().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).NoLevel().LevelFirst().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "no level: override color",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).Color().NoLevel().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).Color().NoLevel().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "no level: override color inverse",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).NoLevel().Color().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).NoLevel().Color().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "no headers",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).NoHeaders().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).NoHeaders().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*test content`),
 		},
 		{
 			desc: "no level / no headers: override uppercase",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).NoHeaders().NoLevel().Upper().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).NoHeaders().NoLevel().Upper().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*test content`),
 		},
 		{
 			desc: "double space",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).DoubleSpace().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).DoubleSpace().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "color",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).Color().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).Color().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[(.*)info(.*)\]\s*\[formatter-tests\]\s*test content`),
 		},
 		{
 			desc: "upper",
 			msg:  msg,
-			fmt:  NewTextFormat().Time(LTUnixNano).Upper().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).Upper().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[INFO\]\s*\[FORMATTER-TESTS\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- default",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Build(),
+			fmt:  text.New().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set RFC3339Nano",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTRFC3339Nano).Build(),
+			fmt:  text.New().Time(text.LTRFC3339Nano).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set RFC3339",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTRFC3339).Build(),
+			fmt:  text.New().Time(text.LTRFC3339).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set RFC822Z",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTRFC822Z).Build(),
+			fmt:  text.New().Time(text.LTRFC822Z).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{2}\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{2}\s\d{2}:\d{2}\s\+\d{4}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set RubyDate",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTRubyDate).Build(),
+			fmt:  text.New().Time(text.LTRubyDate).Build(),
 			rgx:  regexp.MustCompile(`^\[(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s\d{2}\s\d{2}:\d{2}:\d{2}\s\+\d{4}\s\d{4}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set UnixNano",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTUnixNano).Build(),
+			fmt:  text.New().Time(text.LTUnixNano).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set UnixMilli",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTUnixMilli).Build(),
+			fmt:  text.New().Time(text.LTUnixMilli).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{13}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- time: set UnixMicro",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTUnixMicro).Build(),
+			fmt:  text.New().Time(text.LTUnixMicro).Build(),
 			rgx:  regexp.MustCompile(`^\[\d{16}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- level first",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTUnixNano).LevelFirst().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).LevelFirst().Build(),
 			rgx:  regexp.MustCompile(`^\[info\]\s*\[\d{10}\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- double space",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTUnixNano).DoubleSpace().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).DoubleSpace().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- color",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTUnixNano).Color().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).Color().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[(.*)info(.*)\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix -- upper",
 			msg:  msgSub,
-			fmt:  NewTextFormat().Time(LTUnixNano).Upper().Build(),
+			fmt:  text.New().Time(text.LTUnixNano).Upper().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{10}\]\s*\[INFO\]\s*\[FORMATTER-TESTS\]\s*\[FMT\]\s*test content`),
 		},
 		{
 			desc: "w/sub-prefix + metadata",
 			msg:  msgMeta,
-			fmt:  NewTextFormat().Build(),
+			fmt:  text.New().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content\s*\[ a = 0 \]`),
 		},
 		{
 			desc: "w/sub-prefix + metadata + double-spaced",
 			msg:  msgMeta,
-			fmt:  NewTextFormat().DoubleSpace().Build(),
+			fmt:  text.New().DoubleSpace().Build(),
 			rgx:  regexp.MustCompile(`^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}]\s*\[info\]\s*\[formatter-tests\]\s*\[fmt\]\s*test content\s*\[ a = 0 \]`),
 		},
 	}
@@ -606,7 +611,7 @@ func TestNewTextFormatter(t *testing.T) {
 	var verify = func(id int, test test, buf []byte) {
 		if !test.rgx.MatchString(string(buf)) {
 			t.Errorf(
-				"#%v -- FAILED -- [NewTextFormat.Build()] Format(*LogMessage) -- %s -- mismatch: wanted %s ; got %s",
+				"#%v -- FAILED -- [text.New.Build()] Format(*event.Event) -- %s -- mismatch: wanted %s ; got %s",
 				id,
 				test.desc,
 				test.rgx,
@@ -616,7 +621,7 @@ func TestNewTextFormatter(t *testing.T) {
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [NewTextFormat.Build()] Format(*LogMessage) -- %s -- %s",
+			"#%v -- PASSED -- [text.New.Build()] Format(*event.Event) -- %s -- %s",
 			id,
 			test.desc,
 			string(buf),
@@ -631,7 +636,7 @@ func TestNewTextFormatter(t *testing.T) {
 
 			if err != nil {
 				t.Errorf(
-					"#%v -- FAILED -- [NewTextFormat.Build()] Format(*LogMessage) -- failed to format message: %s",
+					"#%v -- FAILED -- [text.New.Build()] Format(*event.Event) -- failed to format message: %s",
 					id,
 					err,
 				)
@@ -646,7 +651,7 @@ func TestNewTextFormatter(t *testing.T) {
 
 	for id, test := range tests {
 		buf.Reset()
-		txt := New(WithOut(buf), test.fmt)
+		txt := New(WithOut(buf), WithFormat(test.fmt))
 		txt.Log(test.msg)
 		verify(id, test, buf.Bytes())
 	}
@@ -655,7 +660,7 @@ func TestNewTextFormatter(t *testing.T) {
 
 func TestNewCSVFormat(t *testing.T) {
 	module := "Format"
-	funcname := "NewCSVFormat()"
+	funcname := "csv.New()"
 
 	type test struct {
 		name     string
@@ -682,27 +687,27 @@ func TestNewCSVFormat(t *testing.T) {
 		},
 	}
 
-	var verify = func(id int, test test, fmt *FmtCSV) {
-		if fmt.unixTime != test.unixTime {
+	var verify = func(id int, test test, fmt *csv.FmtCSV) {
+		if fmt.UnixTime != test.unixTime {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- unixTime value mismatch: wanted %v ; got %v -- action: %s",
 				id,
 				module,
 				funcname,
 				test.unixTime,
-				fmt.unixTime,
+				fmt.UnixTime,
 				test.name,
 			)
 			return
 		}
-		if fmt.jsonMeta != test.jsonMeta {
+		if fmt.JsonMeta != test.jsonMeta {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- unixTime value mismatch: wanted %v ; got %v -- action: %s",
 				id,
 				module,
 				funcname,
 				test.jsonMeta,
-				fmt.jsonMeta,
+				fmt.JsonMeta,
 				test.name,
 			)
 			return
@@ -710,7 +715,7 @@ func TestNewCSVFormat(t *testing.T) {
 	}
 
 	for id, test := range tests {
-		fmt := NewCSVFormat()
+		fmt := csv.New()
 
 		if test.unixTime {
 			fmt.Unix()
@@ -732,58 +737,58 @@ func TestCSVFmtFormat(t *testing.T) {
 
 	type test struct {
 		name string
-		fmt  *FmtCSV
-		msg  *LogMessage
+		fmt  *csv.FmtCSV
+		msg  *event.Event
 		rgx  *regexp.Regexp
 	}
 
 	var tests = []test{
 		{
 			name: "default fmt -- simple, trace, no sub",
-			fmt:  NewCSVFormat().Build(),
-			msg:  NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1}).Build(),
+			fmt:  csv.New().Build(),
+			msg:  event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": 1}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,\[ a = 1 \]`),
 		},
 		{
 			name: "default fmt -- simple, trace, w/ sub",
-			fmt:  NewCSVFormat().Build(),
-			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1}).Build(),
+			fmt:  csv.New().Build(),
+			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ a = 1 \]`),
 		},
 		{
 			name: "default fmt -- complex meta, trace, no sub",
-			fmt:  NewCSVFormat().Build(),
-			msg:  NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			fmt:  csv.New().Build(),
+			msg:  event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
 		},
 		{
 			name: "default fmt -- complex meta, trace, w/ sub",
-			fmt:  NewCSVFormat().Build(),
-			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			fmt:  csv.New().Build(),
+			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
 		},
 		{
 			name: "default fmt -- complex meta strings, trace, no sub",
-			fmt:  NewCSVFormat().Build(),
-			msg:  NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			fmt:  csv.New().Build(),
+			msg:  event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \] "`),
 		},
 		{
 			name: "default fmt -- complex meta strings, trace, w/ sub",
-			fmt:  NewCSVFormat().Build(),
-			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			fmt:  csv.New().Build(),
+			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \]`),
 		},
 		{
 			name: "unixTime fmt -- complex meta strings, trace, w/ sub",
-			fmt:  NewCSVFormat().Unix().Build(),
-			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			fmt:  csv.New().Unix().Build(),
+			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{10},trace,one,two,three,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \]`),
 		},
 		{
 			name: "unixTime+jsonMeta fmt -- complex meta strings, trace, w/ sub",
-			fmt:  NewCSVFormat().Unix().JSON().Build(),
-			msg:  NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			fmt:  csv.New().Unix().JSON().Build(),
+			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx:  regexp.MustCompile(`\d+,trace,one,two,three,\"{\"\"a\"\":\"\"one\"\",\"\"b\"\":\[{\"\"a\"\":\"\"one\"\"},{\"\"b\"\":\"\"one\"\"}\]}\"`),
 		},
 	}
@@ -829,7 +834,7 @@ func TestCSVFmtFormat(t *testing.T) {
 		b, err := csv.Format(test.msg)
 		if err != nil {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- failed to format message: %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- failed to format message: %s",
 				id,
 				err,
 			)
@@ -842,7 +847,7 @@ func TestCSVFmtFormat(t *testing.T) {
 
 	for id, test := range tests {
 		buf.Reset()
-		csv := New(WithOut(buf), test.fmt)
+		csv := New(WithOut(buf), WithFormat(test.fmt))
 		csv.Log(test.msg)
 		verify(id, test, buf.Bytes())
 	}
@@ -851,33 +856,33 @@ func TestCSVFmtFormat(t *testing.T) {
 
 func TestXMLFmtFormat(t *testing.T) {
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		rgx *regexp.Regexp
 	}
 
 	var tests = []test{
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two\n").Metadata(Field{"a": 1}).Build(),
+			msg: event.New().Level(event.LLTrace).Prefix("one").Message("two\n").Metadata(event.Field{"a": 1}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message><metadata><key>a<\/key><value>1<\/value><\/metadata><\/logMessage>`),
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1}).Build(),
+			msg: event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message><metadata><key>a<\/key><value>1<\/value><\/metadata><\/logMessage>`),
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			msg: event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message>((<metadata><key>b<\/key>((<value><key>a<\/key><value>1<\/value><\/value>)|(<value><key>b<\/key><value>2<\/value><\/value>)){2}<\/metadata>)|(<metadata><key>a<\/key><value>1<\/value><\/metadata>)){2}<\/logMessage>`),
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": 1, "b": []Field{{"a": 1}, {"b": 2}}}).Build(),
+			msg: event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message>((<metadata><key>a<\/key><value>1<\/value><\/metadata>)|(<metadata><key>b<\/key>((<value><key>a<\/key><value>1<\/value><\/value>)|(<value><key>b<\/key><value>2<\/value><\/value>)){2}<\/metadata>)){2}<\/logMessage>`),
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Message("two").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			msg: event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message>((<metadata><key>a<\/key><value>one<\/value><\/metadata>)|(<metadata><key>b<\/key>((<value><key>a<\/key><value>one<\/value><\/value>)|(<value><key>b<\/key><value>one<\/value><\/value>)){2}<\/metadata>)){2}<\/logMessage>`),
 		},
 		{
-			msg: NewMessage().Level(LLTrace).Prefix("one").Sub("two").Message("three").Metadata(Field{"a": "one", "b": []Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			msg: event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message>((<metadata><key>b<\/key>((<value><key>a<\/key><value>one<\/value><\/value>)|(<value><key>b<\/key><value>one<\/value><\/value>)){2}<\/metadata>)|(<metadata><key>a<\/key><value>one<\/value><\/metadata>)){2}<\/logMessage>`),
 		},
 	}
@@ -885,7 +890,7 @@ func TestXMLFmtFormat(t *testing.T) {
 	var verify = func(id int, test test, b []byte) {
 		if len(b) == 0 {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- empty buffer error",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- empty buffer error",
 				id,
 			)
 			return
@@ -893,7 +898,7 @@ func TestXMLFmtFormat(t *testing.T) {
 
 		if !test.rgx.Match(b) {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- log message mismatch, expected output to match regex %s -- %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- log message mismatch, expected output to match regex %s -- %s",
 				id,
 				test.rgx,
 				string(b),
@@ -902,7 +907,7 @@ func TestXMLFmtFormat(t *testing.T) {
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [TextFormat] Format(*LogMessage) -- %s",
+			"#%v -- PASSED -- [TextFormat] Format(*event.Event) -- %s",
 			id,
 			*test.msg,
 		)
@@ -915,7 +920,7 @@ func TestXMLFmtFormat(t *testing.T) {
 		b, err := xml.Format(test.msg)
 		if err != nil {
 			t.Errorf(
-				"#%v -- FAILED -- [TextFormat] Format(*LogMessage) -- failed to format message: %s",
+				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- failed to format message: %s",
 				id,
 				err,
 			)
@@ -925,7 +930,7 @@ func TestXMLFmtFormat(t *testing.T) {
 
 	// test logger config implementation
 	buf := &bytes.Buffer{}
-	xml := New(WithOut(buf), FormatXML)
+	xml := New(WithOut(buf), WithFormat(FormatXML))
 
 	for id, test := range tests {
 		buf.Reset()
@@ -940,21 +945,21 @@ func TestGobFmt(t *testing.T) {
 	funcname := "Format()"
 	type test struct {
 		name string
-		msg  *LogMessage
+		msg  *event.Event
 	}
 
 	var tests = []test{
 		{
 			name: "simple message",
-			msg:  NewMessage().Message("hello world").Build(),
+			msg:  event.New().Message("hello world").Build(),
 		},
 		{
 			name: "complete message w/o metadata",
-			msg:  NewMessage().Level(LLWarn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
+			msg:  event.New().Level(event.LLWarn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
 		},
 		{
 			name: "complete message w/ metadata",
-			msg: NewMessage().Level(LLWarn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(Field{
+			msg: event.New().Level(event.LLWarn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(event.Field{
 				"a": true,
 				"b": 1,
 				"c": "data",
@@ -968,7 +973,7 @@ func TestGobFmt(t *testing.T) {
 		},
 	}
 
-	g := &FmtGob{}
+	g := &gob.FmtGob{}
 
 	var verifyFormat = func(id int, test test) ([]byte, error) {
 		b, err := g.Format(test.msg)
@@ -997,7 +1002,7 @@ func TestGobFmt(t *testing.T) {
 			b = buf
 		}
 
-		new, err := NewMessage().FromGob(b)
+		new, err := event.New().FromGob(b)
 
 		if err != nil {
 			t.Errorf(
@@ -1085,7 +1090,7 @@ func TestGobFmt(t *testing.T) {
 	}
 
 	var buf = &bytes.Buffer{}
-	var logGob = New(WithOut(buf), FormatGob, SkipExit)
+	var logGob = New(WithOut(buf), WithFormat(FormatGob), SkipExit)
 
 	for id, test := range tests {
 		verify(id, test, nil)
@@ -1100,7 +1105,7 @@ func TestGobFmt(t *testing.T) {
 
 	// ensure FromGob can fail:
 	fake := []byte(`{"this":"is","not":"gob"}`)
-	_, err := NewMessage().FromGob(fake)
+	_, err := event.New().FromGob(fake)
 	if err == nil {
 		t.Errorf(
 			"#0 -- FAILED -- [%s] [%s] -- FromGob() call with invalid data didn't result in an error",
@@ -1116,21 +1121,21 @@ func TestBSONFmt(t *testing.T) {
 	funcname := "Format()"
 	type test struct {
 		name string
-		msg  *LogMessage
+		msg  *event.Event
 	}
 
 	var tests = []test{
 		{
 			name: "simple message",
-			msg:  NewMessage().Message("hello world").Build(),
+			msg:  event.New().Message("hello world").Build(),
 		},
 		{
 			name: "complete message w/o metadata",
-			msg:  NewMessage().Level(LLWarn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
+			msg:  event.New().Level(event.LLWarn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
 		},
 		{
 			name: "complete message w/ metadata",
-			msg: NewMessage().Level(LLWarn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(Field{
+			msg: event.New().Level(event.LLWarn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(event.Field{
 				"a": true,
 				"b": 1,
 				"c": "data",
@@ -1144,7 +1149,7 @@ func TestBSONFmt(t *testing.T) {
 		},
 	}
 
-	g := &FmtBSON{}
+	g := &zbson.FmtBSON{}
 
 	var verifyFormat = func(id int, test test) ([]byte, error) {
 
@@ -1174,7 +1179,7 @@ func TestBSONFmt(t *testing.T) {
 			b = buf
 		}
 
-		var new = &LogMessage{}
+		var new = &event.Event{}
 		err := bson.Unmarshal(b, new)
 
 		if err != nil {
@@ -1263,7 +1268,7 @@ func TestBSONFmt(t *testing.T) {
 	}
 
 	var buf = &bytes.Buffer{}
-	var logBSON = New(WithOut(buf), FormatBSON, SkipExit)
+	var logBSON = New(WithOut(buf), WithFormat(FormatBSON), SkipExit)
 
 	for id, test := range tests {
 		verify(id, test, nil)

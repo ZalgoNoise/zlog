@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
 	pb "github.com/zalgonoise/zlog/proto/message"
 )
 
@@ -126,11 +127,11 @@ func (s GRPCLogServer) registerComms() {
 	for {
 		msg, ok := <-s.LogSv.Comm
 		if !ok {
-			s.SvcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(log.Field{"error": ErrMessageParse.Error()}).Build())
+			s.SvcLogger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(event.Field{"error": ErrMessageParse.Error()}).Build())
 			continue
 		}
 
-		s.SvcLogger.Log(log.NewMessage().FromProto(msg).Build())
+		s.SvcLogger.Log(event.New().FromProto(msg).Build())
 	}
 }
 
@@ -144,8 +145,8 @@ func (s GRPCLogServer) listen() net.Listener {
 	if err != nil {
 		s.ErrCh <- err
 
-		s.SvcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("listen").
-			Message("couldn't listen to input address").Metadata(log.Field{
+		s.SvcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("listen").
+			Message("couldn't listen to input address").Metadata(event.Field{
 			"error": err.Error(),
 			"addr":  s.Addr,
 		}).Build())
@@ -153,8 +154,8 @@ func (s GRPCLogServer) listen() net.Listener {
 		return nil
 	}
 
-	s.SvcLogger.Log(log.NewMessage().Level(log.LLInfo).Prefix("gRPC").Sub("listen").
-		Message("gRPC server is listening to connections").Metadata(log.Field{
+	s.SvcLogger.Log(event.New().Level(event.LLInfo).Prefix("gRPC").Sub("listen").
+		Message("gRPC server is listening to connections").Metadata(event.Field{
 		"addr": s.Addr,
 	}).Build())
 
@@ -167,7 +168,7 @@ func (s GRPCLogServer) listen() net.Listener {
 // This is done via the Output() method which, like the io.Writer, returns the
 // number of bytes written and an error. From this point, depending on the outcome,
 // a pb.MessageResponse object is built and sent to the Responses channel
-func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
+func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 	n, err := s.Logger.Output(logmsg)
 	n32 := int32(n)
 
@@ -183,7 +184,7 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 			errStr = err.Error()
 		}
 
-		s.SvcLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("handler").Message("issue writting log message").Metadata(log.Field{"error": errStr, "bytesWritten": n}).Build())
+		s.SvcLogger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("handler").Message("issue writting log message").Metadata(event.Field{"error": errStr, "bytesWritten": n}).Build())
 
 		// send not OK response
 		s.LogSv.Resp <- &pb.MessageResponse{
@@ -195,7 +196,7 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 		return
 	}
 
-	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
+	s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
 
 	// send OK response
 	s.LogSv.Resp <- &pb.MessageResponse{
@@ -208,7 +209,7 @@ func (s GRPCLogServer) handleResponses(logmsg *log.LogMessage) {
 // handleMessages method will be a (blocking) function kicked off as a go-routine
 // which will take in messages from the Log Server's message channel and register them
 func (s GRPCLogServer) handleMessages() {
-	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
+	s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
 
 	// avoid calling Done() method repeatedly
 	done := s.LogSv.Done()
@@ -218,15 +219,15 @@ func (s GRPCLogServer) handleMessages() {
 		// new message is received
 		case msg := <-s.LogSv.MsgCh:
 
-			// convert pb.MessageRequest to log.LogMessage
-			logmsg := log.NewMessage().FromProto(msg).Build()
+			// convert pb.MessageRequest to event.Event
+			logmsg := event.New().FromProto(msg).Build()
 
 			// send message to be written in a goroutine
 			go s.handleResponses(logmsg)
 
 		// done signal is received
 		case <-done:
-			s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
+			s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
 			return
 		}
 	}
@@ -251,16 +252,16 @@ func (s GRPCLogServer) Serve() {
 	// gRPC reflection
 	reflection.Register(grpcServer)
 
-	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("serve").
-		Message("gRPC server is running").Metadata(log.Field{
+	s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("serve").
+		Message("gRPC server is running").Metadata(event.Field{
 		"addr": s.Addr,
 	}).Build())
 
 	if err := grpcServer.Serve(lis); err != nil {
 		s.ErrCh <- err
 
-		s.SvcLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("gRPC").Sub("serve").
-			Message("gRPC server crashed with an error").Metadata(log.Field{
+		s.SvcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("serve").
+			Message("gRPC server crashed with an error").Metadata(event.Field{
 			"error": err.Error(),
 			"addr":  s.Addr,
 		}).Build())
@@ -275,5 +276,5 @@ func (s GRPCLogServer) Stop() {
 	s.LogSv.Stop()
 	grpcServer.Stop()
 
-	s.SvcLogger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
+	s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
 }

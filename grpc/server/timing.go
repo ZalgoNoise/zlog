@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
 	pb "github.com/zalgonoise/zlog/proto/message"
 )
 
@@ -22,7 +23,7 @@ func UnaryServerTiming(logger log.Logger) grpc.UnaryServerInterceptor {
 
 		after := time.Since(now)
 
-		meta := log.Field{
+		meta := event.Field{
 			"method": method,
 			"time":   after.String(),
 		}
@@ -30,12 +31,12 @@ func UnaryServerTiming(logger log.Logger) grpc.UnaryServerInterceptor {
 		if err != nil {
 			meta["error"] = err.Error()
 
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("timer").
+			logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("timer").
 				Message("[send] unary RPC -- message handling failed with an error").Metadata(meta).Build())
 		} else {
-			meta["response"] = log.Field{"id": res.(*pb.MessageResponse).GetReqID()}
+			meta["response"] = event.Field{"id": res.(*pb.MessageResponse).GetReqID()}
 
-			logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("timer").
+			logger.Log(event.New().Level(event.LLTrace).Prefix("gRPC").Sub("timer").
 				Message("[send] unary RPC").Metadata(meta).Build())
 		}
 
@@ -67,7 +68,7 @@ func StreamServerTiming(logger log.Logger) grpc.StreamServerInterceptor {
 
 		after := time.Since(now)
 
-		var meta = log.Field{
+		var meta = event.Field{
 			"method": method,
 			"time":   after.String(),
 		}
@@ -75,12 +76,12 @@ func StreamServerTiming(logger log.Logger) grpc.StreamServerInterceptor {
 		if err != nil {
 			meta["error"] = err.Error()
 
-			logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("timer").
+			logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("timer").
 				Message("[conn] stream RPC -- failed to initialize stream with an error").Metadata(meta).Build())
 			return err
 		}
 
-		logger.Log(log.NewMessage().Level(log.LLTrace).Prefix("gRPC").Sub("timer").
+		logger.Log(event.New().Level(event.LLTrace).Prefix("gRPC").Sub("timer").
 			Message("[conn] stream RPC ").Metadata(meta).Build())
 
 		return err
@@ -114,8 +115,8 @@ func (w timingStream) SendMsg(m interface{}) error {
 
 	after := time.Since(now)
 
-	var res = log.Field{}
-	var meta = log.Field{
+	var res = event.Field{}
+	var meta = event.Field{
 		"method": w.method,
 		"time":   after.String(),
 	}
@@ -128,7 +129,7 @@ func (w timingStream) SendMsg(m interface{}) error {
 			meta["response"] = res
 		}
 
-		w.logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("timer").
+		w.logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("timer").
 			Message("[send] stream RPC logger -- error sending message").Metadata(meta).Build())
 		return err
 	}
@@ -136,7 +137,7 @@ func (w timingStream) SendMsg(m interface{}) error {
 	res["id"] = m.(*pb.MessageResponse).GetReqID()
 	meta["response"] = res
 
-	w.logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("timer").
+	w.logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("timer").
 		Message("[send] stream RPC logger -- sent message to gRPC client").Metadata(meta).Build())
 	return err
 }
@@ -151,7 +152,7 @@ func (w timingStream) RecvMsg(m interface{}) error {
 
 	after := time.Since(now)
 
-	var meta = log.Field{
+	var meta = event.Field{
 		"method": w.method,
 		"time":   after.String(),
 	}
@@ -160,12 +161,12 @@ func (w timingStream) RecvMsg(m interface{}) error {
 		meta["error"] = err.Error()
 
 		// default error handling
-		w.logger.Log(log.NewMessage().Level(log.LLWarn).Prefix("gRPC").Sub("timer").
+		w.logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("timer").
 			Message("[recv] stream RPC logger -- error receiving message").Metadata(meta).Build())
 		return err
 
 	}
-	w.logger.Log(log.NewMessage().Level(log.LLDebug).Prefix("gRPC").Sub("logger").
+	w.logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("logger").
 		Message("[recv] stream RPC logger -- received message from gRPC client").Metadata(meta).Build())
 	return err
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
 	"gorm.io/gorm"
 )
 
@@ -18,7 +18,7 @@ type LogMessage struct {
 	Metadata string
 }
 
-func (m *LogMessage) From(msg *log.LogMessage) error {
+func (m *LogMessage) From(msg *event.Event) error {
 	m.Time = msg.Time
 	m.Prefix = msg.Prefix
 	m.Sub = msg.Sub

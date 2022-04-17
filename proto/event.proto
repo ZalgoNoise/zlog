@@ -4,7 +4,7 @@ package event;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "./event";
+option go_package = "./log/event";
 
 enum Level {
     trace = 0;

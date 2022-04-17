@@ -7,16 +7,9 @@ import (
 	"io"
 	"regexp"
 	"testing"
-)
 
-var mockChBufs = [][]*bytes.Buffer{
-	{{}, {}, {}, {}, {}, {}},
-	{{}, {}, {}, {}, {}, {}},
-	{{}, {}, {}, {}, {}, {}},
-	{{}, {}, {}, {}, {}, {}},
-	{{}, {}, {}, {}, {}, {}},
-	{{}, {}, {}, {}, {}, {}},
-}
+	"github.com/zalgonoise/zlog/log/event"
+)
 
 func TestNewLogCh(t *testing.T) {
 	type log struct {
@@ -25,7 +18,7 @@ func TestNewLogCh(t *testing.T) {
 	}
 	type test struct {
 		log
-		msg *LogMessage
+		msg *event.Event
 	}
 
 	var testAllObjects []map[string]interface{}
@@ -45,8 +38,8 @@ func TestNewLogCh(t *testing.T) {
 			for d := 0; d < len(testAllObjects); d++ {
 				for e := 0; e < len(mockLogLevelsOK); e++ {
 
-					// skip LLFatal -- os.Exit(1)
-					if mockLogLevelsOK[e] == LLFatal || mockLogLevelsOK[e] == LLPanic {
+					// skip event.LLFatal -- os.Exit(1)
+					if mockLogLevelsOK[e] == event.LLFatal || mockLogLevelsOK[e] == event.LLPanic {
 						continue
 					}
 
@@ -60,7 +53,7 @@ func TestNewLogCh(t *testing.T) {
 
 					l := New(
 						WithPrefix(mockEmptyPrefixes[0]),
-						FormatJSON,
+						WithFormat(FormatJSON),
 						WithOut(w...),
 					)
 
@@ -69,7 +62,7 @@ func TestNewLogCh(t *testing.T) {
 							logger: l,
 							buf:    bufs,
 						},
-						msg: NewMessage().
+						msg: event.New().
 							Prefix(mockPrefixes[b]).
 							Message(testAllMessages[c]).
 							Metadata(testAllObjects[d]).
@@ -92,7 +85,7 @@ func TestNewLogCh(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.log.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -234,7 +227,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 	}
 	type test struct {
 		log
-		msg *LogMessage
+		msg *event.Event
 	}
 
 	var testAllObjects []map[string]interface{}
@@ -255,8 +248,8 @@ func TestNewLogChMultiLogger(t *testing.T) {
 				for d := 0; d < len(testAllObjects); d++ {
 					for e := 0; e < len(mockLogLevelsOK); e++ {
 
-						// skip LLFatal -- os.Exit(1)
-						if mockLogLevelsOK[e] == LLFatal || mockLogLevelsOK[e] == LLPanic {
+						// skip event.LLFatal -- os.Exit(1)
+						if mockLogLevelsOK[e] == event.LLFatal || mockLogLevelsOK[e] == event.LLPanic {
 							continue
 						}
 
@@ -274,7 +267,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 
 							l := New(
 								WithPrefix(mockEmptyPrefixes[0]),
-								FormatJSON,
+								WithFormat(FormatJSON),
 								WithOut(w...),
 							)
 							logs = append(logs, l)
@@ -287,7 +280,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 								logger: ml,
 								buf:    bufs,
 							},
-							msg: NewMessage().
+							msg: event.New().
 								Prefix(mockPrefixes[b]).
 								Message(testAllMessages[c]).
 								Metadata(testAllObjects[d]).
@@ -311,7 +304,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.log.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -450,7 +443,7 @@ func TestNewLogChMultiEntry(t *testing.T) {
 	}
 	type test struct {
 		log
-		msg []*LogMessage
+		msg []*event.Event
 		rgx []string
 	}
 
@@ -491,7 +484,7 @@ func TestNewLogChMultiEntry(t *testing.T) {
 
 		var bufs []*bytes.Buffer
 		var logs []Logger
-		var msgObj []*LogMessage
+		var msgObj []*event.Event
 		var rxList []string
 
 		for b := 0; b < a; b++ {
@@ -504,7 +497,7 @@ func TestNewLogChMultiEntry(t *testing.T) {
 
 			l := New(
 				WithPrefix(prefix),
-				FormatText,
+				WithFormat(FormatText),
 				WithOut(w...),
 			)
 			logs = append(logs, l)
@@ -513,10 +506,10 @@ func TestNewLogChMultiEntry(t *testing.T) {
 		ml := MultiLogger(logs...)
 
 		for d := 0; d < len(msgs); d++ {
-			obj := NewMessage().
+			obj := event.New().
 				Prefix(prefix).
 				Message(msgs[d]).
-				Level(LLInfo).
+				Level(event.LLInfo).
 				Build()
 
 			msgObj = append(msgObj, obj)

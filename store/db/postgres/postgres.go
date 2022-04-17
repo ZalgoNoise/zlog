@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
 	dbw "github.com/zalgonoise/zlog/store/db"
 	model "github.com/zalgonoise/zlog/store/db/message"
 	"gorm.io/driver/postgres"
@@ -46,7 +47,7 @@ func New(address, port, database string) (sqldb dbw.DBWriter, err error) {
 
 // Create method will register any number of LogMessages in the Postgres database, returning
 // an error
-func (d *Postgres) Create(msg ...*log.LogMessage) error {
+func (d *Postgres) Create(msg ...*event.Event) error {
 	if len(msg) == 0 {
 		return nil
 	}
@@ -89,15 +90,15 @@ func (s *Postgres) Write(p []byte) (n int, err error) {
 		s = new.(*Postgres)
 	}
 
-	var out *log.LogMessage
+	var out *event.Event
 
 	// check if it's gob-encoded
-	msg, err := log.NewMessage().FromGob(p)
+	msg, err := event.New().FromGob(p)
 	out = msg
 
 	if err != nil {
 		// fall back to JSON
-		var msg = &log.LogMessage{}
+		var msg = &event.Event{}
 		jerr := json.Unmarshal(p, msg)
 		if jerr != nil {
 			return 0, fmt.Errorf("unable to decode input message; gob: %s -- json: %s", err, jerr)

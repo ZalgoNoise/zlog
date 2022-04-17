@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
 	dbw "github.com/zalgonoise/zlog/store/db"
 	model "github.com/zalgonoise/zlog/store/db/message"
 	"gorm.io/driver/sqlite"
@@ -38,7 +39,7 @@ func New(path string) (sqldb dbw.DBWriter, err error) {
 
 // Create method will register any number of LogMessages in the SQLite database, returning
 // an error
-func (o *SQLite) Create(msg ...*log.LogMessage) error {
+func (o *SQLite) Create(msg ...*event.Event) error {
 	if len(msg) == 0 {
 		return nil
 	}
@@ -73,15 +74,15 @@ func (s *SQLite) Write(p []byte) (n int, err error) {
 		s = new.(*SQLite)
 	}
 
-	var out *log.LogMessage
+	var out *event.Event
 
 	// check if it's gob-encoded
-	msg, err := log.NewMessage().FromGob(p)
+	msg, err := event.New().FromGob(p)
 	out = msg
 
 	if err != nil {
 		// fall back to JSON
-		var msg = &log.LogMessage{}
+		var msg = &event.Event{}
 		jerr := json.Unmarshal(p, msg)
 		if jerr != nil {
 			return 0, fmt.Errorf("unable to decode input message; gob: %s -- json: %s", err, jerr)

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zalgonoise/zlog/log/format/json"
 	"github.com/zalgonoise/zlog/store"
 )
 
@@ -28,7 +29,7 @@ func TestMultiConf(t *testing.T) {
 			},
 		},
 		{
-			conf: MultiConf(SkipExit, FormatJSON, StdOut),
+			conf: MultiConf(SkipExit, WithFormat(FormatJSON), StdOut),
 			want: &LoggerBuilder{
 				Out:         os.Stderr,
 				Prefix:      "",
@@ -144,13 +145,13 @@ func TestNilLogger(t *testing.T) {
 				WithOut(),
 				WithPrefix("test"),
 				WithSub("new"),
-				FormatJSON,
+				WithFormat(FormatJSON),
 			},
 			wants: &logger{
 				out:         os.Stderr,
 				prefix:      "test",
 				sub:         "new",
-				fmt:         FormatJSON,
+				fmt:         &json.FmtJSON{},
 				skipExit:    false,
 				levelFilter: 0,
 			},
@@ -405,7 +406,7 @@ func TestLCSkipExit(t *testing.T) {
 			},
 		},
 		{
-			conf: defaultConfig,
+			conf: DefaultConfig,
 			want: &LoggerBuilder{
 				SkipExit: false,
 			},

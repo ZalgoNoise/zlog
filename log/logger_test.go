@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zalgonoise/zlog/log/event"
 	"github.com/zalgonoise/zlog/store"
 )
 
@@ -23,11 +24,11 @@ func TestFormatTextLogger(t *testing.T) {
 
 	logger := New(
 		WithPrefix(prefix),
-		format,
+		WithFormat(format),
 		WithOut(&buf),
 	)
 
-	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
 
 	logger.Log(logMessage)
 
@@ -58,15 +59,15 @@ func TestFormatJSONLogger(t *testing.T) {
 	format := FormatJSON
 	msg := "test content"
 	buf := &bytes.Buffer{}
-	logEntry := &LogMessage{}
+	logEntry := &event.Event{}
 
 	logger := New(
 		WithPrefix(prefix),
-		format,
+		WithFormat(format),
 		WithOut(buf),
 	)
 
-	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
 
 	logger.Log(logMessage)
 
@@ -81,7 +82,7 @@ func TestFormatJSONLogger(t *testing.T) {
 		)
 	}
 
-	if logEntry.Level != LLInfo.String() ||
+	if logEntry.Level != event.LLInfo.String() ||
 		logEntry.Prefix != prefix ||
 		logEntry.Msg != msg {
 		t.Errorf(
@@ -113,10 +114,10 @@ func TestNewSingleWriterLogger(t *testing.T) {
 
 	logger := New(
 		WithPrefix(prefix),
-		format,
+		WithFormat(format),
 		WithOut(&buf),
 	)
-	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
 
 	logger.Log(logMessage)
 
@@ -161,11 +162,11 @@ func TestNewMultiWriterLogger(t *testing.T) {
 
 	logger := New(
 		WithPrefix(prefix),
-		format,
+		WithFormat(format),
 		WithOut(&buf1, &buf2, &buf3),
 	)
 
-	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
 
 	logger.Log(logMessage)
 
@@ -204,9 +205,9 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 	os.Stderr = w
 
 	// forcing this override of os.Stderr so that we can read from it
-	logger := New(WithOut(os.Stderr), FormatText)
+	logger := New(WithOut(os.Stderr), WithFormat(FormatText))
 
-	logMessage := NewMessage().Level(LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
 
 	// https://stackoverflow.com/questions/10473800
 	// copy the output in a separate goroutine so printing can't block indefinitely
@@ -263,7 +264,7 @@ func TestLoggerSetOuts(t *testing.T) {
 
 	tlogger := New(
 		WithPrefix("test-new-logger"),
-		FormatText,
+		WithFormat(FormatText),
 	)
 
 	var tests = []struct {
@@ -347,7 +348,7 @@ func TestLoggerAddOuts(t *testing.T) {
 	tlogger := New(
 		WithPrefix("test-new-logger"),
 		WithOut(mockBufs[5]),
-		FormatText,
+		WithFormat(FormatText),
 	)
 
 	var tests = []struct {
@@ -435,7 +436,7 @@ func TestLoggerPrefix(t *testing.T) {
 	tlogger := New(
 		WithPrefix("test-new-logger"),
 		WithOut(mockBufs[0]),
-		FormatText,
+		WithFormat(FormatText),
 	)
 
 	var tests = []struct {
@@ -504,7 +505,7 @@ func TestLoggerSub(t *testing.T) {
 	tlogger := New(
 		WithPrefix("test-new-logger"),
 		WithOut(mockBufs[0]),
-		FormatText,
+		WithFormat(FormatText),
 	)
 
 	var tests = []struct {
@@ -576,7 +577,7 @@ func TestLoggerFields(t *testing.T) {
 	tlogger := New(
 		WithPrefix("test-new-logger"),
 		WithOut(mockBufs[0]),
-		FormatText,
+		WithFormat(FormatText),
 	)
 
 	var tests = []struct {
@@ -681,35 +682,35 @@ func TestLoggerFields(t *testing.T) {
 func TestLoggerWrite(t *testing.T) {
 	type test struct {
 		msg  []byte
-		want LogMessage
+		want event.Event
 	}
 
 	var tests = []test{
 		{
-			msg: NewMessage().Level(LLInfo).Prefix("test").Sub("tester").Message("write test").Build().Bytes(),
-			want: LogMessage{
+			msg: event.New().Level(event.LLInfo).Prefix("test").Sub("tester").Message("write test").Build().Bytes(),
+			want: event.Event{
 				Prefix: "test",
 				Sub:    "tester",
-				Level:  LLInfo.String(),
+				Level:  event.LLInfo.String(),
 				Msg:    "write test",
 			},
 		},
 		{
 			msg: []byte("hello world"),
-			want: LogMessage{
+			want: event.Event{
 				Prefix: "log",
 				Sub:    "",
-				Level:  LLInfo.String(),
+				Level:  event.LLInfo.String(),
 				Msg:    "hello world",
 			},
 		},
 	}
 
-	logger := New(FormatJSON, WithOut(mockBuffer))
+	logger := New(WithFormat(FormatJSON), WithOut(mockBuffer))
 
 	var verify = func(id int, test test, buf []byte) {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		err := json.Unmarshal(buf, logEntry)
 		if err != nil {

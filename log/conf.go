@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/zalgonoise/zlog/log/event"
-	"github.com/zalgonoise/zlog/log/format/json"
+	"github.com/zalgonoise/zlog/log/format/gob"
 	"github.com/zalgonoise/zlog/log/format/text"
 	"github.com/zalgonoise/zlog/store"
 	"github.com/zalgonoise/zlog/store/db"
@@ -224,6 +224,6 @@ func WithDatabase(dbs ...db.DBWriter) LoggerConfig {
 
 	return &LCDatabase{
 		Out: w,
-		Fmt: &json.FmtJSON{},
+		Fmt: &gob.FmtGob{},
 	}
 }

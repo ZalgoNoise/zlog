@@ -82,6 +82,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/zalgonoise/zlog/log/event"
 	"github.com/zalgonoise/zlog/store"
 )
 
@@ -103,7 +104,7 @@ type Logger interface {
 	IsSkipExit() bool
 }
 
-var std = New(defaultConfig)
+var std = New(DefaultConfig)
 var stdout = os.Stderr
 
 // LoggerBuilder struct describes a builder object for Loggers
@@ -134,7 +135,7 @@ func New(confs ...LoggerConfig) Logger {
 	builder := &LoggerBuilder{}
 
 	// enforce defaults
-	defaultConfig.Apply(builder)
+	DefaultConfig.Apply(builder)
 
 	MultiConf(confs...).Apply(builder)
 
@@ -302,12 +303,12 @@ func (l *logger) IsSkipExit() bool {
 // portion, and the remaining fields will default to the Logger's set elements
 func (l *logger) Write(p []byte) (n int, err error) {
 	// check if it's gob-encoded
-	m, err := NewMessage().FromGob(p)
+	m, err := event.New().FromGob(p)
 
 	if err != nil {
 		// default to printing message
-		return l.Output(NewMessage().
-			Level(LLInfo).
+		return l.Output(event.New().
+			Level(event.LLInfo).
 			Prefix(l.prefix).
 			Sub(l.sub).
 			Message(string(p)).
@@ -331,8 +332,8 @@ func (l *nilLogger) Prefix(prefix string) Logger                 { return l }
 func (l *nilLogger) Sub(sub string) Logger                       { return l }
 func (l *nilLogger) Fields(fields map[string]interface{}) Logger { return l }
 func (l *nilLogger) IsSkipExit() bool                            { return true }
-func (l *nilLogger) Output(m *LogMessage) (n int, err error)     { return 1, nil }
-func (l *nilLogger) Log(m ...*LogMessage)                        {}
+func (l *nilLogger) Output(m *event.Event) (n int, err error)    { return 1, nil }
+func (l *nilLogger) Log(m ...*event.Event)                       {}
 func (l *nilLogger) Print(v ...interface{})                      {}
 func (l *nilLogger) Println(v ...interface{})                    {}
 func (l *nilLogger) Printf(format string, v ...interface{})      {}

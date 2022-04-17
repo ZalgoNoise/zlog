@@ -1,0 +1,27 @@
+syntax = "proto2";
+
+package event;
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "./event";
+
+enum Level {
+    trace = 0;
+    debug = 1;
+    info = 2;
+    warn = 3;
+    error = 4;
+    fatal = 5;
+    reserved 6 to 8;
+    panic = 9;
+}
+
+message Event {
+    optional google.protobuf.Timestamp time = 1;
+    optional string prefix = 2 [ default = "log" ];
+    optional string sub = 3;
+    optional Level level = 4 [ default = info ];
+    required string msg = 5;
+    optional google.protobuf.Struct meta = 6;
+}

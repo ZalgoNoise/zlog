@@ -4,6 +4,9 @@ import (
 	"io"
 	"os"
 
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/log/format/json"
+	"github.com/zalgonoise/zlog/log/format/text"
 	"github.com/zalgonoise/zlog/store"
 	"github.com/zalgonoise/zlog/store/db"
 )
@@ -29,7 +32,7 @@ type multiconf struct {
 // on each of them.
 func MultiConf(conf ...LoggerConfig) LoggerConfig {
 	if len(conf) == 0 {
-		return defaultConfig
+		return DefaultConfig
 	}
 
 	allConf := make([]LoggerConfig, 0, len(conf))
@@ -48,9 +51,9 @@ func (m multiconf) Apply(lb *LoggerBuilder) {
 
 var (
 	// default configuration for a Logger
-	defaultConfig LoggerConfig = &multiconf{
+	DefaultConfig LoggerConfig = &multiconf{
 		confs: []LoggerConfig{
-			TextColorLevelFirst,
+			WithFormat(TextColorLevelFirst),
 			WithOut(),
 			WithPrefix("log"),
 		},
@@ -59,13 +62,13 @@ var (
 	// LoggerConfigs is a map of LoggerConfig indexed by an int value. This is done in a map
 	// and not a list for manual ordering, spacing and manipulation of preset entries
 	LoggerConfigs = map[int]LoggerConfig{
-		0:  defaultConfig,
+		0:  DefaultConfig,
 		1:  LCSkipExit{},
 		7:  WithOut(os.Stderr),
 		8:  WithPrefix("log"),
-		9:  WithFilter(LLInfo),
-		10: WithFilter(LLWarn),
-		11: WithFilter(LLError),
+		9:  WithFilter(event.LLInfo),
+		10: WithFilter(event.LLWarn),
+		11: WithFilter(event.LLError),
 		12: NilLogger(),
 	}
 
@@ -102,7 +105,7 @@ type LCSkipExit struct{}
 // LCSkipExit stuct is a custom LoggerConfig to filter Logger writes as per the message's
 // log level
 type LCFilter struct {
-	l LogLevel
+	l event.LogLevel
 }
 
 // LCDatabase struct defines the Logger Config object that adds a DBWriter as a Logger writer
@@ -151,7 +154,7 @@ func NilLogger() LoggerConfig {
 		&LCOut{
 			out: store.EmptyWriter,
 		},
-		NewTextFormat().NoHeaders().NoTimestamp().NoLevel().Build(),
+		WithFormat(text.New().NoHeaders().NoTimestamp().NoLevel().Build()),
 		&LCSkipExit{},
 	)
 }
@@ -195,7 +198,7 @@ func WithOut(out ...io.Writer) LoggerConfig {
 //
 // This method can be used to either separate different logging severities or to reduce the amount
 // of bytes written to a logfile, by skipping more trivial messages
-func WithFilter(level LogLevel) LoggerConfig {
+func WithFilter(level event.LogLevel) LoggerConfig {
 	return &LCFilter{
 		l: level,
 	}
@@ -221,6 +224,6 @@ func WithDatabase(dbs ...db.DBWriter) LoggerConfig {
 
 	return &LCDatabase{
 		Out: w,
-		Fmt: FormatJSON,
+		Fmt: &json.FmtJSON{},
 	}
 }

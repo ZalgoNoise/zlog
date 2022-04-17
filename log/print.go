@@ -3,6 +3,8 @@ package log
 import (
 	"fmt"
 	"os"
+
+	"github.com/zalgonoise/zlog/log/event"
 )
 
 // Printer interface defines what a (log) printer should be able to do
@@ -14,8 +16,8 @@ import (
 // Similar to the standard library fmt package, its methods will follow the
 // same logic and design as an fmt.Print(), fmt.Println(), and fmt.Printf() call
 type Printer interface {
-	Output(m *LogMessage) (n int, err error)
-	Log(m ...*LogMessage)
+	Output(m *event.Event) (n int, err error)
+	Log(m ...*event.Event)
 
 	Print(v ...interface{})
 	Println(v ...interface{})
@@ -50,7 +52,7 @@ type Printer interface {
 	Tracef(format string, v ...interface{})
 }
 
-func (l *logger) checkDefaults(m *LogMessage) {
+func (l *logger) checkDefaults(m *event.Event) {
 	// use logger prefix if default
 	// do not clear Logger.prefix
 	if m.Prefix == "log" && l.prefix != m.Prefix {
@@ -81,9 +83,9 @@ func (l *logger) checkDefaults(m *LogMessage) {
 //
 // All printing messages are either applying a `Logger.Log()` action or a `Logger.Output` one; while the former
 // is simply calling the latter.
-func (l *logger) Output(m *LogMessage) (n int, err error) {
+func (l *logger) Output(m *event.Event) (n int, err error) {
 
-	if l.levelFilter > LogTypeKeys[m.Level] {
+	if l.levelFilter > event.LogTypeKeys[m.Level] {
 		return 0, nil
 	}
 
@@ -115,7 +117,7 @@ func (l *logger) Output(m *LogMessage) (n int, err error) {
 // It applies LogLevel Info
 func (l *logger) Print(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
@@ -128,7 +130,7 @@ func (l *logger) Print(v ...interface{}) {
 func (l *logger) Println(v ...interface{}) {
 
 	// build message
-	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
@@ -140,7 +142,7 @@ func (l *logger) Println(v ...interface{}) {
 // It applies LogLevel Info
 func (l *logger) Printf(format string, v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
@@ -153,7 +155,7 @@ func (l *logger) Printf(format string, v ...interface{}) {
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
 // Logfiles, this is assumed to be safe.
-func (l *logger) Log(m ...*LogMessage) {
+func (l *logger) Log(m ...*event.Event) {
 	if len(m) == 0 || m == nil {
 		return
 	}
@@ -165,9 +167,9 @@ func (l *logger) Log(m ...*LogMessage) {
 
 		s := msg.Msg
 		l.Output(msg)
-		if !l.IsSkipExit() && msg.Level == LLPanic.String() {
+		if !l.IsSkipExit() && msg.Level == event.LLPanic.String() {
 			panic(s)
-		} else if !l.IsSkipExit() && msg.Level == LLFatal.String() {
+		} else if !l.IsSkipExit() && msg.Level == event.LLFatal.String() {
 			os.Exit(1)
 		}
 	}
@@ -180,7 +182,7 @@ func (l *logger) Log(m ...*LogMessage) {
 // This method will end calling `panic()` with the LogMessage's message content
 func (l *logger) Panic(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLPanic).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLPanic).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
@@ -197,7 +199,7 @@ func (l *logger) Panic(v ...interface{}) {
 // This method will end calling `panic()` with the LogMessage's message content
 func (l *logger) Panicln(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLPanic).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLPanic).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
@@ -215,7 +217,7 @@ func (l *logger) Panicln(v ...interface{}) {
 // This method will end calling `panic()` with the LogMessage's message content
 func (l *logger) Panicf(format string, v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLPanic).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLPanic).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
@@ -233,7 +235,7 @@ func (l *logger) Panicf(format string, v ...interface{}) {
 // This method will end calling `os.Exit(1)`
 func (l *logger) Fatal(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLFatal).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLFatal).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
@@ -250,7 +252,7 @@ func (l *logger) Fatal(v ...interface{}) {
 // This method will end calling `os.Exit(1)`
 func (l *logger) Fatalln(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLFatal).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLFatal).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
@@ -267,7 +269,7 @@ func (l *logger) Fatalln(v ...interface{}) {
 // This method will end calling `os.Exit(1)`
 func (l *logger) Fatalf(format string, v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLFatal).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLFatal).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
@@ -282,7 +284,7 @@ func (l *logger) Fatalf(format string, v ...interface{}) {
 // automatically applying LogLevel Error.
 func (l *logger) Error(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLError).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLError).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
@@ -293,7 +295,7 @@ func (l *logger) Error(v ...interface{}) {
 // automatically applying LogLevel Error.
 func (l *logger) Errorln(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLError).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLError).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
@@ -304,7 +306,7 @@ func (l *logger) Errorln(v ...interface{}) {
 // automatically applying LogLevel Error.
 func (l *logger) Errorf(format string, v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLError).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLError).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
@@ -315,7 +317,7 @@ func (l *logger) Errorf(format string, v ...interface{}) {
 // automatically applying LogLevel Warn.
 func (l *logger) Warn(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLWarn).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLWarn).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
@@ -327,7 +329,7 @@ func (l *logger) Warn(v ...interface{}) {
 // automatically applying LogLevel Warn.
 func (l *logger) Warnln(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLWarn).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLWarn).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
@@ -339,7 +341,7 @@ func (l *logger) Warnln(v ...interface{}) {
 func (l *logger) Warnf(format string, v ...interface{}) {
 
 	// build message
-	log := NewMessage().Level(LLWarn).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLWarn).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
@@ -350,7 +352,7 @@ func (l *logger) Warnf(format string, v ...interface{}) {
 // automatically applying LogLevel Info.
 func (l *logger) Info(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
@@ -361,7 +363,7 @@ func (l *logger) Info(v ...interface{}) {
 // automatically applying LogLevel Info.
 func (l *logger) Infoln(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
@@ -372,7 +374,7 @@ func (l *logger) Infoln(v ...interface{}) {
 // automatically applying LogLevel Info.
 func (l *logger) Infof(format string, v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLInfo).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLInfo).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
@@ -383,7 +385,7 @@ func (l *logger) Infof(format string, v ...interface{}) {
 // automatically applying LogLevel Debug.
 func (l *logger) Debug(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLDebug).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLDebug).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
@@ -394,7 +396,7 @@ func (l *logger) Debug(v ...interface{}) {
 // automatically applying LogLevel Debug.
 func (l *logger) Debugln(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLDebug).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLDebug).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
@@ -405,7 +407,7 @@ func (l *logger) Debugln(v ...interface{}) {
 // automatically applying LogLevel Debug.
 func (l *logger) Debugf(format string, v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLDebug).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLDebug).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
@@ -416,7 +418,7 @@ func (l *logger) Debugf(format string, v ...interface{}) {
 // automatically applying LogLevel Trace.
 func (l *logger) Trace(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLTrace).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLTrace).Prefix(l.prefix).Message(
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
@@ -427,7 +429,7 @@ func (l *logger) Trace(v ...interface{}) {
 // automatically applying LogLevel Trace.
 func (l *logger) Traceln(v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLTrace).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLTrace).Prefix(l.prefix).Message(
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
@@ -438,7 +440,7 @@ func (l *logger) Traceln(v ...interface{}) {
 // automatically applying LogLevel Trace.
 func (l *logger) Tracef(format string, v ...interface{}) {
 	// build message
-	log := NewMessage().Level(LLTrace).Prefix(l.prefix).Message(
+	log := event.New().Level(event.LLTrace).Prefix(l.prefix).Message(
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
@@ -448,7 +450,7 @@ func (l *logger) Tracef(format string, v ...interface{}) {
 // Output method is similar to a Logger.Output() method, however the multiLogger will
 // range through all of its configured loggers and execute the same Output() method call
 // on each of them
-func (l *multiLogger) Output(m *LogMessage) (n int, err error) {
+func (l *multiLogger) Output(m *event.Event) (n int, err error) {
 	for _, logger := range l.loggers {
 		n, err := logger.Output(m)
 		if err != nil {
@@ -494,7 +496,7 @@ func (l *multiLogger) Printf(format string, v ...interface{}) {
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
 // Logfiles, this is assumed to be safe.
-func (l *multiLogger) Log(m ...*LogMessage) {
+func (l *multiLogger) Log(m ...*event.Event) {
 	for _, logger := range l.loggers {
 		logger.Log(m...)
 	}
@@ -509,8 +511,8 @@ func (l *multiLogger) Panic(v ...interface{}) {
 
 	for _, logger := range l.loggers {
 		logger.Output(
-			NewMessage().
-				Level(LLPanic).
+			event.New().
+				Level(event.LLPanic).
 				Message(s).
 				Build(),
 		)
@@ -529,7 +531,7 @@ func (l *multiLogger) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(NewMessage().Level(LLPanic).Message(s).Build())
+		logger.Output(event.New().Level(event.LLPanic).Message(s).Build())
 	}
 
 	if !l.IsSkipExit() {
@@ -545,7 +547,7 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(NewMessage().Level(LLPanic).Message(s).Build())
+		logger.Output(event.New().Level(event.LLPanic).Message(s).Build())
 	}
 
 	if !l.IsSkipExit() {
@@ -559,7 +561,7 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 // This method will end calling `os.Exit(1)`
 func (l *multiLogger) Fatal(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprint(v...)).Build())
+		logger.Output(event.New().Level(event.LLFatal).Message(fmt.Sprint(v...)).Build())
 	}
 
 	if !l.IsSkipExit() {
@@ -573,7 +575,7 @@ func (l *multiLogger) Fatal(v ...interface{}) {
 // This method will end calling `os.Exit(1)`
 func (l *multiLogger) Fatalln(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprintln(v...)).Build())
+		logger.Output(event.New().Level(event.LLFatal).Message(fmt.Sprintln(v...)).Build())
 	}
 
 	if !l.IsSkipExit() {
@@ -587,7 +589,7 @@ func (l *multiLogger) Fatalln(v ...interface{}) {
 // This method will end calling `os.Exit(1)`
 func (l *multiLogger) Fatalf(format string, v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(NewMessage().Level(LLFatal).Message(fmt.Sprintf(format, v...)).Build())
+		logger.Output(event.New().Level(event.LLFatal).Message(fmt.Sprintf(format, v...)).Build())
 	}
 
 	if !l.IsSkipExit() {
@@ -743,7 +745,7 @@ func Printf(format string, v ...interface{}) {
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
 // Logfiles, this is assumed to be safe.
-func Log(m ...*LogMessage) {
+func Log(m ...*event.Event) {
 	std.Log(m...)
 }
 

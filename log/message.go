@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/zalgonoise/zlog/log/trace"
 	pb "github.com/zalgonoise/zlog/proto/message"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -295,12 +296,7 @@ func (b *MessageBuilder) CallStack(all bool) *MessageBuilder {
 	if b.metadata == nil {
 		b.metadata = map[string]interface{}{}
 	}
-	b.metadata["callstack"] = newCallStack().
-		getCallStack(all).
-		splitCallStack().
-		parseCallStack().
-		mapCallStack().
-		toField()
+	b.metadata["callstack"] = trace.New(all)
 
 	return b
 }

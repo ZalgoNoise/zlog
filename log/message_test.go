@@ -715,10 +715,10 @@ func TestMessageBuilderCallStack(t *testing.T) {
 			return
 		}
 
-		field := v.(Field).ToMap()
+		field := v.(map[string]interface{})
 
 		for k, val := range field {
-			routine := val.(Field).ToMap()
+			routine := val.(map[string]interface{})
 
 			if routine["id"] == nil || routine["id"] == "" {
 				t.Errorf(
@@ -738,7 +738,7 @@ func TestMessageBuilderCallStack(t *testing.T) {
 				return
 			}
 
-			for idx, s := range routine["stack"].([]Field) {
+			for idx, s := range routine["stack"].([]map[string]interface{}) {
 				if s["method"] == nil || s["method"] == "" {
 					t.Errorf(
 						"#%v -- FAILED -- [MessageBuilder] NewMessage().CallStack().Build() -- empty method field in key %s.stack[%v]",

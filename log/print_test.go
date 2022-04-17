@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zalgonoise/zlog/log/event"
 	"github.com/zalgonoise/zlog/store"
 )
 
@@ -34,7 +35,7 @@ func TestLoggerPrint(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Print(%s) -- unmarshal error: %s",
@@ -68,7 +69,7 @@ func TestLoggerPrint(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Print(test.msg)
@@ -101,7 +102,7 @@ func TestLoggerPrintln(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Println(%s) -- unmarshal error: %s",
@@ -135,7 +136,7 @@ func TestLoggerPrintln(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Println(test.msg)
@@ -175,7 +176,7 @@ func TestLoggerPrintf(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Printf(%s, %s) -- unmarshal error: %s",
@@ -212,7 +213,7 @@ func TestLoggerPrintf(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Printf(test.format, test.v...)
@@ -226,30 +227,30 @@ func TestLoggerOutputLevelFilter(t *testing.T) {
 	funcname := "WithFilter() - Output()"
 
 	type test struct {
-		levelFilter LogLevel
-		msg         *LogMessage
+		levelFilter event.LogLevel
+		msg         *event.Event
 		n           int
 	}
 
 	var tests = []test{
 		{
 			levelFilter: 0,
-			msg:         NewMessage().Message("hi").Build(),
+			msg:         event.New().Message("hi").Build(),
 			n:           3,
 		},
 		{
 			levelFilter: 3,
-			msg:         NewMessage().Message("hi").Build(),
+			msg:         event.New().Message("hi").Build(),
 			n:           0,
 		},
 		{
 			levelFilter: 3,
-			msg:         NewMessage().Level(LLError).Message("hi").Build(),
+			msg:         event.New().Level(event.LLError).Message("hi").Build(),
 			n:           3,
 		},
 		{
 			levelFilter: 9,
-			msg:         NewMessage().Message("hi").Build(),
+			msg:         event.New().Message("hi").Build(),
 			n:           0,
 		},
 	}
@@ -286,7 +287,7 @@ func TestLoggerOutputLevelFilter(t *testing.T) {
 	}
 	mockBufs[0].Reset()
 	for id, test := range tests {
-		logger := New(WithFilter(test.levelFilter), SkipExit, TextOnly, WithOut(mockBufs[0]))
+		logger := New(WithFilter(test.levelFilter), SkipExit, WithFormat(TextOnly), WithOut(mockBufs[0]))
 
 		verify(id, test, logger)
 		mockBufs[0].Reset()
@@ -297,15 +298,15 @@ func TestLoggerCheckDefaults(t *testing.T) {
 	module := "Logger"
 	funcname := "checkDefaults()"
 
-	tlogger := New(WithOut(store.EmptyWriter), FormatText)
+	tlogger := New(WithOut(store.EmptyWriter), WithFormat(FormatText))
 
 	type test struct {
 		name      string
 		logMeta   map[string]interface{}
 		logPrefix string
 		logSub    string
-		input     *LogMessage
-		wants     *LogMessage
+		input     *event.Event
+		wants     *event.Event
 	}
 
 	var tests = []test{
@@ -314,52 +315,52 @@ func TestLoggerCheckDefaults(t *testing.T) {
 			logMeta:   nil,
 			logPrefix: "",
 			logSub:    "",
-			input:     NewMessage().Message("hi").Build(),
-			wants:     NewMessage().Message("hi").Build(),
+			input:     event.New().Message("hi").Build(),
+			wants:     event.New().Message("hi").Build(),
 		},
 		{
 			name:      "check defaults -- keep message metadata",
 			logMeta:   nil,
 			logPrefix: "",
 			logSub:    "",
-			input:     NewMessage().Message("hi").Metadata(Field{"a": 0}).Build(),
-			wants:     NewMessage().Message("hi").Metadata(Field{"a": 0}).Build(),
+			input:     event.New().Message("hi").Metadata(event.Field{"a": 0}).Build(),
+			wants:     event.New().Message("hi").Metadata(event.Field{"a": 0}).Build(),
 		},
 		{
 			name:      "apply logger metadata",
-			logMeta:   Field{"a": 0},
+			logMeta:   event.Field{"a": 0},
 			logPrefix: "",
 			logSub:    "",
-			input:     NewMessage().Message("hi").Build(),
-			wants:     NewMessage().Message("hi").Metadata(Field{"a": 0}).Build(),
+			input:     event.New().Message("hi").Build(),
+			wants:     event.New().Message("hi").Metadata(event.Field{"a": 0}).Build(),
 		},
 		{
 			name:      "append logger metadata",
-			logMeta:   Field{"a": 0},
+			logMeta:   event.Field{"a": 0},
 			logPrefix: "",
 			logSub:    "",
-			input:     NewMessage().Message("hi").Metadata(Field{"b": 1}).Build(),
-			wants:     NewMessage().Message("hi").Metadata(Field{"a": 0, "b": 1}).Build(),
+			input:     event.New().Message("hi").Metadata(event.Field{"b": 1}).Build(),
+			wants:     event.New().Message("hi").Metadata(event.Field{"a": 0, "b": 1}).Build(),
 		},
 		{
 			name:      "apply logger sub-prefix",
 			logMeta:   nil,
 			logPrefix: "",
 			logSub:    "new",
-			input:     NewMessage().Message("hi").Build(),
-			wants:     NewMessage().Message("hi").Sub("new").Build(),
+			input:     event.New().Message("hi").Build(),
+			wants:     event.New().Message("hi").Sub("new").Build(),
 		},
 		{
 			name:      "apply logger prefix",
 			logMeta:   nil,
 			logPrefix: "new",
 			logSub:    "",
-			input:     NewMessage().Message("hi").Build(),
-			wants:     NewMessage().Message("hi").Prefix("new").Build(),
+			input:     event.New().Message("hi").Build(),
+			wants:     event.New().Message("hi").Prefix("new").Build(),
 		},
 	}
 
-	var verify = func(id int, test test, input *LogMessage) {
+	var verify = func(id int, test test, input *event.Event) {
 		if input.Prefix != test.wants.Prefix {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s -- action: %s",
@@ -434,7 +435,7 @@ func TestLoggerCheckDefaults(t *testing.T) {
 
 func TestLoggerLog(t *testing.T) {
 	type test struct {
-		level     LogLevel
+		level     event.LogLevel
 		msg       string
 		wantLevel string
 		wantMsg   string
@@ -447,8 +448,8 @@ func TestLoggerLog(t *testing.T) {
 
 	// metadata appendage test
 	tests = append(tests, test{
-		level:     LLInfo,
-		wantLevel: LLInfo.String(),
+		level:     event.LLInfo,
+		wantLevel: event.LLInfo.String(),
 		msg:       "meta",
 		wantMsg:   "meta",
 		meta: map[string]interface{}{
@@ -460,7 +461,7 @@ func TestLoggerLog(t *testing.T) {
 
 	for a := 0; a < len(mockLogLevelsOK); a++ {
 		if a == 5 {
-			continue // skip LLFatal, or os.Exit(1)
+			continue // skip event.LLFatal, or os.Exit(1)
 		}
 		for b := 0; b < len(mockMessages); b++ {
 			test := test{
@@ -500,7 +501,7 @@ func TestLoggerLog(t *testing.T) {
 
 	for d := 0; d < len(mockLogLevelsNOK); d++ {
 		if d == 5 {
-			continue // skip LLFatal, or os.Exit(1)
+			continue // skip event.LLFatal, or os.Exit(1)
 		}
 		for e := 0; e < len(mockMessages); e++ {
 			test := test{
@@ -538,10 +539,10 @@ func TestLoggerLog(t *testing.T) {
 		}
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		r := recover()
 
-		if test.level == LLPanic {
+		if test.level == event.LLPanic {
 			if r == nil {
 				t.Errorf(
 					"#%v -- FAILED -- LoggerMessage] Log(%s, %s) -- panic did not occur",
@@ -641,20 +642,20 @@ func TestLoggerLog(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
-		if test.level == LLPanic {
+		if test.level == event.LLPanic {
 			defer verify(id, test, logEntry)
 		}
 
 		mockLogger.logger.Fields(test.meta)
 
-		logMessage := NewMessage().Level(test.level).Message(test.msg).Build()
+		logMessage := event.New().Level(test.level).Message(test.msg).Build()
 
 		mockLogger.logger.Log(logMessage)
 
-		if test.level != LLPanic {
+		if test.level != event.LLPanic {
 			verify(id, test, logEntry)
 		}
 		mockLogger.logger.Fields(nil)
@@ -666,33 +667,33 @@ func TestLoggerLogMultiMessage(t *testing.T) {
 	module := "Logger"
 	funcname := "Log()"
 
-	tlogger := New(WithOut(mockBufs[0]), TextOnly, SkipExit)
+	tlogger := New(WithOut(mockBufs[0]), WithFormat(TextOnly), SkipExit)
 
 	type test struct {
 		name string
-		msgs []*LogMessage
+		msgs []*event.Event
 		n    int
 	}
 
 	var tests = []test{
 		{
 			name: "log one message",
-			msgs: []*LogMessage{NewMessage().Message("hi").Build()},
+			msgs: []*event.Event{event.New().Message("hi").Build()},
 			n:    3,
 		},
 		{
 			name: "log three messages",
-			msgs: []*LogMessage{NewMessage().Message("hi").Build(), NewMessage().Message("hi").Build(), NewMessage().Message("hi").Build()},
+			msgs: []*event.Event{event.New().Message("hi").Build(), event.New().Message("hi").Build(), event.New().Message("hi").Build()},
 			n:    9,
 		},
 		{
 			name: "log three messages -- first and last are empty",
-			msgs: []*LogMessage{{}, NewMessage().Message("hi").Build(), {}},
+			msgs: []*event.Event{{}, event.New().Message("hi").Build(), {}},
 			n:    5,
 		},
 		{
 			name: "log three empty messages",
-			msgs: []*LogMessage{{}, {}, {}},
+			msgs: []*event.Event{{}, {}, {}},
 			n:    3,
 		},
 		{
@@ -744,7 +745,7 @@ func TestLoggerLogMultiMessage(t *testing.T) {
 	verify(0, test{name: "three nil messages", n: 0})
 
 	// test nil input with a real message
-	tlogger.Log(nil, nil, NewMessage().Message("hi").Build())
+	tlogger.Log(nil, nil, event.New().Message("hi").Build())
 	verify(0, test{name: "two nil messages, then a real message", n: 3})
 
 }
@@ -986,7 +987,7 @@ func TestLoggerFatal(t *testing.T) {
 	}{
 		logger: New(
 			WithPrefix("test-message"),
-			FormatJSON,
+			WithFormat(FormatJSON),
 			WithOut(mockBuffer),
 			SkipExit,
 		),
@@ -1016,7 +1017,7 @@ func TestLoggerFatal(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(noExitLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Fatal(%s) -- unmarshal error: %s",
@@ -1027,12 +1028,12 @@ func TestLoggerFatal(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLFatal.String() {
+		if logEntry.Level != event.LLFatal.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Fatal(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLFatal.String(),
+				event.LLFatal.String(),
 				logEntry.Level,
 			)
 			return
@@ -1061,7 +1062,7 @@ func TestLoggerFatal(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		noExitLogger.buf.Reset()
 
 		noExitLogger.logger.Fatal(test.msg)
@@ -1077,7 +1078,7 @@ func TestLoggerFatalln(t *testing.T) {
 	}{
 		logger: New(
 			WithPrefix("test-message"),
-			FormatJSON,
+			WithFormat(FormatJSON),
 			WithOut(mockBuffer),
 			SkipExit,
 		),
@@ -1107,7 +1108,7 @@ func TestLoggerFatalln(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(noExitLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Fatalln(%s) -- unmarshal error: %s",
@@ -1118,12 +1119,12 @@ func TestLoggerFatalln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLFatal.String() {
+		if logEntry.Level != event.LLFatal.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Fatalln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLFatal.String(),
+				event.LLFatal.String(),
 				logEntry.Level,
 			)
 			return
@@ -1152,7 +1153,7 @@ func TestLoggerFatalln(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		noExitLogger.buf.Reset()
 
 		noExitLogger.logger.Fatalln(test.msg)
@@ -1168,7 +1169,7 @@ func TestLoggerFatalf(t *testing.T) {
 	}{
 		logger: New(
 			WithPrefix("test-message"),
-			FormatJSON,
+			WithFormat(FormatJSON),
 			WithOut(mockBuffer),
 			SkipExit,
 		),
@@ -1205,7 +1206,7 @@ func TestLoggerFatalf(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(noExitLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Fatalf(%s, %s) -- unmarshal error: %s",
@@ -1217,13 +1218,13 @@ func TestLoggerFatalf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLFatal.String() {
+		if logEntry.Level != event.LLFatal.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Fatalf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLFatal.String(),
+				event.LLFatal.String(),
 				logEntry.Level,
 			)
 			return
@@ -1254,7 +1255,7 @@ func TestLoggerFatalf(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		noExitLogger.buf.Reset()
 
 		noExitLogger.logger.Fatalf(test.format, test.v...)
@@ -1287,7 +1288,7 @@ func TestLoggerError(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Error(%s) -- unmarshal error: %s",
@@ -1298,12 +1299,12 @@ func TestLoggerError(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLError.String() {
+		if logEntry.Level != event.LLError.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Error(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLError.String(),
+				event.LLError.String(),
 				logEntry.Level,
 			)
 			return
@@ -1332,7 +1333,7 @@ func TestLoggerError(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Error(test.msg)
@@ -1365,7 +1366,7 @@ func TestLoggerErrorln(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Errorln(%s) -- unmarshal error: %s",
@@ -1376,12 +1377,12 @@ func TestLoggerErrorln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLError.String() {
+		if logEntry.Level != event.LLError.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Errorln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLError.String(),
+				event.LLError.String(),
 				logEntry.Level,
 			)
 			return
@@ -1410,7 +1411,7 @@ func TestLoggerErrorln(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Errorln(test.msg)
@@ -1450,7 +1451,7 @@ func TestLoggerErrorf(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Errorf(%s, %s) -- unmarshal error: %s",
@@ -1462,13 +1463,13 @@ func TestLoggerErrorf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLError.String() {
+		if logEntry.Level != event.LLError.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Errorf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLError.String(),
+				event.LLError.String(),
 				logEntry.Level,
 			)
 			return
@@ -1499,7 +1500,7 @@ func TestLoggerErrorf(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Errorf(test.format, test.v...)
@@ -1532,7 +1533,7 @@ func TestLoggerWarn(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Warn(%s) -- unmarshal error: %s",
@@ -1543,12 +1544,12 @@ func TestLoggerWarn(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLWarn.String() {
+		if logEntry.Level != event.LLWarn.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Warn(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLWarn.String(),
+				event.LLWarn.String(),
 				logEntry.Level,
 			)
 			return
@@ -1577,7 +1578,7 @@ func TestLoggerWarn(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Warn(test.msg)
@@ -1610,7 +1611,7 @@ func TestLoggerWarnln(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Warnln(%s) -- unmarshal error: %s",
@@ -1621,12 +1622,12 @@ func TestLoggerWarnln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLWarn.String() {
+		if logEntry.Level != event.LLWarn.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Warnln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLWarn.String(),
+				event.LLWarn.String(),
 				logEntry.Level,
 			)
 			return
@@ -1655,7 +1656,7 @@ func TestLoggerWarnln(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Warnln(test.msg)
@@ -1695,7 +1696,7 @@ func TestLoggerWarnf(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Warnf(%s, %s) -- unmarshal error: %s",
@@ -1707,13 +1708,13 @@ func TestLoggerWarnf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLWarn.String() {
+		if logEntry.Level != event.LLWarn.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Warnf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLWarn.String(),
+				event.LLWarn.String(),
 				logEntry.Level,
 			)
 			return
@@ -1744,7 +1745,7 @@ func TestLoggerWarnf(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Warnf(test.format, test.v...)
@@ -1777,7 +1778,7 @@ func TestLoggerInfo(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Info(%s) -- unmarshal error: %s",
@@ -1788,12 +1789,12 @@ func TestLoggerInfo(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Info(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -1822,7 +1823,7 @@ func TestLoggerInfo(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Info(test.msg)
@@ -1855,7 +1856,7 @@ func TestLoggerInfoln(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Infoln(%s) -- unmarshal error: %s",
@@ -1866,12 +1867,12 @@ func TestLoggerInfoln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Infoln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -1900,7 +1901,7 @@ func TestLoggerInfoln(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Infoln(test.msg)
@@ -1940,7 +1941,7 @@ func TestLoggerInfof(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Infof(%s, %s) -- unmarshal error: %s",
@@ -1952,13 +1953,13 @@ func TestLoggerInfof(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Infof(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -1989,7 +1990,7 @@ func TestLoggerInfof(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Infof(test.format, test.v...)
@@ -2022,7 +2023,7 @@ func TestLoggerDebug(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Debug(%s) -- unmarshal error: %s",
@@ -2033,12 +2034,12 @@ func TestLoggerDebug(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLDebug.String() {
+		if logEntry.Level != event.LLDebug.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Debug(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLDebug.String(),
+				event.LLDebug.String(),
 				logEntry.Level,
 			)
 			return
@@ -2067,7 +2068,7 @@ func TestLoggerDebug(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Debug(test.msg)
@@ -2100,7 +2101,7 @@ func TestLoggerDebugln(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Debugln(%s) -- unmarshal error: %s",
@@ -2111,12 +2112,12 @@ func TestLoggerDebugln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLDebug.String() {
+		if logEntry.Level != event.LLDebug.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Debugln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLDebug.String(),
+				event.LLDebug.String(),
 				logEntry.Level,
 			)
 			return
@@ -2145,7 +2146,7 @@ func TestLoggerDebugln(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Debugln(test.msg)
@@ -2185,7 +2186,7 @@ func TestLoggerDebugf(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Infof(%s, %s) -- unmarshal error: %s",
@@ -2197,13 +2198,13 @@ func TestLoggerDebugf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLDebug.String() {
+		if logEntry.Level != event.LLDebug.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Debugf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLDebug.String(),
+				event.LLDebug.String(),
 				logEntry.Level,
 			)
 			return
@@ -2234,7 +2235,7 @@ func TestLoggerDebugf(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Debugf(test.format, test.v...)
@@ -2267,7 +2268,7 @@ func TestLoggerTrace(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Trace(%s) -- unmarshal error: %s",
@@ -2278,12 +2279,12 @@ func TestLoggerTrace(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLTrace.String() {
+		if logEntry.Level != event.LLTrace.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Trace(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLTrace.String(),
+				event.LLTrace.String(),
 				logEntry.Level,
 			)
 			return
@@ -2312,7 +2313,7 @@ func TestLoggerTrace(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Trace(test.msg)
@@ -2345,7 +2346,7 @@ func TestLoggerTraceln(t *testing.T) {
 		})
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Traceln(%s) -- unmarshal error: %s",
@@ -2356,12 +2357,12 @@ func TestLoggerTraceln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLTrace.String() {
+		if logEntry.Level != event.LLTrace.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Traceln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLTrace.String(),
+				event.LLTrace.String(),
 				logEntry.Level,
 			)
 			return
@@ -2390,7 +2391,7 @@ func TestLoggerTraceln(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Traceln(test.msg)
@@ -2430,7 +2431,7 @@ func TestLoggerTracef(t *testing.T) {
 		tests = append(tests, test)
 	}
 
-	var verify = func(id int, test test, logEntry *LogMessage) {
+	var verify = func(id int, test test, logEntry *event.Event) {
 		if err := json.Unmarshal(mockLogger.buf.Bytes(), logEntry); err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Tracef(%s, %s) -- unmarshal error: %s",
@@ -2442,13 +2443,13 @@ func TestLoggerTracef(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLTrace.String() {
+		if logEntry.Level != event.LLTrace.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [LoggerMessage] Tracef(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLTrace.String(),
+				event.LLTrace.String(),
 				logEntry.Level,
 			)
 			return
@@ -2479,7 +2480,7 @@ func TestLoggerTracef(t *testing.T) {
 
 	for id, test := range tests {
 
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 		mockLogger.buf.Reset()
 
 		mockLogger.logger.Tracef(test.format, test.v...)
@@ -2495,7 +2496,7 @@ func TestMultiLoggerPrint(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -2520,7 +2521,7 @@ func TestMultiLoggerPrint(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -2529,7 +2530,7 @@ func TestMultiLoggerPrint(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -2552,7 +2553,7 @@ func TestMultiLoggerPrint(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -2577,13 +2578,13 @@ func TestMultiLoggerPrint(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLInfo.String() {
+			if logEntry.Level != event.LLInfo.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Print(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -2682,7 +2683,7 @@ func TestMultiLoggerPrintln(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -2707,7 +2708,7 @@ func TestMultiLoggerPrintln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -2716,7 +2717,7 @@ func TestMultiLoggerPrintln(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -2739,7 +2740,7 @@ func TestMultiLoggerPrintln(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -2764,13 +2765,13 @@ func TestMultiLoggerPrintln(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLInfo.String() {
+			if logEntry.Level != event.LLInfo.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Println(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -2871,7 +2872,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 	type test struct {
 		format string
 		v      []interface{}
-		msg    *LogMessage
+		msg    *event.Event
 		ml     ml
 	}
 
@@ -2890,7 +2891,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -2899,7 +2900,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(mockMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -2922,7 +2923,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -2931,7 +2932,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...)).
 						Metadata(testAllObjects[c]).
@@ -2953,7 +2954,7 @@ func TestMultiLoggerPrintf(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -2980,14 +2981,14 @@ func TestMultiLoggerPrintf(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLInfo.String() {
+			if logEntry.Level != event.LLInfo.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Printf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.format,
 					test.v,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -3092,7 +3093,7 @@ func TestMultiLoggerLog(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -3109,8 +3110,8 @@ func TestMultiLoggerLog(t *testing.T) {
 			for c := 0; c < len(testObjects); c++ {
 				for d := 0; d < len(mockLogLevelsOK); d++ {
 
-					// skip LLFatal -- os.Exit(1)
-					// if mockLogLevelsOK[d] == LLFatal {
+					// skip event.LLFatal -- os.Exit(1)
+					// if mockLogLevelsOK[d] == event.LLFatal {
 					// 	continue
 					// }
 
@@ -3119,7 +3120,7 @@ func TestMultiLoggerLog(t *testing.T) {
 					for e := 0; e < len(mockMultiPrefixes); e++ {
 						buf := &bytes.Buffer{}
 						bufs = append(bufs, buf)
-						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
+						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf), SkipExit))
 					}
 					mlogger := MultiLogger(logs...)
 
@@ -3128,7 +3129,7 @@ func TestMultiLoggerLog(t *testing.T) {
 							log: mlogger,
 							buf: bufs,
 						},
-						msg: NewMessage().
+						msg: event.New().
 							Level(mockLogLevelsOK[d]).
 							Prefix(mockPrefixes[a]).
 							Message(testAllMessages[b]).
@@ -3152,7 +3153,7 @@ func TestMultiLoggerLog(t *testing.T) {
 					for e := 0; e < len(mockMultiPrefixes); e++ {
 						buf := &bytes.Buffer{}
 						bufs = append(bufs, buf)
-						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
+						logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf), SkipExit))
 					}
 					mlogger := MultiLogger(logs...)
 
@@ -3161,7 +3162,7 @@ func TestMultiLoggerLog(t *testing.T) {
 							log: mlogger,
 							buf: bufs,
 						},
-						msg: NewMessage().
+						msg: event.New().
 							Level(mockLogLevelsNOK[d]).
 							Prefix(mockEmptyPrefixes[a]).
 							Message(testAllMessages[b]).
@@ -3183,7 +3184,7 @@ func TestMultiLoggerLog(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -3311,7 +3312,7 @@ func TestMultiLoggerPanic(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -3336,7 +3337,7 @@ func TestMultiLoggerPanic(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3345,7 +3346,7 @@ func TestMultiLoggerPanic(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -3389,7 +3390,7 @@ func TestMultiLoggerPanic(t *testing.T) {
 
 		for bufID, buf := range test.ml.buf {
 
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -3414,13 +3415,13 @@ func TestMultiLoggerPanic(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLPanic.String() {
+			if logEntry.Level != event.LLPanic.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Panic(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -3519,7 +3520,7 @@ func TestMultiLoggerPanicln(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -3544,7 +3545,7 @@ func TestMultiLoggerPanicln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3553,7 +3554,7 @@ func TestMultiLoggerPanicln(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -3597,7 +3598,7 @@ func TestMultiLoggerPanicln(t *testing.T) {
 
 		for bufID, buf := range test.ml.buf {
 
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -3622,13 +3623,13 @@ func TestMultiLoggerPanicln(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLPanic.String() {
+			if logEntry.Level != event.LLPanic.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Panicln(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -3729,7 +3730,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 	type test struct {
 		format string
 		v      []interface{}
-		msg    *LogMessage
+		msg    *event.Event
 		ml     ml
 	}
 
@@ -3748,7 +3749,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3757,7 +3758,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(mockMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -3779,7 +3780,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -3788,7 +3789,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...)).
 						Metadata(testAllObjects[c]).
@@ -3833,7 +3834,7 @@ func TestMultiLoggerPanicf(t *testing.T) {
 
 		for bufID, buf := range test.ml.buf {
 
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -3860,14 +3861,14 @@ func TestMultiLoggerPanicf(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLPanic.String() {
+			if logEntry.Level != event.LLPanic.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Panicf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.format,
 					test.v,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -3972,7 +3973,7 @@ func TestMultiLoggerFatal(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -3997,7 +3998,7 @@ func TestMultiLoggerFatal(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf), SkipExit))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4006,7 +4007,7 @@ func TestMultiLoggerFatal(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -4029,7 +4030,7 @@ func TestMultiLoggerFatal(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -4054,13 +4055,13 @@ func TestMultiLoggerFatal(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLFatal.String() {
+			if logEntry.Level != event.LLFatal.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Fatal(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLFatal.String(),
+					event.LLFatal.String(),
 					logEntry.Level,
 				)
 				return
@@ -4159,7 +4160,7 @@ func TestMultiLoggerFatalln(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -4184,7 +4185,7 @@ func TestMultiLoggerFatalln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf), SkipExit))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4193,7 +4194,7 @@ func TestMultiLoggerFatalln(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -4216,7 +4217,7 @@ func TestMultiLoggerFatalln(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -4241,13 +4242,13 @@ func TestMultiLoggerFatalln(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLFatal.String() {
+			if logEntry.Level != event.LLFatal.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Fatalln(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLFatal.String(),
+					event.LLFatal.String(),
 					logEntry.Level,
 				)
 				return
@@ -4348,7 +4349,7 @@ func TestMultiLoggerFatalf(t *testing.T) {
 	type test struct {
 		format string
 		v      []interface{}
-		msg    *LogMessage
+		msg    *event.Event
 		ml     ml
 	}
 
@@ -4367,7 +4368,7 @@ func TestMultiLoggerFatalf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf), SkipExit))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4376,7 +4377,7 @@ func TestMultiLoggerFatalf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(mockMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -4399,7 +4400,7 @@ func TestMultiLoggerFatalf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf), SkipExit))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf), SkipExit))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4408,7 +4409,7 @@ func TestMultiLoggerFatalf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...)).
 						Metadata(testAllObjects[c]).
@@ -4430,7 +4431,7 @@ func TestMultiLoggerFatalf(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -4457,14 +4458,14 @@ func TestMultiLoggerFatalf(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLFatal.String() {
+			if logEntry.Level != event.LLFatal.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Fatalf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.format,
 					test.v,
-					LLFatal.String(),
+					event.LLFatal.String(),
 					logEntry.Level,
 				)
 				return
@@ -4569,7 +4570,7 @@ func TestMultiLoggerError(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -4594,7 +4595,7 @@ func TestMultiLoggerError(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4603,7 +4604,7 @@ func TestMultiLoggerError(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -4626,7 +4627,7 @@ func TestMultiLoggerError(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -4651,13 +4652,13 @@ func TestMultiLoggerError(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLError.String() {
+			if logEntry.Level != event.LLError.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Error(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLError.String(),
+					event.LLError.String(),
 					logEntry.Level,
 				)
 				return
@@ -4756,7 +4757,7 @@ func TestMultiLoggerErrorln(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -4781,7 +4782,7 @@ func TestMultiLoggerErrorln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4790,7 +4791,7 @@ func TestMultiLoggerErrorln(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -4813,7 +4814,7 @@ func TestMultiLoggerErrorln(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -4838,13 +4839,13 @@ func TestMultiLoggerErrorln(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLError.String() {
+			if logEntry.Level != event.LLError.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Errorln(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLError.String(),
+					event.LLError.String(),
 					logEntry.Level,
 				)
 				return
@@ -4945,7 +4946,7 @@ func TestMultiLoggerErrorf(t *testing.T) {
 	type test struct {
 		format string
 		v      []interface{}
-		msg    *LogMessage
+		msg    *event.Event
 		ml     ml
 	}
 
@@ -4964,7 +4965,7 @@ func TestMultiLoggerErrorf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -4973,7 +4974,7 @@ func TestMultiLoggerErrorf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(mockMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -4996,7 +4997,7 @@ func TestMultiLoggerErrorf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5005,7 +5006,7 @@ func TestMultiLoggerErrorf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...)).
 						Metadata(testAllObjects[c]).
@@ -5027,7 +5028,7 @@ func TestMultiLoggerErrorf(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -5054,14 +5055,14 @@ func TestMultiLoggerErrorf(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLError.String() {
+			if logEntry.Level != event.LLError.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Errorf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.format,
 					test.v,
-					LLError.String(),
+					event.LLError.String(),
 					logEntry.Level,
 				)
 				return
@@ -5166,7 +5167,7 @@ func TestMultiLoggerWarn(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -5191,7 +5192,7 @@ func TestMultiLoggerWarn(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5200,7 +5201,7 @@ func TestMultiLoggerWarn(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -5223,7 +5224,7 @@ func TestMultiLoggerWarn(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -5248,13 +5249,13 @@ func TestMultiLoggerWarn(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLWarn.String() {
+			if logEntry.Level != event.LLWarn.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Warn(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLWarn.String(),
+					event.LLWarn.String(),
 					logEntry.Level,
 				)
 				return
@@ -5353,7 +5354,7 @@ func TestMultiLoggerWarnln(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -5378,7 +5379,7 @@ func TestMultiLoggerWarnln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5387,7 +5388,7 @@ func TestMultiLoggerWarnln(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -5410,7 +5411,7 @@ func TestMultiLoggerWarnln(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -5435,13 +5436,13 @@ func TestMultiLoggerWarnln(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLWarn.String() {
+			if logEntry.Level != event.LLWarn.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Warnln(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLWarn.String(),
+					event.LLWarn.String(),
 					logEntry.Level,
 				)
 				return
@@ -5542,7 +5543,7 @@ func TestMultiLoggerWarnf(t *testing.T) {
 	type test struct {
 		format string
 		v      []interface{}
-		msg    *LogMessage
+		msg    *event.Event
 		ml     ml
 	}
 
@@ -5561,7 +5562,7 @@ func TestMultiLoggerWarnf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5570,7 +5571,7 @@ func TestMultiLoggerWarnf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(mockMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -5593,7 +5594,7 @@ func TestMultiLoggerWarnf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5602,7 +5603,7 @@ func TestMultiLoggerWarnf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...)).
 						Metadata(testAllObjects[c]).
@@ -5624,7 +5625,7 @@ func TestMultiLoggerWarnf(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -5651,14 +5652,14 @@ func TestMultiLoggerWarnf(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLWarn.String() {
+			if logEntry.Level != event.LLWarn.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Warnf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.format,
 					test.v,
-					LLWarn.String(),
+					event.LLWarn.String(),
 					logEntry.Level,
 				)
 				return
@@ -5752,7 +5753,7 @@ func TestMultiLoggernfo(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -5777,7 +5778,7 @@ func TestMultiLoggernfo(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5786,7 +5787,7 @@ func TestMultiLoggernfo(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -5809,7 +5810,7 @@ func TestMultiLoggernfo(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -5834,13 +5835,13 @@ func TestMultiLoggernfo(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLInfo.String() {
+			if logEntry.Level != event.LLInfo.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Info(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -5939,7 +5940,7 @@ func TestMultiLoggernfoln(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -5964,7 +5965,7 @@ func TestMultiLoggernfoln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -5973,7 +5974,7 @@ func TestMultiLoggernfoln(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -5996,7 +5997,7 @@ func TestMultiLoggernfoln(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -6021,13 +6022,13 @@ func TestMultiLoggernfoln(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLInfo.String() {
+			if logEntry.Level != event.LLInfo.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Infoln(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -6128,7 +6129,7 @@ func TestMultiLoggernfof(t *testing.T) {
 	type test struct {
 		format string
 		v      []interface{}
-		msg    *LogMessage
+		msg    *event.Event
 		ml     ml
 	}
 
@@ -6147,7 +6148,7 @@ func TestMultiLoggernfof(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6156,7 +6157,7 @@ func TestMultiLoggernfof(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(mockMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -6179,7 +6180,7 @@ func TestMultiLoggernfof(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6188,7 +6189,7 @@ func TestMultiLoggernfof(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...)).
 						Metadata(testAllObjects[c]).
@@ -6210,7 +6211,7 @@ func TestMultiLoggernfof(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -6237,14 +6238,14 @@ func TestMultiLoggernfof(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLInfo.String() {
+			if logEntry.Level != event.LLInfo.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Infof(%s, %s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.format,
 					test.v,
-					LLInfo.String(),
+					event.LLInfo.String(),
 					logEntry.Level,
 				)
 				return
@@ -6349,7 +6350,7 @@ func TestMultiLoggerDebug(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -6374,7 +6375,7 @@ func TestMultiLoggerDebug(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6383,7 +6384,7 @@ func TestMultiLoggerDebug(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -6406,7 +6407,7 @@ func TestMultiLoggerDebug(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -6431,13 +6432,13 @@ func TestMultiLoggerDebug(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLDebug.String() {
+			if logEntry.Level != event.LLDebug.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Debug(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLDebug.String(),
+					event.LLDebug.String(),
 					logEntry.Level,
 				)
 				return
@@ -6536,7 +6537,7 @@ func TestMultiLoggerDebugln(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -6561,7 +6562,7 @@ func TestMultiLoggerDebugln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6570,7 +6571,7 @@ func TestMultiLoggerDebugln(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -6593,7 +6594,7 @@ func TestMultiLoggerDebugln(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -6618,13 +6619,13 @@ func TestMultiLoggerDebugln(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLDebug.String() {
+			if logEntry.Level != event.LLDebug.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Debugln(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLDebug.String(),
+					event.LLDebug.String(),
 					logEntry.Level,
 				)
 				return
@@ -6725,7 +6726,7 @@ func TestMultiLoggerDebugf(t *testing.T) {
 	type test struct {
 		format string
 		v      []interface{}
-		msg    *LogMessage
+		msg    *event.Event
 		ml     ml
 	}
 
@@ -6744,7 +6745,7 @@ func TestMultiLoggerDebugf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6753,7 +6754,7 @@ func TestMultiLoggerDebugf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(mockMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -6776,7 +6777,7 @@ func TestMultiLoggerDebugf(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6785,7 +6786,7 @@ func TestMultiLoggerDebugf(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...)).
 						Metadata(testAllObjects[c]).
@@ -6807,7 +6808,7 @@ func TestMultiLoggerDebugf(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -6834,14 +6835,14 @@ func TestMultiLoggerDebugf(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLDebug.String() {
+			if logEntry.Level != event.LLDebug.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Debugf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.format,
 					test.v,
-					LLDebug.String(),
+					event.LLDebug.String(),
 					logEntry.Level,
 				)
 				return
@@ -6946,7 +6947,7 @@ func TestMultiLoggerTrace(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -6971,7 +6972,7 @@ func TestMultiLoggerTrace(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -6980,7 +6981,7 @@ func TestMultiLoggerTrace(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -7003,7 +7004,7 @@ func TestMultiLoggerTrace(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -7028,13 +7029,13 @@ func TestMultiLoggerTrace(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLTrace.String() {
+			if logEntry.Level != event.LLTrace.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Trace(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLTrace.String(),
+					event.LLTrace.String(),
 					logEntry.Level,
 				)
 				return
@@ -7133,7 +7134,7 @@ func TestMultiLoggerTraceln(t *testing.T) {
 	}
 
 	type test struct {
-		msg *LogMessage
+		msg *event.Event
 		ml  ml
 	}
 
@@ -7158,7 +7159,7 @@ func TestMultiLoggerTraceln(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -7167,7 +7168,7 @@ func TestMultiLoggerTraceln(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(testAllMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -7190,7 +7191,7 @@ func TestMultiLoggerTraceln(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -7215,13 +7216,13 @@ func TestMultiLoggerTraceln(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLTrace.String() {
+			if logEntry.Level != event.LLTrace.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Traceln(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.msg.Msg,
-					LLTrace.String(),
+					event.LLTrace.String(),
 					logEntry.Level,
 				)
 				return
@@ -7322,7 +7323,7 @@ func TestMultiLoggerTracef(t *testing.T) {
 	type test struct {
 		format string
 		v      []interface{}
-		msg    *LogMessage
+		msg    *event.Event
 		ml     ml
 	}
 
@@ -7341,7 +7342,7 @@ func TestMultiLoggerTracef(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -7350,7 +7351,7 @@ func TestMultiLoggerTracef(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(mockMessages[b]).
 						Metadata(testAllObjects[c]).
@@ -7373,7 +7374,7 @@ func TestMultiLoggerTracef(t *testing.T) {
 				for e := 0; e < len(mockMultiPrefixes); e++ {
 					buf := &bytes.Buffer{}
 					bufs = append(bufs, buf)
-					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), FormatJSON, WithOut(buf)))
+					logs = append(logs, New(WithPrefix(mockMultiPrefixes[e]), WithFormat(FormatJSON), WithOut(buf)))
 				}
 				mlogger := MultiLogger(logs...)
 
@@ -7382,7 +7383,7 @@ func TestMultiLoggerTracef(t *testing.T) {
 						log: mlogger,
 						buf: bufs,
 					},
-					msg: NewMessage().
+					msg: event.New().
 						Prefix(mockPrefixes[a]).
 						Message(fmt.Sprintf(mockFmtMessages[b].format, mockFmtMessages[b].v...)).
 						Metadata(testAllObjects[c]).
@@ -7404,7 +7405,7 @@ func TestMultiLoggerTracef(t *testing.T) {
 		}()
 
 		for bufID, buf := range test.ml.buf {
-			logEntry := &LogMessage{}
+			logEntry := &event.Event{}
 
 			if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
 				t.Errorf(
@@ -7431,14 +7432,14 @@ func TestMultiLoggerTracef(t *testing.T) {
 				return
 			}
 
-			if logEntry.Level != LLTrace.String() {
+			if logEntry.Level != event.LLTrace.String() {
 				t.Errorf(
 					"#%v -- FAILED -- [MultiLogger] MultiLogger(...Logger[%v]).Tracef(%s, %s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
 					test.format,
 					test.v,
-					LLTrace.String(),
+					event.LLTrace.String(),
 					logEntry.Level,
 				)
 				return
@@ -7542,7 +7543,7 @@ func TestPrint(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -7570,7 +7571,7 @@ func TestPrint(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -7593,12 +7594,12 @@ func TestPrint(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Print(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -7646,7 +7647,7 @@ func TestPrintln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -7674,7 +7675,7 @@ func TestPrintln(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -7697,12 +7698,12 @@ func TestPrintln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Println(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -7750,7 +7751,7 @@ func TestPrintf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -7781,7 +7782,7 @@ func TestPrintf(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -7806,13 +7807,13 @@ func TestPrintf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Printf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -7861,7 +7862,7 @@ func TestLog(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -7875,7 +7876,7 @@ func TestLog(t *testing.T) {
 	}()
 
 	type test struct {
-		level     LogLevel
+		level     event.LogLevel
 		msg       string
 		wantLevel string
 		wantMsg   string
@@ -7887,7 +7888,7 @@ func TestLog(t *testing.T) {
 
 	for a := 0; a < len(mockLogLevelsOK); a++ {
 		if a == 5 {
-			continue // skip LLFatal, or os.Exit(1)
+			continue // skip event.LLFatal, or os.Exit(1)
 		}
 		for b := 0; b < len(mockMessages); b++ {
 			test := test{
@@ -7924,7 +7925,7 @@ func TestLog(t *testing.T) {
 	}
 	for d := 0; d < len(mockLogLevelsNOK); d++ {
 		if d == 5 {
-			continue // skip LLFatal, or os.Exit(1)
+			continue // skip event.LLFatal, or os.Exit(1)
 		}
 		for e := 0; e < len(mockMessages); e++ {
 			test := test{
@@ -7961,7 +7962,7 @@ func TestLog(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -8032,7 +8033,7 @@ func TestLog(t *testing.T) {
 			defer verify(id, test, buf.Bytes())
 		}
 
-		logMessage := NewMessage().Level(test.level).Message(test.msg).Build()
+		logMessage := event.New().Level(test.level).Message(test.msg).Build()
 
 		Log(logMessage)
 
@@ -8050,7 +8051,7 @@ func TestPanic(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -8133,7 +8134,7 @@ func TestPanicln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -8216,7 +8217,7 @@ func TestPanicf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -8305,7 +8306,7 @@ func TestFatal(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 		SkipExit,
 	)
@@ -8334,7 +8335,7 @@ func TestFatal(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -8357,12 +8358,12 @@ func TestFatal(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLFatal.String() {
+		if logEntry.Level != event.LLFatal.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Fatal(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLFatal.String(),
+				event.LLFatal.String(),
 				logEntry.Level,
 			)
 			return
@@ -8410,7 +8411,7 @@ func TestFatalln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 		SkipExit,
 	)
@@ -8439,7 +8440,7 @@ func TestFatalln(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -8462,12 +8463,12 @@ func TestFatalln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLFatal.String() {
+		if logEntry.Level != event.LLFatal.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Fatalln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLFatal.String(),
+				event.LLFatal.String(),
 				logEntry.Level,
 			)
 			return
@@ -8515,7 +8516,7 @@ func TestFatalf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 		SkipExit,
 	)
@@ -8547,7 +8548,7 @@ func TestFatalf(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -8572,13 +8573,13 @@ func TestFatalf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLFatal.String() {
+		if logEntry.Level != event.LLFatal.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Fatalf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLFatal.String(),
+				event.LLFatal.String(),
 				logEntry.Level,
 			)
 			return
@@ -8627,7 +8628,7 @@ func TestError(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -8655,7 +8656,7 @@ func TestError(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -8678,12 +8679,12 @@ func TestError(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLError.String() {
+		if logEntry.Level != event.LLError.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Error(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLError.String(),
+				event.LLError.String(),
 				logEntry.Level,
 			)
 			return
@@ -8731,7 +8732,7 @@ func TestErrorln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -8759,7 +8760,7 @@ func TestErrorln(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -8782,12 +8783,12 @@ func TestErrorln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLError.String() {
+		if logEntry.Level != event.LLError.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Errorln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLError.String(),
+				event.LLError.String(),
 				logEntry.Level,
 			)
 			return
@@ -8835,7 +8836,7 @@ func TestErrorf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -8866,7 +8867,7 @@ func TestErrorf(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -8891,13 +8892,13 @@ func TestErrorf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLError.String() {
+		if logEntry.Level != event.LLError.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Errorf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLError.String(),
+				event.LLError.String(),
 				logEntry.Level,
 			)
 			return
@@ -8946,7 +8947,7 @@ func TestWarn(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -8974,7 +8975,7 @@ func TestWarn(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -8997,12 +8998,12 @@ func TestWarn(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLWarn.String() {
+		if logEntry.Level != event.LLWarn.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Warn(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLWarn.String(),
+				event.LLWarn.String(),
 				logEntry.Level,
 			)
 			return
@@ -9050,7 +9051,7 @@ func TestWarnln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9078,7 +9079,7 @@ func TestWarnln(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9101,12 +9102,12 @@ func TestWarnln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLWarn.String() {
+		if logEntry.Level != event.LLWarn.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Warnln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLWarn.String(),
+				event.LLWarn.String(),
 				logEntry.Level,
 			)
 			return
@@ -9154,7 +9155,7 @@ func TestWarnf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9185,7 +9186,7 @@ func TestWarnf(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9210,13 +9211,13 @@ func TestWarnf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLWarn.String() {
+		if logEntry.Level != event.LLWarn.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Warnf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLWarn.String(),
+				event.LLWarn.String(),
 				logEntry.Level,
 			)
 			return
@@ -9265,7 +9266,7 @@ func TestInfo(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9293,7 +9294,7 @@ func TestInfo(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9316,12 +9317,12 @@ func TestInfo(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Info(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -9369,7 +9370,7 @@ func TestInfoln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9397,7 +9398,7 @@ func TestInfoln(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9420,12 +9421,12 @@ func TestInfoln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Infoln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -9473,7 +9474,7 @@ func TestInfof(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9504,7 +9505,7 @@ func TestInfof(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9529,13 +9530,13 @@ func TestInfof(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLInfo.String() {
+		if logEntry.Level != event.LLInfo.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Infof(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLInfo.String(),
+				event.LLInfo.String(),
 				logEntry.Level,
 			)
 			return
@@ -9584,7 +9585,7 @@ func TestDebug(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9612,7 +9613,7 @@ func TestDebug(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9635,12 +9636,12 @@ func TestDebug(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLDebug.String() {
+		if logEntry.Level != event.LLDebug.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Debug(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLDebug.String(),
+				event.LLDebug.String(),
 				logEntry.Level,
 			)
 			return
@@ -9688,7 +9689,7 @@ func TestDebugln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9716,7 +9717,7 @@ func TestDebugln(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9739,12 +9740,12 @@ func TestDebugln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLDebug.String() {
+		if logEntry.Level != event.LLDebug.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Debugln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLDebug.String(),
+				event.LLDebug.String(),
 				logEntry.Level,
 			)
 			return
@@ -9792,7 +9793,7 @@ func TestDebugf(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9823,7 +9824,7 @@ func TestDebugf(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9848,13 +9849,13 @@ func TestDebugf(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLDebug.String() {
+		if logEntry.Level != event.LLDebug.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Debugf(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLDebug.String(),
+				event.LLDebug.String(),
 				logEntry.Level,
 			)
 			return
@@ -9903,7 +9904,7 @@ func TestTrace(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -9931,7 +9932,7 @@ func TestTrace(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -9954,12 +9955,12 @@ func TestTrace(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLTrace.String() {
+		if logEntry.Level != event.LLTrace.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Trace(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLTrace.String(),
+				event.LLTrace.String(),
 				logEntry.Level,
 			)
 			return
@@ -10007,7 +10008,7 @@ func TestTraceln(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -10035,7 +10036,7 @@ func TestTraceln(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -10058,12 +10059,12 @@ func TestTraceln(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLTrace.String() {
+		if logEntry.Level != event.LLTrace.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Traceln(%s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				LLTrace.String(),
+				event.LLTrace.String(),
 				logEntry.Level,
 			)
 			return
@@ -10111,7 +10112,7 @@ func TestTracef(t *testing.T) {
 	buf := &bytes.Buffer{}
 	std = New(
 		WithPrefix("log"),
-		FormatJSON,
+		WithFormat(FormatJSON),
 		WithOut(buf),
 	)
 
@@ -10142,7 +10143,7 @@ func TestTracef(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, result []byte) {
-		logEntry := &LogMessage{}
+		logEntry := &event.Event{}
 
 		if err := json.Unmarshal(result, logEntry); err != nil {
 			t.Errorf(
@@ -10167,13 +10168,13 @@ func TestTracef(t *testing.T) {
 			return
 		}
 
-		if logEntry.Level != LLTrace.String() {
+		if logEntry.Level != event.LLTrace.String() {
 			t.Errorf(
 				"#%v -- FAILED -- [DefaultLogger] Tracef(%s, %s) -- log level mismatch: wanted %s ; got %s",
 				id,
 				test.format,
 				test.v,
-				LLTrace.String(),
+				event.LLTrace.String(),
 				logEntry.Level,
 			)
 			return
@@ -10216,7 +10217,7 @@ func TestTracef(t *testing.T) {
 	std = oldstd
 }
 
-// func (l *nilLogger) Output(m *LogMessage) (n int, err error)     { return 0, nil }
+// func (l *nilLogger) Output(m *event.Event) (n int, err error)     { return 0, nil }
 func TestNilLoggerOutput(t *testing.T) {
 	module := "NilLogger"
 	funcname := "Output()"
@@ -10224,22 +10225,22 @@ func TestNilLoggerOutput(t *testing.T) {
 	nillog := New(NilConfig)
 
 	var tests = []struct {
-		input *LogMessage
+		input *event.Event
 		n     int
 		err   error
 	}{
 		{
-			input: NewMessage().Message("test").Build(),
+			input: event.New().Message("test").Build(),
 			n:     1,
 			err:   nil,
 		},
 		{
-			input: NewMessage().Message("for").Build(),
+			input: event.New().Message("for").Build(),
 			n:     1,
 			err:   nil,
 		},
 		{
-			input: NewMessage().Message("nothing").Build(),
+			input: event.New().Message("nothing").Build(),
 			n:     1,
 			err:   nil,
 		},
@@ -10275,7 +10276,7 @@ func TestNilLoggerOutput(t *testing.T) {
 	}
 }
 
-// func (l *nilLogger) Log(m ...*LogMessage)                        {}
+// func (l *nilLogger) Log(m ...*event.Event)                        {}
 func TestNilLoggerLog(t *testing.T) {
 	// module := "NilLogger"
 	// funcname := "Log()"
@@ -10283,16 +10284,16 @@ func TestNilLoggerLog(t *testing.T) {
 	nillog := New(NilConfig)
 
 	var tests = []struct {
-		input *LogMessage
+		input *event.Event
 	}{
 		{
-			input: NewMessage().Message("test").Build(),
+			input: event.New().Message("test").Build(),
 		},
 		{
-			input: NewMessage().Message("for").Build(),
+			input: event.New().Message("for").Build(),
 		},
 		{
-			input: NewMessage().Message("nothing").Build(),
+			input: event.New().Message("nothing").Build(),
 		},
 	}
 

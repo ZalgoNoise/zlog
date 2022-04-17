@@ -9,6 +9,7 @@ import (
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/grpc/client"
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
 )
 
 func main() {
@@ -17,12 +18,11 @@ func main() {
 	stdLogger := log.New(
 		log.WithOut(buf),
 		log.SkipExit,
-		log.ColorText,
+		log.WithFormat(log.TextColor),
 	)
 
 	grpcSvcLogger := log.New(
-		log.FormatJSON,
-		log.ColorTextLevelFirst,
+		log.WithFormat(log.TextColorLevelFirst),
 		log.SkipExit,
 	)
 
@@ -39,20 +39,20 @@ func main() {
 		stdLogger,
 	)
 	multiLogger.Log(
-		log.NewMessage().Message("it works!").Build(),
+		event.New().Message("it works!").Build(),
 	)
 	multiLogger.Log(
-		log.NewMessage().Message("it works!").Build(),
+		event.New().Message("it works!").Build(),
 	)
 	multiLogger.Log(
-		log.NewMessage().Message("it works!").Build(),
+		event.New().Message("it works!").Build(),
 	)
 
 	time.Sleep(time.Second * 1)
 
 	multiLogger.AddOuts(os.Stdout, newAddr)
 	multiLogger.Log(
-		log.NewMessage().Message("it works!").Build(),
+		event.New().Message("it works!").Build(),
 	)
 
 	fmt.Println(buf.String())

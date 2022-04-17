@@ -11,12 +11,12 @@ func main() {
 	grpcLogger := server.New(
 		server.WithLogger(
 			log.New(
-				log.ColorTextLevelFirstSpaced,
+				log.WithFormat(log.TextColorLevelFirstSpaced),
 			),
 		),
 		server.WithServiceLogger(
 			log.New(
-				log.ColorTextLevelFirstSpaced,
+				log.WithFormat(log.TextColorLevelFirstSpaced),
 			),
 		),
 		server.WithAddr("127.0.0.1:9099"),

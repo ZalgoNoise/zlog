@@ -22,14 +22,14 @@ func UnaryClientTiming(logger log.Logger) grpc.UnaryClientInterceptor {
 
 		if err != nil {
 			// handle errors in the transaction
-			logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("timer").Message("[recv] unary RPC -- message handling failed with an error").Metadata(event.Field{
+			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("timer").Message("[recv] unary RPC -- message handling failed with an error").Metadata(event.Field{
 				"error":  err.Error(),
 				"method": method,
 				"time":   time.Since(now).String(),
 			}).Build())
 		} else if !reply.(*pb.MessageResponse).GetOk() {
 			// handle errors in the response; return the error in the message
-			logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("timer").Message("[recv] unary RPC -- message returned a not-OK status").Metadata(event.Field{
+			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("timer").Message("[recv] unary RPC -- message returned a not-OK status").Metadata(event.Field{
 				"error":    reply.(*pb.MessageResponse).GetErr(),
 				"method":   method,
 				"response": event.Field{"id": reply.(*pb.MessageResponse).GetReqID()},
@@ -40,7 +40,7 @@ func UnaryClientTiming(logger log.Logger) grpc.UnaryClientInterceptor {
 
 		} else {
 			// log an OK transaction
-			logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("timer").Message("[recv] unary RPC").Metadata(event.Field{
+			logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("timer").Message("[recv] unary RPC").Metadata(event.Field{
 				"method":   method,
 				"response": event.Field{"id": reply.(*pb.MessageResponse).GetReqID()},
 				"time":     time.Since(now).String(),
@@ -58,7 +58,7 @@ func StreamClientTiming(logger log.Logger) grpc.StreamClientInterceptor {
 		clientStream, err := streamer(ctx, desc, cc, method, opts...)
 
 		if err != nil {
-			logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("timer").Message("[conn] stream RPC -- failed to initialize stream with an error").Metadata(event.Field{
+			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("timer").Message("[conn] stream RPC -- failed to initialize stream with an error").Metadata(event.Field{
 				"error":  err.Error(),
 				"method": method,
 				"stream": desc.StreamName,
@@ -67,7 +67,7 @@ func StreamClientTiming(logger log.Logger) grpc.StreamClientInterceptor {
 
 		}
 
-		logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("timer").Message("[conn] stream RPC -- connection was established").Metadata(event.Field{
+		logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("timer").Message("[conn] stream RPC -- connection was established").Metadata(event.Field{
 			"time": time.Since(now).String(),
 		}).Build())
 
@@ -106,7 +106,7 @@ func (w timingStream) Context() context.Context { return w.stream.Context() }
 func (w timingStream) SendMsg(m interface{}) error {
 	start := time.Now()
 	err := w.stream.SendMsg(m)
-	w.logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("timer").Message("[send] stream RPC").Metadata(event.Field{
+	w.logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("timer").Message("[send] stream RPC").Metadata(event.Field{
 		"time":   time.Since(start).String(),
 		"method": w.method,
 		"name":   w.name,
@@ -120,7 +120,7 @@ func (w timingStream) SendMsg(m interface{}) error {
 func (w timingStream) RecvMsg(m interface{}) error {
 	start := time.Now()
 	err := w.stream.RecvMsg(m)
-	w.logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("timer").Message("[recv] stream RPC").Metadata(event.Field{
+	w.logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("timer").Message("[recv] stream RPC").Metadata(event.Field{
 		"time":   time.Since(start).String(),
 		"method": w.method,
 		"name":   w.name,

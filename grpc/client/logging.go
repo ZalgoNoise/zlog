@@ -24,7 +24,7 @@ func UnaryClientLogging(logger log.Logger, withTimer bool) grpc.UnaryClientInter
 			now = time.Now()
 		}
 
-		logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("logger").Message("[send] unary RPC logger -- " + method).Build())
+		logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("logger").Message("[send] unary RPC logger -- " + method).Build())
 
 		err := invoker(ctx, method, req, reply, cc, opts...)
 
@@ -61,17 +61,17 @@ func UnaryClientLogging(logger log.Logger, withTimer bool) grpc.UnaryClientInter
 		if err != nil {
 			// handle errors in the transaction
 			meta["error"] = err.Error()
-			logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message handling failed with an error").Metadata(meta).Build())
+			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message handling failed with an error").Metadata(meta).Build())
 		} else if !reply.(*pb.MessageResponse).GetOk() {
 			// handle errors in the response; return the error in the message
 			meta["error"] = reply.(*pb.MessageResponse).GetErr()
-			logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message returned a not-OK status").Metadata(meta).Build())
+			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message returned a not-OK status").Metadata(meta).Build())
 
 			return errors.New(reply.(*pb.MessageResponse).GetErr())
 
 		} else {
 			// log an OK transaction
-			logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger").Metadata(meta).Build())
+			logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger").Metadata(meta).Build())
 		}
 		return err
 	}
@@ -88,7 +88,7 @@ func StreamClientLogging(logger log.Logger, withTimer bool) grpc.StreamClientInt
 			now = time.Now()
 		}
 
-		logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("logger").Message("[open] stream RPC logger connection open -- " + method).Build())
+		logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("logger").Message("[open] stream RPC logger connection open -- " + method).Build())
 
 		clientStream, err := streamer(ctx, desc, cc, method, opts...)
 
@@ -107,10 +107,10 @@ func StreamClientLogging(logger log.Logger, withTimer bool) grpc.StreamClientInt
 
 		if err != nil {
 			meta["error"] = err.Error()
-			logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC logger -- failed to initialize stream with an error").Metadata(meta).Build())
+			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC logger -- failed to initialize stream with an error").Metadata(meta).Build())
 		}
 
-		logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC logger -- connection was established").Metadata(meta).Build())
+		logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("logger").Message("[conn] stream RPC logger -- connection was established").Metadata(meta).Build())
 
 		wStream := loggingStream{
 			stream:    clientStream,
@@ -171,10 +171,10 @@ func (w loggingStream) SendMsg(m interface{}) error {
 
 	if err != nil {
 		meta["error"] = err.Error()
-		w.logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sending message resulted in an error").Metadata(meta).Build())
+		w.logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sending message resulted in an error").Metadata(meta).Build())
 		return err
 	}
-	w.logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sent log message to gRPC server").Metadata(meta).Build())
+	w.logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("logger").Message("[send] stream RPC logger -- sent log message to gRPC server").Metadata(meta).Build())
 
 	return err
 }
@@ -213,7 +213,7 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 			meta["response"] = res
 		}
 
-		w.logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("logger").Metadata(meta).Message("[recv] stream RPC logger -- issue receiving message from stream").Build())
+		w.logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Metadata(meta).Message("[recv] stream RPC logger -- issue receiving message from stream").Build())
 		return err
 	}
 
@@ -234,7 +234,7 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 		meta["error"] = err.Error()
 		meta["response"] = res
 
-		w.logger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("logger").Metadata(meta).
+		w.logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Metadata(meta).
 			Message("[recv] stream RPC logger -- failed to write log message").Build())
 		return err
 	}
@@ -242,7 +242,7 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 	// server response is OK, register this event
 	meta["response"] = res
 
-	w.logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("logger").Metadata(meta).
+	w.logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("logger").Metadata(meta).
 		Message("[recv] stream RPC logger -- registering server response").Build())
 
 	return err

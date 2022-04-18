@@ -1,4 +1,4 @@
-package message
+package service
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/zalgonoise/zlog/log/event"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -32,9 +33,9 @@ func init() {
 // errors and done channel router, for a GRPCLogServer object.
 type LogServer struct {
 	ErrCh chan error
-	MsgCh chan *MessageRequest
-	Comm  chan *MessageRequest
-	Resp  chan *MessageResponse
+	MsgCh chan *event.Event
+	Comm  chan *event.Event
+	Resp  chan *LogResponse
 	done  atomic.Value
 }
 
@@ -42,14 +43,14 @@ type LogServer struct {
 // a pointer to a LogServer with initialized channels
 func NewLogServer() *LogServer {
 	return &LogServer{
-		MsgCh: make(chan *MessageRequest),
-		Comm:  make(chan *MessageRequest),
-		Resp:  make(chan *MessageResponse),
+		MsgCh: make(chan *event.Event),
+		Comm:  make(chan *event.Event),
+		Resp:  make(chan *LogResponse),
 	}
 }
 
-func newComm(level int32, method string, msg ...string) *MessageRequest {
-	l := Level(level)
+func newComm(level int32, method string, msg ...string) *event.Event {
+	l := event.Level(level)
 	p := commPrefix
 	s := method
 
@@ -59,17 +60,19 @@ func newComm(level int32, method string, msg ...string) *MessageRequest {
 		sb.WriteString(m)
 	}
 
-	return &MessageRequest{
+	body := sb.String()
+
+	return &event.Event{
 		Time:   timestamppb.New(time.Now()),
 		Prefix: &p,
 		Sub:    &s,
 		Level:  &l,
-		Msg:    sb.String(),
+		Msg:    &body,
 	}
 }
 
 // Log method implements the LogServiceClient interface
-func (s *LogServer) Log(ctx context.Context, in *MessageRequest) (*MessageResponse, error) {
+func (s *LogServer) Log(ctx context.Context, in *event.Event) (*LogResponse, error) {
 	// send message to be written
 	s.MsgCh <- in
 
@@ -118,7 +121,7 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 
 	// local channel to route input messages and errors
 	localCh := make(chan struct {
-		in  *MessageRequest
+		in  *event.Event
 		err error
 	})
 
@@ -129,7 +132,7 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 			in, err := stream.Recv()
 
 			localCh <- struct {
-				in  *MessageRequest
+				in  *event.Event
 				err error
 			}{
 				in:  in,
@@ -169,7 +172,7 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 
 				// send Not OK message to client
 				errStr := err.Error()
-				err = stream.Send(&MessageResponse{Ok: false, ReqID: fallbackUUID, Err: &errStr})
+				err = stream.Send(&LogResponse{Ok: false, ReqID: fallbackUUID, Err: &errStr})
 				if err != nil {
 					// handle send errors if existing
 					s.ErrCh <- err
@@ -186,7 +189,7 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 
 			if !ok {
 				err := ErrNoResponse.Error()
-				res = &MessageResponse{
+				res = &LogResponse{
 					Ok:    false,
 					ReqID: fallbackUUID,
 					Err:   &err,

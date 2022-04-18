@@ -127,7 +127,7 @@ func (s GRPCLogServer) registerComms() {
 	for {
 		msg, ok := <-s.LogSv.Comm
 		if !ok {
-			s.SvcLogger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(event.Field{"error": ErrMessageParse.Error()}).Build())
+			s.SvcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(event.Field{"error": ErrMessageParse.Error()}).Build())
 			continue
 		}
 
@@ -145,7 +145,7 @@ func (s GRPCLogServer) listen() net.Listener {
 	if err != nil {
 		s.ErrCh <- err
 
-		s.SvcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("listen").
+		s.SvcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("listen").
 			Message("couldn't listen to input address").Metadata(event.Field{
 			"error": err.Error(),
 			"addr":  s.Addr,
@@ -154,7 +154,7 @@ func (s GRPCLogServer) listen() net.Listener {
 		return nil
 	}
 
-	s.SvcLogger.Log(event.New().Level(event.LLInfo).Prefix("gRPC").Sub("listen").
+	s.SvcLogger.Log(event.New().Level(event.Level_info).Prefix("gRPC").Sub("listen").
 		Message("gRPC server is listening to connections").Metadata(event.Field{
 		"addr": s.Addr,
 	}).Build())
@@ -184,7 +184,7 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 			errStr = err.Error()
 		}
 
-		s.SvcLogger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("handler").Message("issue writting log message").Metadata(event.Field{"error": errStr, "bytesWritten": n}).Build())
+		s.SvcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("handler").Message("issue writting log message").Metadata(event.Field{"error": errStr, "bytesWritten": n}).Build())
 
 		// send not OK response
 		s.LogSv.Resp <- &pb.MessageResponse{
@@ -196,7 +196,7 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 		return
 	}
 
-	s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
+	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
 
 	// send OK response
 	s.LogSv.Resp <- &pb.MessageResponse{
@@ -209,9 +209,9 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 // handleMessages method will be a (blocking) function kicked off as a go-routine
 // which will take in messages from the Log Server's message channel and register them
 func (s GRPCLogServer) handleMessages() {
-	s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
+	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
 
-	// avoid calling Done() method repeatedly
+	// avoid caLevel_ing Done() method repeatedly
 	done := s.LogSv.Done()
 
 	for {
@@ -227,7 +227,7 @@ func (s GRPCLogServer) handleMessages() {
 
 		// done signal is received
 		case <-done:
-			s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
+			s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
 			return
 		}
 	}
@@ -252,7 +252,7 @@ func (s GRPCLogServer) Serve() {
 	// gRPC reflection
 	reflection.Register(grpcServer)
 
-	s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("serve").
+	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("serve").
 		Message("gRPC server is running").Metadata(event.Field{
 		"addr": s.Addr,
 	}).Build())
@@ -260,7 +260,7 @@ func (s GRPCLogServer) Serve() {
 	if err := grpcServer.Serve(lis); err != nil {
 		s.ErrCh <- err
 
-		s.SvcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("serve").
+		s.SvcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("serve").
 			Message("gRPC server crashed with an error").Metadata(event.Field{
 			"error": err.Error(),
 			"addr":  s.Addr,
@@ -276,5 +276,5 @@ func (s GRPCLogServer) Stop() {
 	s.LogSv.Stop()
 	grpcServer.Stop()
 
-	s.SvcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
+	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
 }

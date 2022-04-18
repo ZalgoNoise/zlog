@@ -168,11 +168,11 @@ func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
 
 	// check input type -- create an appropriate GRPCLogger
 	if builder.isUnary {
-		client.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Unary gRPC client").Build())
+		client.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("init").Message("setting up Unary gRPC client").Build())
 
 		return newUnaryLogger(client)
 	} else {
-		client.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("init").Message("setting up Stream gRPC client").Build())
+		client.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("init").Message("setting up Stream gRPC client").Build())
 
 		return newStreamLogger(client)
 	}
@@ -199,14 +199,14 @@ func (c GRPCLogClient) connect() error {
 
 	// exit if no addresses are set
 	if c.addr.Len() == 0 {
-		c.svcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("conn").Metadata(event.Field{"error": ErrNoAddr.Error()}).Message("no addresses provided").Build())
+		c.svcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("conn").Metadata(event.Field{"error": ErrNoAddr.Error()}).Message("no addresses provided").Build())
 		return ErrNoAddr
 	}
 
 	var liveConns int = 0
 
 	for idx, remote := range c.addr.Keys() {
-		c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("conn").Metadata(event.Field{
+		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("conn").Metadata(event.Field{
 			"index": idx,
 			"addr":  remote,
 		}).Message("connecting to remote").Build())
@@ -222,7 +222,7 @@ func (c GRPCLogClient) connect() error {
 			} else if errors.Is(retryErr, ErrFailedConn) {
 				return retryErr
 			} else {
-				c.svcLogger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("retry").Metadata(event.Field{
+				c.svcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("retry").Metadata(event.Field{
 					"error": err.Error(),
 				}).Message("removing address after failed dial attempt").Build())
 
@@ -236,7 +236,7 @@ func (c GRPCLogClient) connect() error {
 		c.addr.Set(remote, conn)
 		liveConns++
 
-		c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("conn").Metadata(event.Field{
+		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("conn").Metadata(event.Field{
 			"index": idx,
 			"addr":  remote,
 		}).Message("dialed the address successfully").Build())
@@ -244,7 +244,7 @@ func (c GRPCLogClient) connect() error {
 
 	// return ErrNoConns if the counter for live connections hasn't increased
 	if liveConns == 0 {
-		c.svcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("conn").Metadata(event.Field{"error": ErrNoConns.Error()}).Message("all connections failed").Build())
+		c.svcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("conn").Metadata(event.Field{"error": ErrNoConns.Error()}).Message("all connections failed").Build())
 		return ErrNoConns
 	}
 
@@ -272,16 +272,16 @@ func (c GRPCLogClient) log(msg *event.Event) {
 	if err != nil {
 
 		// check if errors are failed connection or backoff locked errors;
-		// return so the action is cancelled
+		// return so the action is canceLevel_ed
 		if errors.Is(err, ErrFailedConn) || errors.Is(err, ErrBackoffLocked) {
 			return
 		}
 
 		// any other errors will be sent to the error channel and logged locally;
-		// then cancelling this action
+		// then canceLevel_ing this action
 		c.errCh <- err
 
-		c.svcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("log").Metadata(event.Field{
+		c.svcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("log").Metadata(event.Field{
 			"error": err.Error(),
 		}).Message("failed to connect").Build())
 
@@ -293,7 +293,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 		defer conn.Close()
 		client := pb.NewLogServiceClient(conn)
 
-		c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("log").Metadata(event.Field{
+		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("log").Metadata(event.Field{
 			"remote": remote,
 		}).Message("setting up log service with connection").Build())
 
@@ -301,7 +301,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 		bgCtx := context.Background()
 		ctx, cancel := context.WithTimeout(bgCtx, defaultTimeout)
 
-		c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("log").Metadata(event.Field{
+		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("log").Metadata(event.Field{
 			"timeout": timeoutSeconds,
 			"remote":  remote,
 		}).Message("received a new log message to register").Build())
@@ -310,7 +310,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 		// response is parsed by the interceptor; only the error is important
 		_, err := client.Log(ctx, msg.Proto())
 
-		// if the server returns any error, it's sent to the error channel, context cancelled,
+		// if the server returns any error, it's sent to the error channel, context canceLevel_ed,
 		// and then return
 		if err != nil {
 			c.errCh <- err
@@ -318,7 +318,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 			return
 		}
 
-		// message sent; response retrieved; context is cancelled.
+		// message sent; response retrieved; context is canceLevel_ed.
 		cancel()
 	}
 }
@@ -336,16 +336,16 @@ func (c GRPCLogClient) stream() {
 	if err != nil {
 
 		// check if errors are failed connection or backoff locked errors;
-		// return so the action is cancelled
+		// return so the action is canceLevel_ed
 		if errors.Is(err, ErrFailedConn) || errors.Is(err, ErrBackoffLocked) {
 			return
 		}
 
 		// any other errors will be sent to the error channel and logged locally;
-		// then cancelling this action
+		// then canceLevel_ing this action
 		c.errCh <- err
 
-		c.svcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("stream").Metadata(event.Field{
+		c.svcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 			"error": err.Error(),
 		}).Message("failed to connect").Build())
 
@@ -356,7 +356,7 @@ func (c GRPCLogClient) stream() {
 	for remote, conn := range c.addr.Map() {
 		logClient := pb.NewLogServiceClient(conn)
 
-		c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
+		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 			"remote": remote,
 		}).Message("setting up log service with connection").Build())
 
@@ -364,7 +364,7 @@ func (c GRPCLogClient) stream() {
 		bgCtx := context.Background()
 		ctx, cancel := context.WithTimeout(bgCtx, defaultStreamTimeout)
 
-		c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
+		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 			"timeout": streamTimeoutSeconds,
 			"remote":  remote,
 		}).Message("setting request ID for long-lived connection").Build())
@@ -380,13 +380,13 @@ func (c GRPCLogClient) stream() {
 				c.backoff.StreamBackoffHandler(c.errCh, cancel, c.svcLogger, c.done)
 			}
 
-			// otherwise, error is sent to the error channel, conn closed, context cancelled,
+			// otherwise, error is sent to the error channel, conn closed, context canceLevel_ed,
 			// error logged and then return
 			c.errCh <- err
 			conn.Close()
 			cancel()
 
-			c.svcLogger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("stream").Metadata(event.Field{
+			c.svcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 				"remote": remote,
 				"error":  err.Error(),
 			}).Message("failed to setup stream connection with gRPC server").Build())
@@ -418,14 +418,14 @@ func (c GRPCLogClient) stream() {
 }
 
 // handleStreamService method is in place to break-down stream()'s functionality
-// into a smaller function.
+// into a smaLevel_er function.
 //
 // The method will loop forever acting as a listener to the gRPC stream, and handling
 // incoming server responses (to messages posted to it). If the response is an error
 // or not OK, this is sinked to the local error channel to be processed. Otherwise,
 // the response is registered.
 //
-// This method is ran in parallel with handleStreamMessages()
+// This method is ran in paraLevel_el with handleStreamMessages()
 func (c GRPCLogClient) handleStreamService(
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
@@ -460,14 +460,14 @@ func (c GRPCLogClient) handleStreamService(
 }
 
 // handleStreamMessages method is in place to break-down stream()'s functionality
-// into a smaller function.
+// into a smaLevel_er function.
 //
 // It will manage the exchanged messages in a gRPC Log Client, from its channels:
 // - incoming log messages which should be sent to the gRPC Log Server
 // - done requests (to gracefully exit)
 // - error messages (sinked into the local error channel)
 //
-// This method is ran in parallel with handleStreamService()
+// This method is ran in paraLevel_el with handleStreamService()
 func (c GRPCLogClient) handleStreamMessages(
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
@@ -486,12 +486,12 @@ func (c GRPCLogClient) handleStreamMessages(
 				localErr <- err
 			}
 
-		// done is received -- gracefully exit by cancelling context and closing the connection
+		// done is received -- gracefully exit by canceLevel_ing context and closing the connection
 		case <-c.done:
 			cancel()
 
 			c.svcLogger.Log(
-				event.New().Level(event.LLDebug).Prefix("gRPC").Sub("stream").Message("received done signal").Build(),
+				event.New().Level(event.Level_debug).Prefix("gRPC").Sub("stream").Message("received done signal").Build(),
 			)
 
 			return
@@ -504,7 +504,7 @@ func (c GRPCLogClient) handleStreamMessages(
 			// Stream Deadline Exceeded -- reconnect to gRPC Log Server
 			if errCode := status.Code(err); errCode == codes.DeadlineExceeded {
 
-				c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
+				c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 					"error": err.Error(),
 				}).Message("stream timed-out -- starting a new connection").Build())
 
@@ -526,7 +526,7 @@ func (c GRPCLogClient) handleStreamMessages(
 				c.errCh <- err
 				defer c.Close()
 
-				c.svcLogger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("stream").Metadata(event.Field{
+				c.svcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 					"error": err.Error(),
 				}).Message("critical error -- closing stream").Build())
 
@@ -599,7 +599,7 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 		// if not, skip this writer and register this event
 		if r, ok := remote.(*address.ConnAddr); !ok {
 
-			c.svcLogger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("SetOuts()").Metadata(event.Field{
+			c.svcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("SetOuts()").Metadata(event.Field{
 				"error": ErrBadWriter.Error(),
 			}).Message("invalid writer warning").Build())
 
@@ -607,7 +607,7 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 		} else {
 			c.addr.Add(r.Keys()...)
 
-			c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("SetOuts()").Metadata(event.Field{
+			c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("SetOuts()").Metadata(event.Field{
 				"addrs": r.Keys(),
 			}).Message("added address to connection address map").Build())
 		}
@@ -649,7 +649,7 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 		// if not, skip this writer and register this event
 		if r, ok := remote.(*address.ConnAddr); !ok {
 
-			c.svcLogger.Log(event.New().Level(event.LLWarn).Prefix("gRPC").Sub("AddOuts()").Metadata(event.Field{
+			c.svcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("AddOuts()").Metadata(event.Field{
 				"error": ErrBadWriter.Error(),
 			}).Message("invalid writer warning").Build())
 
@@ -657,7 +657,7 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 		} else {
 			c.addr.Add(r.Keys()...)
 
-			c.svcLogger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("AddOuts()").Metadata(event.Field{
+			c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("AddOuts()").Metadata(event.Field{
 				"addrs": r.Keys(),
 			}).Message("added address to connection address map").Build())
 		}
@@ -693,7 +693,7 @@ func (c GRPCLogClient) Write(p []byte) (n int, err error) {
 
 	if err != nil {
 		return c.Output(event.New().
-			Level(event.LLInfo).
+			Level(event.Level_info).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(string(p)).
@@ -709,7 +709,7 @@ func (c GRPCLogClient) Write(p []byte) (n int, err error) {
 //
 // It will set a Logger-scoped (as opposed to message-scoped) prefix string to the logger
 //
-// Logger-scoped prefix strings can be set in order to avoid calling the `MessageBuilder.Prefix()` method
+// Logger-scoped prefix strings can be set in order to avoid caLevel_ing the `MessageBuilder.Prefix()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function
 //
 // A logger-scoped prefix is not cleared with new Log messages, but `MessageBuilder.Prefix()` calls will
@@ -725,7 +725,7 @@ func (c GRPCLogClient) Prefix(prefix string) log.Logger {
 
 // Sub method implements the Logger interface.
 //
-// Logger-scoped sub-prefix strings can be set in order to avoid calling the `MessageBuilder.Sub()` method
+// Logger-scoped sub-prefix strings can be set in order to avoid caLevel_ing the `MessageBuilder.Sub()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function
 //
 // A logger-scoped sub-prefix is not cleared with new Log messages, but `MessageBuilder.Sub()` calls will
@@ -739,7 +739,7 @@ func (c GRPCLogClient) Sub(sub string) log.Logger {
 //
 // Fields method will set Logger-scoped (as opposed to message-scoped) metadata fields to the logger
 //
-// Logger-scoped metadata can be set in order to avoid calling the `MessageBuilder.Metadata()` method
+// Logger-scoped metadata can be set in order to avoid caLevel_ing the `MessageBuilder.Metadata()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function.
 //
 // Logger-scoped metadata fields are not cleared with new log messages, but only added to the existing
@@ -785,7 +785,7 @@ func (c GRPCLogClient) Log(m ...*event.Event) {
 func (c GRPCLogClient) Print(v ...interface{}) {
 	c.Log(
 		event.New().
-			Level(event.LLInfo).
+			Level(event.Level_info).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprint(v...)).
@@ -803,7 +803,7 @@ func (c GRPCLogClient) Print(v ...interface{}) {
 func (c GRPCLogClient) Println(v ...interface{}) {
 	c.Log(
 		event.New().
-			Level(event.LLInfo).
+			Level(event.Level_info).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintln(v...)).
@@ -821,7 +821,7 @@ func (c GRPCLogClient) Println(v ...interface{}) {
 func (c GRPCLogClient) Printf(format string, v ...interface{}) {
 	c.Log(
 		event.New().
-			Level(event.LLInfo).
+			Level(event.Level_info).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintf(format, v...)).
@@ -839,7 +839,7 @@ func (c GRPCLogClient) Panic(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLPanic).
+			Level(event.Level_panic).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(body).
@@ -857,7 +857,7 @@ func (c GRPCLogClient) Panicln(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLPanic).
+			Level(event.Level_panic).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(body).
@@ -875,7 +875,7 @@ func (c GRPCLogClient) Panicf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLPanic).
+			Level(event.Level_panic).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(body).
@@ -891,7 +891,7 @@ func (c GRPCLogClient) Panicf(format string, v ...interface{}) {
 func (c GRPCLogClient) Fatal(v ...interface{}) {
 	c.Log(
 		event.New().
-			Level(event.LLFatal).
+			Level(event.Level_fatal).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprint(v...)).
@@ -908,7 +908,7 @@ func (c GRPCLogClient) Fatalln(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLFatal).
+			Level(event.Level_fatal).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintln(v...)).
@@ -925,7 +925,7 @@ func (c GRPCLogClient) Fatalf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLFatal).
+			Level(event.Level_fatal).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintf(format, v...)).
@@ -942,7 +942,7 @@ func (c GRPCLogClient) Error(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLError).
+			Level(event.Level_error).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprint(v...)).
@@ -959,7 +959,7 @@ func (c GRPCLogClient) Errorln(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLError).
+			Level(event.Level_error).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintln(v...)).
@@ -976,7 +976,7 @@ func (c GRPCLogClient) Errorf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLError).
+			Level(event.Level_error).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintf(format, v...)).
@@ -993,7 +993,7 @@ func (c GRPCLogClient) Warn(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLWarn).
+			Level(event.Level_warn).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprint(v...)).
@@ -1010,7 +1010,7 @@ func (c GRPCLogClient) Warnln(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLWarn).
+			Level(event.Level_warn).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintln(v...)).
@@ -1027,7 +1027,7 @@ func (c GRPCLogClient) Warnf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLWarn).
+			Level(event.Level_warn).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintf(format, v...)).
@@ -1044,7 +1044,7 @@ func (c GRPCLogClient) Info(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLInfo).
+			Level(event.Level_info).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprint(v...)).
@@ -1061,7 +1061,7 @@ func (c GRPCLogClient) Infoln(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLInfo).
+			Level(event.Level_info).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintln(v...)).
@@ -1078,7 +1078,7 @@ func (c GRPCLogClient) Infof(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLInfo).
+			Level(event.Level_info).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintf(format, v...)).
@@ -1095,7 +1095,7 @@ func (c GRPCLogClient) Debug(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLDebug).
+			Level(event.Level_debug).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprint(v...)).
@@ -1112,7 +1112,7 @@ func (c GRPCLogClient) Debugln(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLDebug).
+			Level(event.Level_debug).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintln(v...)).
@@ -1129,7 +1129,7 @@ func (c GRPCLogClient) Debugf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLDebug).
+			Level(event.Level_debug).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintf(format, v...)).
@@ -1146,7 +1146,7 @@ func (c GRPCLogClient) Trace(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLTrace).
+			Level(event.Level_trace).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprint(v...)).
@@ -1163,7 +1163,7 @@ func (c GRPCLogClient) Traceln(v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLTrace).
+			Level(event.Level_trace).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintln(v...)).
@@ -1180,7 +1180,7 @@ func (c GRPCLogClient) Tracef(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
-			Level(event.LLTrace).
+			Level(event.Level_trace).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(fmt.Sprintf(format, v...)).

@@ -1,7 +1,6 @@
 package sqlite
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -74,23 +73,12 @@ func (s *SQLite) Write(p []byte) (n int, err error) {
 		s = new.(*SQLite)
 	}
 
-	var out *event.Event
-
-	// check if it's gob-encoded
-	msg, err := event.New().FromGob(p)
-	out = msg
-
+	msg, err := event.Decode(p)
 	if err != nil {
-		// fall back to JSON
-		var msg = &event.Event{}
-		jerr := json.Unmarshal(p, msg)
-		if jerr != nil {
-			return 0, fmt.Errorf("unable to decode input message; gob: %s -- json: %s", err, jerr)
-		}
-		out = msg
+		return 0, err
 	}
 
-	err = s.Create(out)
+	err = s.Create(msg)
 	if err != nil {
 		return 0, err
 	}

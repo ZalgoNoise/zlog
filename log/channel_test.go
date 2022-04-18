@@ -38,8 +38,8 @@ func TestNewLogCh(t *testing.T) {
 			for d := 0; d < len(testAllObjects); d++ {
 				for e := 0; e < len(mockLogLevelsOK); e++ {
 
-					// skip event.LLFatal -- os.Exit(1)
-					if mockLogLevelsOK[e] == event.LLFatal || mockLogLevelsOK[e] == event.LLPanic {
+					// skip event.GetLevel().String()_fatal -- os.Exit(1)
+					if mockLogLevelsOK[e] == event.Level_fatal || mockLogLevelsOK[e] == event.Level_panic {
 						continue
 					}
 
@@ -92,78 +92,81 @@ func TestNewLogCh(t *testing.T) {
 					"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- unmarshal error: %s",
 					id,
 					bufID,
-					test.msg.Msg,
+					test.msg.GetMsg(),
 					err,
 				)
 				return
 			}
 
-			if logEntry.Prefix != test.msg.Prefix {
+			if logEntry.GetPrefix() != test.msg.GetPrefix() {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- prefix mismatch: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Prefix,
-					logEntry.Prefix,
+					test.msg.GetMsg(),
+					test.msg.GetPrefix(),
+					logEntry.GetPrefix(),
 				)
 				return
 			}
 
-			if logEntry.Level != test.msg.Level {
+			if logEntry.GetLevel().String() != test.msg.GetLevel().String() {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Level,
-					logEntry.Level,
+					test.msg.GetMsg(),
+					test.msg.GetLevel().String(),
+					logEntry.GetLevel().String(),
 				)
 				return
 			}
 
-			if logEntry.Msg != test.msg.Msg {
+			if logEntry.GetMsg() != test.msg.GetMsg() {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- message mismatch: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Msg,
-					logEntry.Msg,
+					test.msg.GetMsg(),
+					test.msg.GetMsg(),
+					logEntry.GetMsg(),
 				)
 				return
 			}
 
-			if len(logEntry.Metadata) == 0 && len(test.msg.Metadata) > 0 {
+			if logEntry.Meta != nil &&
+				test.msg.Meta != nil &&
+				len(logEntry.Meta.AsMap()) == 0 &&
+				len(test.msg.Meta.AsMap()) > 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- retrieved empty metadata object: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Metadata,
-					logEntry.Metadata,
+					test.msg.GetMsg(),
+					test.msg.Meta.AsMap(),
+					logEntry.Meta.AsMap(),
 				)
 				return
-			} else if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) == 0 {
+			} else if len(logEntry.Meta.AsMap()) > 0 && len(test.msg.Meta.AsMap()) == 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- retrieved unexpected metadata object: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Metadata,
-					logEntry.Metadata,
+					test.msg.GetMsg(),
+					test.msg.Meta.AsMap(),
+					logEntry.Meta.AsMap(),
 				)
 				return
 			}
 
-			if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) > 0 {
-				for k, v := range logEntry.Metadata {
-					if v != nil && test.msg.Metadata[k] == nil {
+			if len(logEntry.Meta.AsMap()) > 0 && len(test.msg.Meta.AsMap()) > 0 {
+				for k, v := range logEntry.Meta.AsMap() {
+					if v != nil && test.msg.Meta.AsMap()[k] == nil {
 						t.Errorf(
 							"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
 							id,
 							bufID,
-							test.msg.Msg,
+							test.msg.GetMsg(),
 							k,
 							k,
 						)
@@ -171,14 +174,14 @@ func TestNewLogCh(t *testing.T) {
 					}
 				}
 
-				if len(logEntry.Metadata) != len(test.msg.Metadata) {
+				if len(logEntry.Meta.AsMap()) != len(test.msg.Meta.AsMap()) {
 					t.Errorf(
 						"#%v -- FAILED -- [ChLogger] [Buffer #%v] Log(%s) -- metadata length mismatch -- wanted %v, got %v",
 						id,
 						bufID,
-						test.msg.Msg,
-						len(test.msg.Metadata),
-						len(logEntry.Metadata),
+						test.msg.GetMsg(),
+						len(test.msg.Meta.AsMap()),
+						len(logEntry.Meta.AsMap()),
 					)
 					return
 				}
@@ -188,7 +191,7 @@ func TestNewLogCh(t *testing.T) {
 				"#%v -- PASSED -- [ChLogger] [Buffer #%v] Log(%s) -- %s",
 				id,
 				bufID,
-				test.msg.Msg,
+				test.msg.GetMsg(),
 				buf.String(),
 			)
 		}
@@ -248,8 +251,8 @@ func TestNewLogChMultiLogger(t *testing.T) {
 				for d := 0; d < len(testAllObjects); d++ {
 					for e := 0; e < len(mockLogLevelsOK); e++ {
 
-						// skip event.LLFatal -- os.Exit(1)
-						if mockLogLevelsOK[e] == event.LLFatal || mockLogLevelsOK[e] == event.LLPanic {
+						// skip event.GetLevel().String()_fatal -- os.Exit(1)
+						if mockLogLevelsOK[e] == event.Level_fatal || mockLogLevelsOK[e] == event.Level_panic {
 							continue
 						}
 
@@ -311,78 +314,78 @@ func TestNewLogChMultiLogger(t *testing.T) {
 					"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- unmarshal error: %s",
 					id,
 					bufID,
-					test.msg.Msg,
+					test.msg.GetMsg(),
 					err,
 				)
 				return
 			}
 
-			if logEntry.Prefix != test.msg.Prefix {
+			if logEntry.GetPrefix() != test.msg.GetPrefix() {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- prefix mismatch: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Prefix,
-					logEntry.Prefix,
+					test.msg.GetMsg(),
+					test.msg.GetPrefix(),
+					logEntry.GetPrefix(),
 				)
 				return
 			}
 
-			if logEntry.Level != test.msg.Level {
+			if logEntry.GetLevel().String() != test.msg.GetLevel().String() {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- log level mismatch: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Level,
-					logEntry.Level,
+					test.msg.GetMsg(),
+					test.msg.GetLevel().String(),
+					logEntry.GetLevel().String(),
 				)
 				return
 			}
 
-			if logEntry.Msg != test.msg.Msg {
+			if logEntry.GetMsg() != test.msg.GetMsg() {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- message mismatch: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Msg,
-					logEntry.Msg,
+					test.msg.GetMsg(),
+					test.msg.GetMsg(),
+					logEntry.GetMsg(),
 				)
 				return
 			}
 
-			if len(logEntry.Metadata) == 0 && len(test.msg.Metadata) > 0 {
+			if len(logEntry.Meta.AsMap()) == 0 && len(test.msg.Meta.AsMap()) > 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- retrieved empty metadata object: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Metadata,
-					logEntry.Metadata,
+					test.msg.GetMsg(),
+					test.msg.Meta.AsMap(),
+					logEntry.Meta.AsMap(),
 				)
 				return
-			} else if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) == 0 {
+			} else if len(logEntry.Meta.AsMap()) > 0 && len(test.msg.Meta.AsMap()) == 0 {
 				t.Errorf(
 					"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- retrieved unexpected metadata object: wanted %s ; got %s",
 					id,
 					bufID,
-					test.msg.Msg,
-					test.msg.Metadata,
-					logEntry.Metadata,
+					test.msg.GetMsg(),
+					test.msg.Meta.AsMap(),
+					logEntry.Meta.AsMap(),
 				)
 				return
 			}
 
-			if len(logEntry.Metadata) > 0 && len(test.msg.Metadata) > 0 {
-				for k, v := range logEntry.Metadata {
-					if v != nil && test.msg.Metadata[k] == nil {
+			if len(logEntry.Meta.AsMap()) > 0 && len(test.msg.Meta.AsMap()) > 0 {
+				for k, v := range logEntry.Meta.AsMap() {
+					if v != nil && test.msg.Meta.AsMap()[k] == nil {
 						t.Errorf(
 							"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- metadata mismatch: key %s contains data ; original message's key %s doesn't",
 							id,
 							bufID,
-							test.msg.Msg,
+							test.msg.GetMsg(),
 							k,
 							k,
 						)
@@ -390,14 +393,14 @@ func TestNewLogChMultiLogger(t *testing.T) {
 					}
 				}
 
-				if len(logEntry.Metadata) != len(test.msg.Metadata) {
+				if len(logEntry.Meta.AsMap()) != len(test.msg.Meta.AsMap()) {
 					t.Errorf(
 						"#%v -- FAILED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- metadata length mismatch -- wanted %v, got %v",
 						id,
 						bufID,
-						test.msg.Msg,
-						len(test.msg.Metadata),
-						len(logEntry.Metadata),
+						test.msg.GetMsg(),
+						len(test.msg.Meta.AsMap()),
+						len(logEntry.Meta.AsMap()),
 					)
 					return
 				}
@@ -407,7 +410,7 @@ func TestNewLogChMultiLogger(t *testing.T) {
 				"#%v -- PASSED -- [ChLogger] [MultiLogger] [Buffer #%v] Log(%s) -- %s",
 				id,
 				bufID,
-				test.msg.Msg,
+				test.msg.GetMsg(),
 				buf.String(),
 			)
 		}
@@ -509,7 +512,7 @@ func TestNewLogChMultiEntry(t *testing.T) {
 			obj := event.New().
 				Prefix(prefix).
 				Message(msgs[d]).
-				Level(event.LLInfo).
+				Level(event.Level_info).
 				Build()
 
 			msgObj = append(msgObj, obj)

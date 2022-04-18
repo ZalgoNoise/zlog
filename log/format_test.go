@@ -35,7 +35,7 @@ func TestFmtTextFormat(t *testing.T) {
 			for c := 0; c < len(testAllMessages); c++ {
 
 				// skip os.Exit(1) and panic() events
-				if mockLogLevelsOK[a] == event.LLFatal || mockLogLevelsOK[a] == event.LLPanic {
+				if mockLogLevelsOK[a] == event.Level_fatal || mockLogLevelsOK[a] == event.Level_panic {
 					continue
 				}
 
@@ -79,9 +79,8 @@ func TestFmtTextFormat(t *testing.T) {
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [TextFormat] Format(*event.Event) -- %s",
+			"#%v -- PASSED -- [TextFormat] Format(*event.Event)",
 			id,
-			*test.msg,
 		)
 
 	}
@@ -298,7 +297,7 @@ func TestJSONFmtFormat(t *testing.T) {
 			for c := 0; c < len(testAllMessages); c++ {
 
 				// skip os.Exit(1) and panic() events
-				if mockLogLevelsOK[a] == event.LLFatal || mockLogLevelsOK[a] == event.LLPanic {
+				if mockLogLevelsOK[a] == event.Level_fatal || mockLogLevelsOK[a] == event.Level_panic {
 					continue
 				}
 
@@ -340,7 +339,7 @@ func TestJSONFmtFormat(t *testing.T) {
 				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- message mismatch: wanted %s ; got %s",
 				id,
 				test.msg,
-				logEntry.Msg,
+				logEntry.GetMsg(),
 			)
 			return
 		}
@@ -349,7 +348,7 @@ func TestJSONFmtFormat(t *testing.T) {
 			t.Errorf(
 				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- log level mismatch: wanted %s ; got %s",
 				id,
-				event.LLInfo.String(),
+				event.Level_info.String(),
 				logEntry.Level,
 			)
 			return
@@ -359,16 +358,15 @@ func TestJSONFmtFormat(t *testing.T) {
 			t.Errorf(
 				"#%v -- FAILED -- [TextFormat] Format(*event.Event) -- log prefix mismatch: wanted %s ; got %s",
 				id,
-				test.msg.Prefix,
-				logEntry.Prefix,
+				test.msg.GetPrefix(),
+				logEntry.GetPrefix(),
 			)
 			return
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [TextFormat] Format(*event.Event) -- %s",
+			"#%v -- PASSED -- [TextFormat] Format(*event.Event)",
 			id,
-			*test.msg,
 		)
 
 	}
@@ -397,9 +395,9 @@ func TestNewTextFormat(t *testing.T) {
 		rgx  *regexp.Regexp
 	}
 
-	var msg = event.New().Prefix("formatter-tests").Level(event.LLInfo).Message("test content").Build()
-	var msgSub = event.New().Prefix("formatter-tests").Sub("fmt").Level(event.LLInfo).Message("test content").Build()
-	var msgMeta = event.New().Prefix("formatter-tests").Sub("fmt").Level(event.LLInfo).Message("test content").Metadata(event.Field{"a": 0}).Build()
+	var msg = event.New().Prefix("formatter-tests").Level(event.Level_info).Message("test content").Build()
+	var msgSub = event.New().Prefix("formatter-tests").Sub("fmt").Level(event.Level_info).Message("test content").Build()
+	var msgMeta = event.New().Prefix("formatter-tests").Sub("fmt").Level(event.Level_info).Message("test content").Metadata(event.Field{"a": 0}).Build()
 
 	tests := []test{
 		{
@@ -746,49 +744,49 @@ func TestCSVFmtFormat(t *testing.T) {
 		{
 			name: "default fmt -- simple, trace, no sub",
 			fmt:  csv.New().Build(),
-			msg:  event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": 1}).Build(),
+			msg:  event.New().Level(event.Level_trace).Prefix("one").Message("two").Metadata(event.Field{"a": 1}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,\[ a = 1 \]`),
 		},
 		{
 			name: "default fmt -- simple, trace, w/ sub",
 			fmt:  csv.New().Build(),
-			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1}).Build(),
+			msg:  event.New().Level(event.Level_trace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ a = 1 \]`),
 		},
 		{
 			name: "default fmt -- complex meta, trace, no sub",
 			fmt:  csv.New().Build(),
-			msg:  event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
+			msg:  event.New().Level(event.Level_trace).Prefix("one").Message("two").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
 		},
 		{
 			name: "default fmt -- complex meta, trace, w/ sub",
 			fmt:  csv.New().Build(),
-			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
+			msg:  event.New().Level(event.Level_trace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,\[ ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) ; ((a = 1)|(b = \[ ((\[ a = 1 \])|(\[ b = 2 \])) ; ((\[ a = 1 \])|(\[ b = 2 \])) \])) \]`),
 		},
 		{
 			name: "default fmt -- complex meta strings, trace, no sub",
 			fmt:  csv.New().Build(),
-			msg:  event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			msg:  event.New().Level(event.Level_trace).Prefix("one").Message("two").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,,two,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \] "`),
 		},
 		{
 			name: "default fmt -- complex meta strings, trace, w/ sub",
 			fmt:  csv.New().Build(),
-			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			msg:  event.New().Level(event.Level_trace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+\+\d{2}:\d{2},trace,one,two,three,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \]`),
 		},
 		{
 			name: "unixTime fmt -- complex meta strings, trace, w/ sub",
 			fmt:  csv.New().Unix().Build(),
-			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			msg:  event.New().Level(event.Level_trace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx:  regexp.MustCompile(`\d{10},trace,one,two,three,"\[ ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) ; ((a = ""one"")|(b = \[ ((\[ a = ""one"" \])|(\[ b = ""one"" \])) ; ((\[ a = ""one"" \])|(\[ b = ""one"" \])) \])) \]`),
 		},
 		{
 			name: "unixTime+jsonMeta fmt -- complex meta strings, trace, w/ sub",
 			fmt:  csv.New().Unix().JSON().Build(),
-			msg:  event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			msg:  event.New().Level(event.Level_trace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx:  regexp.MustCompile(`\d+,trace,one,two,three,\"{\"\"a\"\":\"\"one\"\",\"\"b\"\":\[{\"\"a\"\":\"\"one\"\"},{\"\"b\"\":\"\"one\"\"}\]}\"`),
 		},
 	}
@@ -819,11 +817,10 @@ func TestCSVFmtFormat(t *testing.T) {
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [%s] [%s] -- %s",
+			"#%v -- PASSED -- [%s] [%s]",
 			id,
 			module,
 			funcname,
-			*test.msg,
 		)
 
 	}
@@ -862,27 +859,27 @@ func TestXMLFmtFormat(t *testing.T) {
 
 	var tests = []test{
 		{
-			msg: event.New().Level(event.LLTrace).Prefix("one").Message("two\n").Metadata(event.Field{"a": 1}).Build(),
+			msg: event.New().Level(event.Level_trace).Prefix("one").Message("two\n").Metadata(event.Field{"a": 1}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message><metadata><key>a<\/key><value>1<\/value><\/metadata><\/logMessage>`),
 		},
 		{
-			msg: event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1}).Build(),
+			msg: event.New().Level(event.Level_trace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message><metadata><key>a<\/key><value>1<\/value><\/metadata><\/logMessage>`),
 		},
 		{
-			msg: event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
+			msg: event.New().Level(event.Level_trace).Prefix("one").Message("two").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message>((<metadata><key>b<\/key>((<value><key>a<\/key><value>1<\/value><\/value>)|(<value><key>b<\/key><value>2<\/value><\/value>)){2}<\/metadata>)|(<metadata><key>a<\/key><value>1<\/value><\/metadata>)){2}<\/logMessage>`),
 		},
 		{
-			msg: event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
+			msg: event.New().Level(event.Level_trace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": 1, "b": []event.Field{{"a": 1}, {"b": 2}}}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message>((<metadata><key>a<\/key><value>1<\/value><\/metadata>)|(<metadata><key>b<\/key>((<value><key>a<\/key><value>1<\/value><\/value>)|(<value><key>b<\/key><value>2<\/value><\/value>)){2}<\/metadata>)){2}<\/logMessage>`),
 		},
 		{
-			msg: event.New().Level(event.LLTrace).Prefix("one").Message("two").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			msg: event.New().Level(event.Level_trace).Prefix("one").Message("two").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><level>trace<\/level><message>two<\/message>((<metadata><key>a<\/key><value>one<\/value><\/metadata>)|(<metadata><key>b<\/key>((<value><key>a<\/key><value>one<\/value><\/value>)|(<value><key>b<\/key><value>one<\/value><\/value>)){2}<\/metadata>)){2}<\/logMessage>`),
 		},
 		{
-			msg: event.New().Level(event.LLTrace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
+			msg: event.New().Level(event.Level_trace).Prefix("one").Sub("two").Message("three").Metadata(event.Field{"a": "one", "b": []event.Field{{"a": "one"}, {"b": "one"}}}).Build(),
 			rgx: regexp.MustCompile(`<logMessage><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}<\/timestamp><service>one<\/service><module>two<\/module><level>trace<\/level><message>three<\/message>((<metadata><key>b<\/key>((<value><key>a<\/key><value>one<\/value><\/value>)|(<value><key>b<\/key><value>one<\/value><\/value>)){2}<\/metadata>)|(<metadata><key>a<\/key><value>one<\/value><\/metadata>)){2}<\/logMessage>`),
 		},
 	}
@@ -907,9 +904,8 @@ func TestXMLFmtFormat(t *testing.T) {
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [TextFormat] Format(*event.Event) -- %s",
+			"#%v -- PASSED -- [TextFormat] Format(*event.Event)",
 			id,
-			*test.msg,
 		)
 
 	}
@@ -955,11 +951,11 @@ func TestGobFmt(t *testing.T) {
 		},
 		{
 			name: "complete message w/o metadata",
-			msg:  event.New().Level(event.LLWarn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
+			msg:  event.New().Level(event.Level_warn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
 		},
 		{
 			name: "complete message w/ metadata",
-			msg: event.New().Level(event.LLWarn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(event.Field{
+			msg: event.New().Level(event.Level_warn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(event.Field{
 				"a": true,
 				"b": 1,
 				"c": "data",
@@ -1002,7 +998,7 @@ func TestGobFmt(t *testing.T) {
 			b = buf
 		}
 
-		new, err := event.New().FromGob(b)
+		new, err := event.Decode(b)
 
 		if err != nil {
 			t.Errorf(
@@ -1018,7 +1014,7 @@ func TestGobFmt(t *testing.T) {
 
 		fmt.Println(msg, test.msg)
 
-		if new.Time.Unix() != test.msg.Time.Unix() {
+		if new.Time.AsTime() != test.msg.Time.AsTime() {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- message time mismatch -- wanted %v ; got %v -- action: %s",
 				id,
@@ -1048,8 +1044,8 @@ func TestGobFmt(t *testing.T) {
 				id,
 				module,
 				funcname,
-				test.msg.Prefix,
-				new.Prefix,
+				test.msg.GetPrefix(),
+				new.GetPrefix(),
 				test.name,
 			)
 			return
@@ -1072,18 +1068,18 @@ func TestGobFmt(t *testing.T) {
 				id,
 				module,
 				funcname,
-				test.msg.Msg,
-				new.Msg,
+				test.msg.GetMsg(),
+				new.GetMsg(),
 				test.name,
 			)
 			return
 		}
 
-		if len(new.Metadata) != len(test.msg.Metadata) {
+		if len(new.Meta.AsMap()) != len(test.msg.Meta.AsMap()) {
 			return
 		}
-		for k := range new.Metadata {
-			if _, ok := test.msg.Metadata[k]; !ok {
+		for k := range new.Meta.AsMap() {
+			if _, ok := test.msg.Meta.AsMap()[k]; !ok {
 				return
 			}
 		}
@@ -1103,17 +1099,6 @@ func TestGobFmt(t *testing.T) {
 		buf.Reset()
 	}
 
-	// ensure FromGob can fail:
-	fake := []byte(`{"this":"is","not":"gob"}`)
-	_, err := event.New().FromGob(fake)
-	if err == nil {
-		t.Errorf(
-			"#0 -- FAILED -- [%s] [%s] -- FromGob() call with invalid data didn't result in an error",
-			module,
-			funcname,
-		)
-		return
-	}
 }
 
 func TestBSONFmt(t *testing.T) {
@@ -1131,11 +1116,11 @@ func TestBSONFmt(t *testing.T) {
 		},
 		{
 			name: "complete message w/o metadata",
-			msg:  event.New().Level(event.LLWarn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
+			msg:  event.New().Level(event.Level_warn).Prefix("prefix").Sub("sub").Message("hello complete world").Build(),
 		},
 		{
 			name: "complete message w/ metadata",
-			msg: event.New().Level(event.LLWarn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(event.Field{
+			msg: event.New().Level(event.Level_warn).Prefix("prefix").Sub("sub").Message("hello complex world").Metadata(event.Field{
 				"a": true,
 				"b": 1,
 				"c": "data",
@@ -1196,7 +1181,7 @@ func TestBSONFmt(t *testing.T) {
 
 		fmt.Println(msg, test.msg)
 
-		if new.Time.Unix() != test.msg.Time.Unix() {
+		if new.Time.AsTime() != test.msg.Time.AsTime() {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- message time mismatch -- wanted %v ; got %v -- action: %s",
 				id,
@@ -1208,31 +1193,31 @@ func TestBSONFmt(t *testing.T) {
 			)
 			return
 		}
-		if new.Level != test.msg.Level {
+		if new.GetLevel().String() != test.msg.GetLevel().String() {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- message level mismatch -- wanted %v ; got %v -- action: %s",
 				id,
 				module,
 				funcname,
-				test.msg.Level,
-				new.Level,
+				test.msg.GetLevel().String(),
+				new.GetLevel().String(),
 				test.name,
 			)
 			return
 		}
-		if new.Prefix != test.msg.Prefix {
+		if new.GetPrefix() != test.msg.GetPrefix() {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- message prefix mismatch -- wanted %v ; got %v -- action: %s",
 				id,
 				module,
 				funcname,
-				test.msg.Prefix,
-				new.Prefix,
+				test.msg.GetPrefix(),
+				new.GetPrefix(),
 				test.name,
 			)
 			return
 		}
-		if new.Sub != test.msg.Sub {
+		if new.GetSub() != test.msg.GetSub() {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- message sub-prefix mismatch -- wanted %v ; got %v -- action: %s",
 				id,
@@ -1244,24 +1229,24 @@ func TestBSONFmt(t *testing.T) {
 			)
 			return
 		}
-		if new.Msg != test.msg.Msg {
+		if new.GetMsg() != test.msg.GetMsg() {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- message body mismatch -- wanted %v ; got %v -- action: %s",
 				id,
 				module,
 				funcname,
-				test.msg.Msg,
-				new.Msg,
+				test.msg.GetMsg(),
+				new.GetMsg(),
 				test.name,
 			)
 			return
 		}
 
-		if len(new.Metadata) != len(test.msg.Metadata) {
+		if len(new.Meta.AsMap()) != len(test.msg.Meta.AsMap()) {
 			return
 		}
-		for k := range new.Metadata {
-			if _, ok := test.msg.Metadata[k]; !ok {
+		for k := range new.Meta.AsMap() {
+			if _, ok := test.msg.Meta.AsMap()[k]; !ok {
 				return
 			}
 		}

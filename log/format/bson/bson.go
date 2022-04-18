@@ -14,8 +14,8 @@ type FmtBSON struct{}
 // This method will process the input LogMessage and marshal it according to this LogFormatter
 func (f *FmtBSON) Format(log *event.Event) (buf []byte, err error) {
 	// remove trailing newline on JSON format
-	if log.Msg[len(log.Msg)-1] == 10 {
-		log.Msg = log.Msg[:len(log.Msg)-1]
+	if log.GetMsg()[len(log.GetMsg())-1] == 10 {
+		*log.Msg = log.GetMsg()[:len(log.GetMsg())-1]
 	}
 
 	return bson.Marshal(log)

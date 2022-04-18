@@ -87,10 +87,7 @@ func (l *logger) checkDefaults(m *event.Event) {
 // is simply calling the latter.
 func (l *logger) Output(m *event.Event) (n int, err error) {
 
-	fmt.Println(l.levelFilter)
-	fmt.Println(m.Level)
-
-	if l.levelFilter > m.Level.Int() {
+	if m.Level != nil && l.levelFilter > m.Level.Int() {
 		return 0, nil
 	}
 
@@ -170,7 +167,7 @@ func (l *logger) Log(m ...*event.Event) {
 			continue
 		}
 
-		s := msg.Msg
+		s := msg.GetMsg()
 		l.Output(msg)
 		if !l.IsSkipExit() && *msg.Level == event.Level_panic {
 			panic(s)

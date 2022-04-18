@@ -29,24 +29,24 @@ var mockChBufs = [][]*bytes.Buffer{
 	{{}, {}, {}, {}, {}, {}},
 }
 
-var mockLogLevelsOK = []event.LogLevel{
-	event.LogLevel(0),
-	event.LogLevel(1),
-	event.LogLevel(2),
-	event.LogLevel(3),
-	event.LogLevel(4),
-	event.LogLevel(5),
-	event.LogLevel(9),
+var mockLogLevelsOK = []event.Level{
+	event.Level(0),
+	event.Level(1),
+	event.Level(2),
+	event.Level(3),
+	event.Level(4),
+	event.Level(5),
+	event.Level(9),
 }
 
-var mockLogLevelsNOK = []event.LogLevel{
-	event.LogLevel(6),
-	event.LogLevel(7),
-	event.LogLevel(8),
-	event.LogLevel(10),
-	event.LogLevel(-1),
-	event.LogLevel(200),
-	event.LogLevel(500),
+var mockLogLevelsNOK = []event.Level{
+	event.Level(6),
+	event.Level(7),
+	event.Level(8),
+	event.Level(10),
+	event.Level(-1),
+	event.Level(200),
+	event.Level(500),
 }
 
 var mockPrefixes = []string{

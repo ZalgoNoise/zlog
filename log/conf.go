@@ -66,9 +66,9 @@ var (
 		1:  LCSkipExit{},
 		7:  WithOut(os.Stderr),
 		8:  WithPrefix("log"),
-		9:  WithFilter(event.LLInfo),
-		10: WithFilter(event.LLWarn),
-		11: WithFilter(event.LLError),
+		9:  WithFilter(event.Level_info),
+		10: WithFilter(event.Level_warn),
+		11: WithFilter(event.Level_error),
 		12: NilLogger(),
 	}
 
@@ -105,7 +105,7 @@ type LCSkipExit struct{}
 // LCSkipExit stuct is a custom LoggerConfig to filter Logger writes as per the message's
 // log level
 type LCFilter struct {
-	l event.LogLevel
+	l event.Level
 }
 
 // LCDatabase struct defines the Logger Config object that adds a DBWriter as a Logger writer
@@ -198,7 +198,7 @@ func WithOut(out ...io.Writer) LoggerConfig {
 //
 // This method can be used to either separate different logging severities or to reduce the amount
 // of bytes written to a logfile, by skipping more trivial messages
-func WithFilter(level event.LogLevel) LoggerConfig {
+func WithFilter(level event.Level) LoggerConfig {
 	return &LCFilter{
 		l: level,
 	}

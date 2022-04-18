@@ -11,7 +11,7 @@ import (
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	pb "github.com/zalgonoise/zlog/proto/message"
+	pb "github.com/zalgonoise/zlog/proto/service"
 )
 
 var (
@@ -131,7 +131,7 @@ func (s GRPCLogServer) registerComms() {
 			continue
 		}
 
-		s.SvcLogger.Log(event.New().FromProto(msg).Build())
+		s.SvcLogger.Log(msg)
 	}
 }
 
@@ -187,7 +187,7 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 		s.SvcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("handler").Message("issue writting log message").Metadata(event.Field{"error": errStr, "bytesWritten": n}).Build())
 
 		// send not OK response
-		s.LogSv.Resp <- &pb.MessageResponse{
+		s.LogSv.Resp <- &pb.LogResponse{
 			Ok:    false,
 			ReqID: reqID,
 			Err:   &errStr,
@@ -199,7 +199,7 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
 
 	// send OK response
-	s.LogSv.Resp <- &pb.MessageResponse{
+	s.LogSv.Resp <- &pb.LogResponse{
 		Ok:    true,
 		ReqID: reqID,
 		Bytes: &n32,
@@ -219,11 +219,8 @@ func (s GRPCLogServer) handleMessages() {
 		// new message is received
 		case msg := <-s.LogSv.MsgCh:
 
-			// convert pb.MessageRequest to event.Event
-			logmsg := event.New().FromProto(msg).Build()
-
 			// send message to be written in a goroutine
-			go s.handleResponses(logmsg)
+			go s.handleResponses(msg)
 
 		// done signal is received
 		case <-done:

@@ -14,7 +14,7 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
 
-	pb "github.com/zalgonoise/zlog/proto/message"
+	pb "github.com/zalgonoise/zlog/proto/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -308,7 +308,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 
 		// send LogMessage to remote gRPC Log Server
 		// response is parsed by the interceptor; only the error is important
-		_, err := client.Log(ctx, msg.Proto())
+		_, err := client.Log(ctx, msg)
 
 		// if the server returns any error, it's sent to the error channel, context canceLevel_ed,
 		// and then return
@@ -480,7 +480,7 @@ func (c GRPCLogClient) handleStreamMessages(
 		case out := <-c.msgCh:
 
 			// send the protofied message and check for errors (sinked to local error channel)
-			err := stream.Send(out.Proto())
+			err := stream.Send(out)
 
 			if err != nil {
 				localErr <- err

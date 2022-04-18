@@ -28,7 +28,7 @@ func TestFormatTextLogger(t *testing.T) {
 		WithOut(&buf),
 	)
 
-	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
 
 	logger.Log(logMessage)
 
@@ -67,7 +67,7 @@ func TestFormatJSONLogger(t *testing.T) {
 		WithOut(buf),
 	)
 
-	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
 
 	logger.Log(logMessage)
 
@@ -82,9 +82,9 @@ func TestFormatJSONLogger(t *testing.T) {
 		)
 	}
 
-	if logEntry.Level != event.LLInfo.String() ||
-		logEntry.Prefix != prefix ||
-		logEntry.Msg != msg {
+	if logEntry.GetLevel().String() != event.Level_info.String() ||
+		logEntry.GetPrefix() != prefix ||
+		logEntry.GetMsg() != msg {
 		t.Errorf(
 			"#%v [Logger] [json-fmt] New(%s,%s).Info(%s) -- data mismatch",
 			0,
@@ -117,7 +117,7 @@ func TestNewSingleWriterLogger(t *testing.T) {
 		WithFormat(format),
 		WithOut(&buf),
 	)
-	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
 
 	logger.Log(logMessage)
 
@@ -166,7 +166,7 @@ func TestNewMultiWriterLogger(t *testing.T) {
 		WithOut(&buf1, &buf2, &buf3),
 	)
 
-	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
 
 	logger.Log(logMessage)
 
@@ -207,7 +207,7 @@ func TestNewDefaultWriterLogger(t *testing.T) {
 	// forcing this override of os.Stderr so that we can read from it
 	logger := New(WithOut(os.Stderr), WithFormat(FormatText))
 
-	logMessage := event.New().Level(event.LLInfo).Message(msg).Build()
+	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
 
 	// https://stackoverflow.com/questions/10473800
 	// copy the output in a separate goroutine so printing can't block indefinitely
@@ -681,28 +681,27 @@ func TestLoggerFields(t *testing.T) {
 
 func TestLoggerWrite(t *testing.T) {
 	type test struct {
-		msg  []byte
-		want event.Event
+		msg    []byte
+		prefix string
+		sub    string
+		level  event.Level
+		body   string
 	}
 
 	var tests = []test{
 		{
-			msg: event.New().Level(event.LLInfo).Prefix("test").Sub("tester").Message("write test").Build().Bytes(),
-			want: event.Event{
-				Prefix: "test",
-				Sub:    "tester",
-				Level:  event.LLInfo.String(),
-				Msg:    "write test",
-			},
+			msg:    event.New().Level(event.Level_info).Prefix("test").Sub("tester").Message("write test").Build().Encode(),
+			prefix: "test",
+			sub:    "tester",
+			level:  event.Level_info,
+			body:   "write test",
 		},
 		{
-			msg: []byte("hello world"),
-			want: event.Event{
-				Prefix: "log",
-				Sub:    "",
-				Level:  event.LLInfo.String(),
-				Msg:    "hello world",
-			},
+			msg:    []byte("hello world"),
+			prefix: "log",
+			sub:    "",
+			level:  event.Level_info,
+			body:   "hello world",
 		},
 	}
 
@@ -722,42 +721,42 @@ func TestLoggerWrite(t *testing.T) {
 			return
 		}
 
-		if logEntry.Prefix != test.want.Prefix {
+		if logEntry.GetPrefix() != test.prefix {
 			t.Errorf(
 				"#%v [Logger] -- FAILED -- Write([]byte) -- prefix mismatch: wanted %s ; got %s",
 				id,
-				logEntry.Prefix,
-				test.want.Prefix,
+				logEntry.GetPrefix(),
+				test.prefix,
 			)
 			return
 		}
 
-		if logEntry.Sub != test.want.Sub {
+		if logEntry.GetSub() != test.sub {
 			t.Errorf(
 				"#%v [Logger] -- FAILED -- Write([]byte) -- sub-prefix mismatch: wanted %s ; got %s",
 				id,
-				logEntry.Sub,
-				test.want.Sub,
+				logEntry.GetSub(),
+				test.sub,
 			)
 			return
 		}
 
-		if logEntry.Level != test.want.Level {
+		if logEntry.GetLevel() != test.level {
 			t.Errorf(
 				"#%v [Logger] -- FAILED -- Write([]byte) -- log level mismatch: wanted %s ; got %s",
 				id,
-				logEntry.Level,
-				test.want.Level,
+				logEntry.Level.String(),
+				test.level.String(),
 			)
 			return
 		}
 
-		if logEntry.Msg != test.want.Msg {
+		if logEntry.GetMsg() != test.body {
 			t.Errorf(
 				"#%v [Logger] -- FAILED -- Write([]byte) -- message mismatch: wanted %s ; got %s",
 				id,
-				logEntry.Msg,
-				test.want.Msg,
+				logEntry.GetMsg(),
+				test.body,
 			)
 			return
 		}

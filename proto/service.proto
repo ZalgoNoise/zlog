@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package logservice;
+import "proto/event.proto";
+
+option go_package = "./service";
+
+message LogResponse {
+    bool ok = 1;
+    string reqID = 2;
+    optional string err = 3;
+    optional int32 bytes = 4;
+}
+
+service LogService {
+    rpc Log(event.Event) returns (LogResponse) {} 
+    rpc LogStream(stream event.Event) returns (stream LogResponse) {}
+}

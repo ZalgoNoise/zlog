@@ -2,7 +2,6 @@ package mongo
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -114,23 +113,12 @@ func (d *Mongo) Write(p []byte) (n int, err error) {
 		d = new.(*Mongo)
 	}
 
-	var out *event.Event
-
-	// check if it's gob-encoded
-	msg, err := event.New().FromGob(p)
-	out = msg
-
+	msg, err := event.Decode(p)
 	if err != nil {
-		// fall back to JSON
-		var msg = &event.Event{}
-		jerr := json.Unmarshal(p, msg)
-		if jerr != nil {
-			return 0, fmt.Errorf("unable to decode input message; gob: %s -- json: %s", err, jerr)
-		}
-		out = msg
+		return 0, err
 	}
 
-	err = d.Create(out)
+	err = d.Create(msg)
 	if err != nil {
 		return 0, err
 	}

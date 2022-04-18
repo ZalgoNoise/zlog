@@ -25,17 +25,17 @@ type logMessage struct {
 // This method will process the input LogMessage and marshal it according to this LogFormatter
 func (f *FmtXML) Format(log *event.Event) (buf []byte, err error) {
 	// remove trailing newline on XML format
-	if log.Msg[len(log.Msg)-1] == 10 {
-		log.Msg = log.Msg[:len(log.Msg)-1]
+	if log.GetMsg()[len(log.GetMsg())-1] == 10 {
+		*log.Msg = log.GetMsg()[:len(log.GetMsg())-1]
 	}
 
 	xmlMsg := &logMessage{
-		Time:     log.Time,
-		Prefix:   log.Prefix,
-		Sub:      log.Sub,
-		Level:    log.Level,
-		Msg:      log.Msg,
-		Metadata: Mappify(log.Metadata),
+		Time:     log.Time.AsTime(),
+		Prefix:   log.GetPrefix(),
+		Sub:      log.GetSub(),
+		Level:    log.GetLevel().String(),
+		Msg:      log.GetMsg(),
+		Metadata: Mappify(log.GetMeta().AsMap()),
 	}
 
 	return xml.Marshal(xmlMsg)

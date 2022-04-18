@@ -19,13 +19,13 @@ type LogMessage struct {
 }
 
 func (m *LogMessage) From(msg *event.Event) error {
-	m.Time = msg.Time
-	m.Prefix = msg.Prefix
-	m.Sub = msg.Sub
-	m.Level = msg.Level
-	m.Msg = msg.Msg
+	m.Time = msg.GetTime().AsTime()
+	m.Prefix = msg.GetPrefix()
+	m.Sub = msg.GetSub()
+	m.Level = msg.GetLevel().String()
+	m.Msg = msg.GetMsg()
 
-	meta, err := json.Marshal(msg.Metadata)
+	meta, err := json.Marshal(msg.Meta.AsMap())
 
 	if err != nil {
 		return err

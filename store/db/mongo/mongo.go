@@ -73,12 +73,12 @@ func (d *Mongo) Create(msg ...*event.Event) error {
 
 	for _, m := range msg {
 		var entry = bson.D{
-			{Key: "timestamp", Value: m.Time},
-			{Key: "service", Value: m.Prefix},
-			{Key: "module", Value: m.Sub},
-			{Key: "level", Value: m.Level},
-			{Key: "message", Value: m.Msg},
-			{Key: "metadata", Value: m.Metadata},
+			{Key: "timestamp", Value: m.GetTime().AsTime()},
+			{Key: "service", Value: m.GetPrefix()},
+			{Key: "module", Value: m.GetSub()},
+			{Key: "level", Value: m.GetLevel()},
+			{Key: "message", Value: m.GetMsg()},
+			{Key: "metadata", Value: m.Meta.AsMap()},
 		}
 		msgs = append(msgs, entry)
 	}

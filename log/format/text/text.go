@@ -185,7 +185,7 @@ func (f *FmtText) Format(log *event.Event) (buf []byte, err error) {
 	// [info] (...)
 	if f.levelFirst && !f.noHeaders {
 		sb.WriteString("[")
-		sb.WriteString(f.colorize(log.Level))
+		sb.WriteString(f.colorize(log.GetLevel().String()))
 		sb.WriteString("]\t")
 		if f.doubleSpace {
 			sb.WriteString("\t")
@@ -194,7 +194,7 @@ func (f *FmtText) Format(log *event.Event) (buf []byte, err error) {
 	if !f.noTimestamp {
 		// [time] (...)
 		sb.WriteString("[")
-		sb.WriteString(f.fmtTime(log.Time))
+		sb.WriteString(f.fmtTime(log.GetTime().AsTime()))
 		sb.WriteString("]\t")
 		if f.doubleSpace {
 			sb.WriteString("\t")
@@ -203,27 +203,27 @@ func (f *FmtText) Format(log *event.Event) (buf []byte, err error) {
 	if !f.levelFirst && !f.noLevel {
 		// (...) [info] (...)
 		sb.WriteString("[")
-		sb.WriteString(f.colorize(log.Level))
+		sb.WriteString(f.colorize(log.GetLevel().String()))
 		sb.WriteString("]\t")
 		if f.doubleSpace {
 			sb.WriteString("\t")
 		}
 	}
 	if !f.noHeaders {
-		if log.Prefix != "" {
+		if *log.Prefix != "" {
 			// (...) [service] (...)
 			sb.WriteString("[")
-			sb.WriteString(f.capitalize(log.Prefix))
+			sb.WriteString(f.capitalize(log.GetPrefix()))
 			sb.WriteString("]\t")
 			if f.doubleSpace {
 				sb.WriteString("\t")
 			}
 		}
 
-		if log.Sub != "" {
+		if *log.Sub != "" {
 			// (...) [module] (...)
 			sb.WriteString("[")
-			sb.WriteString(f.capitalize(log.Sub))
+			sb.WriteString(f.capitalize(log.GetSub()))
 			sb.WriteString("]\t")
 			if f.doubleSpace {
 				sb.WriteString("\t")
@@ -231,14 +231,14 @@ func (f *FmtText) Format(log *event.Event) (buf []byte, err error) {
 		}
 	}
 
-	sb.WriteString(log.Msg)
+	sb.WriteString(log.GetMsg())
 
-	if len(log.Metadata) > 0 {
+	if len(log.GetMeta().AsMap()) > 0 {
 		sb.WriteString("\t")
 		if f.doubleSpace {
 			sb.WriteString("\t")
 		}
-		sb.WriteString(f.FmtMetadata(log.Metadata))
+		sb.WriteString(f.FmtMetadata(log.GetMeta().AsMap()))
 	}
 	sb.WriteString("\n")
 

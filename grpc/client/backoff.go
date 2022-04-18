@@ -247,7 +247,7 @@ func (b *Backoff) Register(call interface{}) {
 // is used when exchanging unary requests and responses with a gRPC server.
 func (b *Backoff) UnaryBackoffHandler(err error, logger log.Logger) error {
 	// retry with backoff
-	logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("retry").Metadata(event.Field{
+	logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("retry").Metadata(event.Field{
 		"error":      err,
 		"iterations": b.Counter(),
 		"maxWait":    b.Max(),
@@ -290,7 +290,7 @@ func (b *Backoff) StreamBackoffHandler(
 
 	// handle backoff deadline errors by closing the stream
 	if err != nil {
-		logger.Log(event.New().Level(event.LLFatal).Prefix("gRPC").Sub("stream").Metadata(event.Field{
+		logger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 			"error":      err.Error(),
 			"numRetries": b.Counter(),
 		}).Message("closing stream after too many failed attempts to reconnect").Build())
@@ -302,7 +302,7 @@ func (b *Backoff) StreamBackoffHandler(
 	}
 
 	// otherwise the stream will be recreated
-	logger.Log(event.New().Level(event.LLDebug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
+	logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
 		"error":      err,
 		"iterations": b.Counter(),
 		"maxWait":    b.Max(),

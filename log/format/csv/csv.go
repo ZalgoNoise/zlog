@@ -66,17 +66,17 @@ func (f *FmtCSV) Format(log *event.Event) (buf []byte, err error) {
 
 	if f.UnixTime {
 		// Unix micros in string format
-		t = strconv.FormatInt(log.Time.Unix(), 10)
+		t = strconv.FormatInt(log.Time.AsTime().Unix(), 10)
 	} else {
 		// RFC 3339 timestamp in string format
-		t = log.Time.Format(text.LTRFC3339Nano.String())
+		t = log.Time.AsTime().Format(text.LTRFC3339Nano.String())
 	}
 
 	// prepare metadata value
 	var m string
 	if f.JsonMeta {
 		// marshal as JSON
-		b, err := json.Marshal(log.Metadata)
+		b, err := json.Marshal(log.Meta.AsMap())
 		if err != nil {
 			return nil, err
 		}
@@ -84,17 +84,17 @@ func (f *FmtCSV) Format(log *event.Event) (buf []byte, err error) {
 	} else {
 		// use FmtText to marshal the metadata
 		txt := &text.FmtText{}
-		m = txt.FmtMetadata(log.Metadata)
+		m = txt.FmtMetadata(log.Meta.AsMap())
 	}
 
 	// default format for:
 	// "timestamp","level","prefix","sub","message","metadata"
 	record := []string{
 		t,
-		log.Level,
-		log.Prefix,
-		log.Sub,
-		log.Msg,
+		log.GetLevel().String(),
+		log.GetPrefix(),
+		log.GetSub(),
+		log.GetMsg(),
 		m,
 	}
 

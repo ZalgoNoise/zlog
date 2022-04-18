@@ -119,7 +119,7 @@ type LoggerBuilder struct {
 	Sub         string
 	Fmt         LogFormatter
 	SkipExit    bool
-	LevelFilter int
+	LevelFilter int32
 }
 
 // New function allows creating a basic Logger (implementing the Logger
@@ -164,7 +164,7 @@ type logger struct {
 	fmt         LogFormatter
 	meta        map[string]interface{}
 	skipExit    bool
-	levelFilter int
+	levelFilter int32
 }
 
 // SetOuts method will set (replace) the defined io.Writer in the Logger with the list of
@@ -302,13 +302,13 @@ func (l *logger) IsSkipExit() bool {
 // Otherwise, if a simple slice of bytes is passed, it is considered to be the LogMessage.Msg
 // portion, and the remaining fields will default to the Logger's set elements
 func (l *logger) Write(p []byte) (n int, err error) {
-	// check if it's gob-encoded
-	m, err := event.New().FromGob(p)
+	// decode bytes
+	m, err := event.Decode(p)
 
+	// default to printing message as if it was a byte slice payload for the log event body
 	if err != nil {
-		// default to printing message
 		return l.Output(event.New().
-			Level(event.LLInfo).
+			Level(event.Default_Event_Level).
 			Prefix(l.prefix).
 			Sub(l.sub).
 			Message(string(p)).
@@ -316,7 +316,7 @@ func (l *logger) Write(p []byte) (n int, err error) {
 			Build())
 	}
 
-	// print gob-encoded message
+	// print message
 	return l.Output(m)
 
 }

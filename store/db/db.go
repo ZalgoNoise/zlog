@@ -91,9 +91,9 @@ func (m *multiWriteCloser) Close() error {
 // stops and returns the error; it does not continue down the list. This does not happen
 // with the Close() call, which is intended to be sent to all writers regardless of errors
 // retrieved. It will return a single error encapsulating all errors if existing
-func MultiWriteCloser(dbs ...DBWriter) io.WriteCloser {
-	allWriters := make([]io.WriteCloser, 0, len(dbs))
-	for _, w := range dbs {
+func MultiWriteCloser(wc ...io.WriteCloser) io.WriteCloser {
+	allWriters := make([]io.WriteCloser, 0, len(wc))
+	for _, w := range wc {
 		if mw, ok := w.(*multiWriteCloser); ok {
 			allWriters = append(allWriters, mw.writers...)
 		} else {

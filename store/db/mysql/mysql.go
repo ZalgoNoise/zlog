@@ -49,10 +49,10 @@ func (d *MySQL) Create(msg ...*event.Event) error {
 		return nil
 	}
 
-	var msgs []*model.LogMessage
+	var msgs []*model.Event
 
 	for _, m := range msg {
-		var entry = &model.LogMessage{}
+		var entry = &model.Event{}
 
 		if err := entry.From(m); err != nil {
 			return err
@@ -129,7 +129,7 @@ func initialMigration(address, database string) (*gorm.DB, error) {
 	}
 
 	// Migrate the schema
-	err = db.AutoMigrate(&model.LogMessage{})
+	err = db.AutoMigrate(&model.Event{})
 
 	if err != nil {
 		return nil, err
@@ -147,10 +147,8 @@ func WithMySQL(addr, database string) log.LoggerConfig {
 		os.Exit(1)
 	}
 
-	//TODO(zalgonoise): benchmark this decision -- confirm if gob is more performant,
-	// considering that JSON will (usually) have less bytes per (small) message
 	return &log.LCDatabase{
 		Out: db,
-		Fmt: log.FormatGob,
+		Fmt: log.FormatProtobuf,
 	}
 }

@@ -1,22 +1,34 @@
 package event
 
 import (
-	"encoding/json"
-
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
+// Marshal method will convert the protobuf Event into a slice of bytes, also returning
+// potential errors in the convertion
 func (e *Event) Marshal() ([]byte, error) {
 	return proto.Marshal(e)
 }
 
+// Unmarshal method will convert the input slice of bytes as a protobuf Event, stored in the
+// method receiver. Returns an error if any.
+func (e *Event) Unmarshal(b []byte) error {
+	return proto.Unmarshal(b, e)
+}
+
+// Encode method is similar to Event.Marshal(), but it does not return any errors
 func (e *Event) Encode() []byte {
 	b, _ := e.Marshal()
 	return b
 }
 
+// Decode method is similar to Event.Unmarshal, but it does not return any errors
+func (e *Event) Decode(b []byte) {
+	proto.Unmarshal(b, e)
+}
+
+// Decode function will take in a slice of bytes and convert it to an Event protobuf,
+// returning this and an error if any.
 func Decode(b []byte) (*Event, error) {
 	var e = &Event{}
 
@@ -28,121 +40,8 @@ func Decode(b []byte) (*Event, error) {
 	return e, nil
 }
 
-// Field type is a generic type to build Event Metadata
-type Field map[string]interface{}
-
-// ToMap method returns the Field in it's (raw) string-interface{} map format
-func (f Field) ToMap() map[string]interface{} {
-	return f
+// Encode function will take in a protobuf Event, and convert it to a slice of bytes,
+// returning this and an error if any.
+func Encode(e *Event) (b []byte, err error) {
+	return proto.Marshal(e)
 }
-
-func ToField(m map[string]interface{}) Field {
-	return Field(m)
-}
-
-func (f Field) ToStructPB() (*structpb.Struct, error) {
-	b, err := json.Marshal(f.ToMap())
-	if err != nil {
-		return nil, err
-	}
-
-	s := &structpb.Struct{}
-	err = protojson.Unmarshal(b, s)
-	if err != nil {
-		return nil, err
-	}
-	return s, nil
-}
-
-func (f Field) Encode() *structpb.Struct {
-	s, _ := f.ToStructPB()
-	return s
-}
-
-func (l Level) Int() int32 {
-	return Level_value[l.String()]
-}
-
-// Event struct describes a Log Event's elements, already in a format that can be
-// parsed by a valid formatter.
-// type Event struct {
-// 	Time     time.Time              `json:"timestamp,omitempty" xml:"timestamp,omitempty" bson:"timestamp,omitempty"`
-// 	Prefix   string                 `json:"service,omitempty" xml:"service,omitempty" bson:"service,omitempty"`
-// 	Sub      string                 `json:"module,omitempty" xml:"module,omitempty" bson:"module,omitempty"`
-// 	Level    string                 `json:"level,omitempty" xml:"level,omitempty" bson:"level,omitempty"`
-// 	Msg      string                 `json:"message,omitempty" xml:"message,omitempty" bson:"message,omitempty"`
-// 	Metadata map[string]interface{} `json:"metadata,omitempty" xml:"metadata,omitempty" bson:"metadata,omitempty"`
-// }
-
-// func (e *Event) Encode() ([]byte, error) {
-// 	buf := &bytes.Buffer{}
-// 	gob.Register(Field{})
-// 	gob.Register(map[string]interface{}{})
-
-// 	enc := gob.NewEncoder(buf)
-
-// 	err := enc.Encode(e)
-
-// 	return buf.Bytes(), err
-// }
-
-// Bytes method will return an Event as a gob-encoded slice of bytes. It is compatible with
-// a Logger's io.Writer implementation, as its Write() method will decode this type of data
-// func (e *Event) Bytes() []byte {
-// 	// skip error checking
-// 	buf, _ := e.Encode()
-// 	return buf
-// }
-
-// // Proto method will convert this Event into a protobuf MessageRequest,
-// // while skipping the (potential) returning error.
-// func (m *Event) Proto() *pb.MessageRequest {
-// 	msg, _ := m.ToProto()
-// 	return msg
-// }
-
-// // ToProto method will conver this Event into a protobuf MessageRequest,
-// // returning a pointer to one and an error.
-// //
-// // This is possible only by encoding the message's metadata into JSON bytes,
-// // to then encode as a struct protobuf with protojson.
-// //
-// // In gRPC, metadata will make the messages heavier; as there is no way to send
-// // simply any arbitrary JSON data via gRPC without encoding the keys in, too. It's
-// // either this, or the .proto file would need to describe the metadata format
-// func (m *Event) ToProto() (*pb.MessageRequest, error) {
-// 	b, err := json.Marshal(m.Metadata)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	s, err := EncodeProto(b)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	level := pb.Level(LogTypeKeys[m.Level])
-
-// 	return &pb.MessageRequest{
-// 		Time:   timestamppb.New(m.Time),
-// 		Prefix: &m.Prefix,
-// 		Sub:    &m.Sub,
-// 		Level:  &level,
-// 		Msg:    m.Msg,
-// 		Meta:   s,
-// 	}, nil
-// }
-
-// func EncodeProto(in []byte) (*structpb.Struct, error) {
-// 	s := &structpb.Struct{}
-// 	err := protojson.Unmarshal(in, s)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return s, nil
-// }
-
-// // ToXML method returns the Field in a list of key-value objects,
-// // compatible with XML marshalling of data objects
-// func (f Field) ToXML() []xml.Field {
-// 	return xml.Mappify(f.ToMap())
-// }

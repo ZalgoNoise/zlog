@@ -2,6 +2,7 @@ package json
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/zalgonoise/zlog/log/event"
 )
@@ -19,5 +20,21 @@ func (f *FmtJSON) Format(log *event.Event) (buf []byte, err error) {
 		*log.Msg = log.GetMsg()[:len(log.GetMsg())-1]
 	}
 
-	return json.Marshal(log)
+	type Event struct {
+		Time   time.Time              `json:"timestamp,omitempty"`
+		Prefix string                 `json:"service,omitempty"`
+		Sub    string                 `json:"module,omitempty"`
+		Level  string                 `json:"level,omitempty"`
+		Msg    string                 `json:"message,omitempty"`
+		Meta   map[string]interface{} `json:"metadata,omitempty"`
+	}
+
+	return json.Marshal(Event{
+		Time:   log.GetTime().AsTime(),
+		Prefix: log.GetPrefix(),
+		Sub:    log.GetSub(),
+		Level:  log.GetLevel().String(),
+		Msg:    log.GetMsg(),
+		Meta:   log.Meta.AsMap(),
+	})
 }

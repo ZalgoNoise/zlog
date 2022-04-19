@@ -6,7 +6,9 @@ import (
 	"os"
 
 	"github.com/zalgonoise/zlog/log"
-	"github.com/zalgonoise/zlog/store"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/log/format/text"
+	"github.com/zalgonoise/zlog/store/fs"
 )
 
 func main() {
@@ -22,7 +24,7 @@ func main() {
 		2, 3, 5,
 	}
 
-	customLog, err := store.NewLogfile("/tmp/test-custom.log")
+	customLog, err := fs.New("/tmp/test-custom.log")
 	if err != nil {
 		fmt.Printf("err: %s\n", err)
 	}
@@ -33,11 +35,11 @@ func main() {
 
 		log.New(
 			log.WithPrefix("alpha-log"),
-			log.FormatText,
+			log.WithFormat(log.FormatText),
 		),
 		log.New(
 			log.WithPrefix("beta-log"),
-			log.FormatJSON,
+			log.WithFormat(log.FormatJSON),
 			log.WithOut(
 				logFile1, logFile2, customLog,
 			)),
@@ -58,11 +60,11 @@ func main() {
 		map[string]interface{}{
 			"level":  0,
 			"string": "trace",
-			"var":    "log.LLTrace",
-			"val":    log.LLTrace,
+			"var":    "event.Level_trace",
+			"val":    event.Level_trace,
 		},
 	).Log(
-		log.NewMessage().Level(log.LLTrace).Message("this is a custom level log entry").Build(),
+		event.New().Level(event.Level_trace).Message("this is a custom level log entry").Build(),
 	)
 
 	chlogger := log.NewLogCh(multi)
@@ -70,7 +72,7 @@ func main() {
 
 	logCh, _ := chlogger.Channels()
 
-	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
+	logCh <- event.New().Prefix("test-chan-log").Level(event.Level_trace).Message("test log message").Metadata(
 		map[string]interface{}{
 			"type":    "trace",
 			"data":    "this is a buffered logger in a goroutine",
@@ -78,7 +80,7 @@ func main() {
 		},
 	).Build()
 
-	chlogger.Log(log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
+	chlogger.Log(event.New().Prefix("test-chan-log").Level(event.Level_trace).Message("test log message").Metadata(
 		map[string]interface{}{
 			"type":    "trace",
 			"data":    "this is a buffered logger in a goroutine",
@@ -87,14 +89,14 @@ func main() {
 	).Build())
 
 	chlogger.Log(
-		log.NewMessage().Prefix("test-chan-log").Level(log.LLTrace).Message("test log message").Metadata(
+		event.New().Prefix("test-chan-log").Level(event.Level_trace).Message("test log message").Metadata(
 			map[string]interface{}{
 				"type":    "trace",
 				"data":    "this is a buffered logger in a goroutine",
 				"test_id": 2,
 			},
 		).Build(),
-		log.NewMessage().Prefix("test-chan-log").Level(log.LLWarn).Message("warn runtime").Metadata(
+		event.New().Prefix("test-chan-log").Level(event.Level_warn).Message("warn runtime").Metadata(
 			map[string]interface{}{
 				"type":    "warn",
 				"data":    "this is a buffered logger in a goroutine",
@@ -104,7 +106,7 @@ func main() {
 	)
 
 	// go func() {
-	// 	logCh <- log.NewMessage().Prefix("test-chan-log").Level(log.LLPanic).Message("break runime").Metadata(
+	// 	logCh <- event.New().Prefix("test-chan-log").Level(event.Level_panic).Message("break runime").Metadata(
 	// 		map[string]interface{}{
 	// 			"type":    "panic",
 	// 			"data":    "this is a goroutine panic into a logger in a goroutine",
@@ -118,26 +120,26 @@ func main() {
 	newLogger := log.New(
 		log.WithPrefix("multi-conf"),
 		log.WithOut(os.Stdout, newBuf),
-		log.NewTextFormat().Time(log.LTRubyDate).LevelFirst().DoubleSpace().Color().Upper().Build(),
+		log.WithFormat(text.New().Time(text.LTRubyDate).LevelFirst().DoubleSpace().Color().Upper().Build()),
 		log.SkipExit,
 	)
 
-	newLogger.Log(log.NewMessage().Level(log.LLPanic).Prefix("color").Sub("logger-service").Message("hello universe!").Build())
+	newLogger.Log(event.New().Level(event.Level_panic).Prefix("color").Sub("logger-service").Message("hello universe!").Build())
 
-	n, err := newLogger.Write(log.NewMessage().
+	n, err := newLogger.Write(event.New().
 		Message("gob-encoded tester").
-		Level(log.LLFatal).
+		Level(event.Level_fatal).
 		Prefix("binary").
-		Metadata(log.Field{
+		Metadata(event.Field{
 			"test-data":     "with content",
 			"another-field": "also with content",
-			"obj": log.Field{
+			"obj": event.Field{
 				"nested": true,
 			},
 			"last-one": true,
 		}).
 		Build().
-		Bytes(),
+		Encode(),
 	)
 
 	fmt.Println(n, err)
@@ -145,23 +147,23 @@ func main() {
 	csvLogger := log.New(
 		log.WithPrefix("csv-logger"),
 		log.WithOut(os.Stdout),
-		log.FormatCSV,
+		log.WithFormat(log.FormatCSV),
 		log.SkipExit,
 	)
 
-	csvLogger.Log(log.NewMessage().Sub("CSV").Message("hello from CSV!").Build())
-	csvLogger.Log(log.NewMessage().Prefix("csv-test").Sub("CSV").Message("hello from CSV with custom prefix").Build())
-	csvLogger.Log(log.NewMessage().Level(log.LLPanic).Sub("CSV").Message("hello from CSV with custom level").Build())
+	csvLogger.Log(event.New().Sub("CSV").Message("hello from CSV!").Build())
+	csvLogger.Log(event.New().Prefix("csv-test").Sub("CSV").Message("hello from CSV with custom prefix").Build())
+	csvLogger.Log(event.New().Level(event.Level_panic).Sub("CSV").Message("hello from CSV with custom level").Build())
 	csvLogger.Log(
-		log.NewMessage().
+		event.New().
 			Prefix("test-all").
 			Sub("CSV").
-			Level(log.LLWarn).
+			Level(event.Level_warn).
 			Message("hello from CSV with all of it").
-			Metadata(log.Field{
+			Metadata(event.Field{
 				"content":   true,
 				"test-data": "this is test data",
-				"inner-field": log.Field{
+				"inner-field": event.Field{
 					"custom":  true,
 					"content": "yes",
 				},
@@ -172,23 +174,23 @@ func main() {
 	xmlLogger := log.New(
 		log.WithPrefix("xml-logger"),
 		log.WithOut(os.Stdout),
-		log.FormatXML,
+		log.WithFormat(log.FormatXML),
 		log.SkipExit,
 	)
 
-	xmlLogger.Log(log.NewMessage().Sub("XML").Message("hello from XML!").Build())
-	xmlLogger.Log(log.NewMessage().Prefix("xml-test").Sub("XML").Message("hello from XML with custom prefix").Build())
-	xmlLogger.Log(log.NewMessage().Level(log.LLPanic).Sub("XML").Message("hello from XML with custom level").Build())
+	xmlLogger.Log(event.New().Sub("XML").Message("hello from XML!").Build())
+	xmlLogger.Log(event.New().Prefix("xml-test").Sub("XML").Message("hello from XML with custom prefix").Build())
+	xmlLogger.Log(event.New().Level(event.Level_panic).Sub("XML").Message("hello from XML with custom level").Build())
 	xmlLogger.Log(
-		log.NewMessage().
+		event.New().
 			Prefix("test-all").
 			Sub("XML").
-			Level(log.LLWarn).
+			Level(event.Level_warn).
 			Message("hello from XML with all of it").
-			Metadata(log.Field{
+			Metadata(event.Field{
 				"content":   true,
 				"test-data": "this is test data",
-				"inner-field": log.Field{
+				"inner-field": event.Field{
 					"custom":  true,
 					"content": "yes",
 				},
@@ -199,23 +201,23 @@ func main() {
 	filteredLogger := log.New(
 		log.WithPrefix("filtered-logger"),
 		log.WithOut(os.Stdout),
-		log.NewTextFormat().LevelFirst().Color().Upper().Build(),
+		log.WithFormat(text.New().LevelFirst().Color().Upper().Build()),
+		log.WithFilter(event.Level_error),
 		log.SkipExit,
-		log.WithFilter(log.LLError),
 	)
 
-	filteredLogger.Log(log.NewMessage().Level(log.LLTrace).Prefix("filter").Sub("logger-service").Message("trace").Build())
-	filteredLogger.Log(log.NewMessage().Level(log.LLWarn).Prefix("filter").Sub("logger-service").Message("warn").Build())
-	filteredLogger.Log(log.NewMessage().Level(log.LLError).Prefix("filter").Sub("logger-service").Message("error").Build())
-	filteredLogger.Log(log.NewMessage().Level(log.LLFatal).Prefix("filter").Sub("logger-service").Message("fatal").Build())
-	filteredLogger.Log(log.NewMessage().Level(log.LLPanic).Prefix("filter").Sub("logger-service").Message("panic").Build())
+	filteredLogger.Log(event.New().Level(event.Level_trace).Prefix("filter").Sub("logger-service").Message("trace").Build())
+	filteredLogger.Log(event.New().Level(event.Level_warn).Prefix("filter").Sub("logger-service").Message("warn").Build())
+	filteredLogger.Log(event.New().Level(event.Level_error).Prefix("filter").Sub("logger-service").Message("error").Build())
+	filteredLogger.Log(event.New().Level(event.Level_fatal).Prefix("filter").Sub("logger-service").Message("fatal").Build())
+	filteredLogger.Log(event.New().Level(event.Level_panic).Prefix("filter").Sub("logger-service").Message("panic").Build())
 
-	stackMessage := log.NewMessage().
-		Level(log.LLFatal).
+	stackMessage := event.New().
+		Level(event.Level_fatal).
 		Prefix("with-stack").
 		Sub("stacktrace").
 		Message("failed to execute with error").
-		Metadata(log.Field{
+		Metadata(event.Field{
 			"critical": true,
 		}).
 		CallStack(true).
@@ -224,9 +226,9 @@ func main() {
 	filteredLogger.Log(stackMessage)
 
 	jsonLogger := log.New(
-		log.FormatJSON,
-		log.SkipExit,
+		log.WithFormat(log.FormatJSON),
 		log.WithOut(os.Stdout),
+		log.SkipExit,
 	)
 
 	jsonLogger.Log(stackMessage)

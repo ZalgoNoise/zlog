@@ -137,6 +137,6 @@ func WithMongo(addr, database, collection string) log.LoggerConfig {
 
 	return &log.LCDatabase{
 		Out: db,
-		Fmt: log.FormatGob,
+		Fmt: log.FormatProtobuf,
 	}
 }

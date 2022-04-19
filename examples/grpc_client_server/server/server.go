@@ -22,9 +22,9 @@ func main() {
 		server.WithAddr("127.0.0.1:9099"),
 		server.WithGRPCOpts(),
 		server.WithTLS(
-			"cert/server/server-cert.pem",
-			"cert/server/server-key.pem",
-			// "cert/ca/ca-cert.pem",
+			"cert/server/server.pem",
+			"cert/server/server.key",
+			// "cert/ca/cacert.pem",
 		),
 	)
 	grpcLogger.Serve()

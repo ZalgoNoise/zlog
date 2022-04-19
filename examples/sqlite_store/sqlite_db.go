@@ -4,15 +4,16 @@ import (
 	"os"
 
 	"github.com/zalgonoise/zlog/log"
-	"github.com/zalgonoise/zlog/store/sql/sqlite"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/store/db/sqlite"
 )
 
-var msgs = []*log.LogMessage{
-	log.NewMessage().
+var msgs = []*event.Event{
+	event.New().
 		Prefix("testing").
 		Sub("fake").
 		Message("log2db").
-		Metadata(log.Field{
+		Metadata(event.Field{
 			"a": true,
 			"b": 1,
 			"c": "data",
@@ -24,11 +25,11 @@ var msgs = []*log.LogMessage{
 			},
 		}).
 		Build(),
-	log.NewMessage().
+	event.New().
 		Prefix("test2").
 		Sub("faker").
 		Message("log2db").
-		Metadata(log.Field{
+		Metadata(event.Field{
 			"a": true,
 			"b": 1,
 			"c": "data",
@@ -40,11 +41,11 @@ var msgs = []*log.LogMessage{
 			},
 		}).
 		Build(),
-	log.NewMessage().
+	event.New().
 		Prefix("tester").
 		Sub("faked with space").
 		Message("log2db").
-		Metadata(log.Field{
+		Metadata(event.Field{
 			"a": true,
 			"b": 1,
 			"c": "data",
@@ -69,8 +70,8 @@ func main() {
 	}
 
 	logger := log.New(
-		log.WithOut(db),
-		log.FormatJSON,
+		log.WithDatabase(db),
+		log.SkipExit,
 	)
 
 	for _, m := range msgs {

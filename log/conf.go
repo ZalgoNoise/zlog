@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/zalgonoise/zlog/log/event"
-	"github.com/zalgonoise/zlog/log/format/gob"
+	"github.com/zalgonoise/zlog/log/format/protobuf"
 	"github.com/zalgonoise/zlog/log/format/text"
 	"github.com/zalgonoise/zlog/store"
 	"github.com/zalgonoise/zlog/store/db"
@@ -55,7 +55,7 @@ var (
 		confs: []LoggerConfig{
 			WithFormat(TextColorLevelFirst),
 			WithOut(),
-			WithPrefix("log"),
+			WithPrefix(event.Default_Event_Prefix),
 		},
 	}
 
@@ -65,7 +65,7 @@ var (
 		0:  DefaultConfig,
 		1:  LCSkipExit{},
 		7:  WithOut(os.Stderr),
-		8:  WithPrefix("log"),
+		8:  WithPrefix(event.Default_Event_Prefix),
 		9:  WithFilter(event.Level_info),
 		10: WithFilter(event.Level_warn),
 		11: WithFilter(event.Level_error),
@@ -224,6 +224,6 @@ func WithDatabase(dbs ...db.DBWriter) LoggerConfig {
 
 	return &LCDatabase{
 		Out: w,
-		Fmt: &gob.FmtGob{},
+		Fmt: &protobuf.FmtPB{},
 	}
 }

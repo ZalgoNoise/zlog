@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 )
 
 var (
@@ -65,14 +64,17 @@ func (m *multiWriteCloser) Close() error {
 			return errs[0]
 		}
 
-		var sb = strings.Builder{}
+		var err error
 
 		for _, e := range errs {
-			sb.WriteString(e.Error())
-			sb.WriteString("; ")
+			if err == nil {
+				err = e
+			} else {
+				err = fmt.Errorf("%w ; %s", err, e.Error())
+			}
 		}
 
-		return fmt.Errorf("multiple errors when closing writers: %s", sb.String())
+		return fmt.Errorf("multiple errors when closing writers: %w", err)
 	}
 
 	return nil

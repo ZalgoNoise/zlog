@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type LogMessage struct {
+type Event struct {
 	gorm.Model
 	Time     time.Time
 	Prefix   string
@@ -18,7 +18,7 @@ type LogMessage struct {
 	Metadata string
 }
 
-func (m *LogMessage) From(msg *event.Event) error {
+func (m *Event) From(msg *event.Event) error {
 	m.Time = msg.GetTime().AsTime()
 	m.Prefix = msg.GetPrefix()
 	m.Sub = msg.GetSub()

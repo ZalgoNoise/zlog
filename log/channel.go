@@ -33,10 +33,10 @@ type LogChannel struct {
 //	   // then, either the "classic" channeled message approach:
 //	   ch, done := logCh.Channels()
 //
-//     ch <- log.NewMessage().Level(log.LLTrace).Message("test message").Build()
+//     ch <- event.New().Level(log.Level_trace).Message("test message").Build()
 //
 //     // or using the embeded method
-//     logCh.Log(log.NewMessage().Message("this works too").Build())
+//     logCh.Log(event.New().Message("this works too").Build())
 //
 //     // and finally stop the goroutine (if needed)
 //     logCh.Close()
@@ -116,11 +116,11 @@ func (c LogChannel) Close() {
 // directly with the same channel messaging patterns
 //
 //     logger := log.New("logger", TextFormat)
-//     logCh := NewLogCh(logger)
+//     logCh := log.NewLogCh(logger)
 //
 //	   ch, done := logCh.Channels()
 //
-//     ch <- log.NewMessage().Level(log.LLTrace).Message("test message").Build()
+//     ch <- event.New().Level(log.Level_trace).Message("test message").Build()
 //
 //     done <- struct{}{}
 //

@@ -195,7 +195,7 @@ func TestNewLogFile(t *testing.T) {
 	})
 
 	var verify = func(id int, test test) {
-		_, err := NewLogfile(test.path)
+		_, err := New(test.path)
 		if err != nil && test.ok {
 			t.Errorf(
 				"#%v -- FAILED -- [Logfile] NewLogfile(%s) -- operation failed with an error: %s",
@@ -286,7 +286,7 @@ func TestLogfileMaxSize(t *testing.T) {
 			test.size,
 			test.path,
 		)
-		logfile, err := NewLogfile(test.path)
+		logfile, err := New(test.path)
 		if err != nil {
 			panic(err)
 		}

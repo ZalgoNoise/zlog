@@ -27,7 +27,7 @@ type Logfile struct {
 //
 // If this file does not exist, then it will be created. If the file already exists, then it
 // will be loaded -- and rotated if its too heavy.
-func NewLogfile(path string) (*Logfile, error) {
+func New(path string) (*Logfile, error) {
 	f := &Logfile{rotate: 50}
 
 	_, err := os.Stat(path)

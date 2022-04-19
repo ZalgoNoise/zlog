@@ -21,7 +21,11 @@ type EventBuilder struct {
 }
 
 // New function is the initializer of a EventBuilder. From this call, further
-// EventBuilder methods can be chained since they all return pointers to the same object
+// EventBuilder methods can be chained since they all return pointers to the same
+//
+// This builder returns an EventBuilder struct with initialized pointers to its elements,
+// which is exactly the same implementation as the protobuf message, without
+// protobuf-specific data types
 func New() *EventBuilder {
 	var (
 		time     time.Time
@@ -99,61 +103,6 @@ func (b *EventBuilder) CallStack(all bool) *EventBuilder {
 
 	return b
 }
-
-// // FromProto method will decode a protobuf MessageRequest, returning a pointer to
-// // a EventBuilder.
-// //
-// // Considering the amount of optional elements, all elements are verified (besides the
-// // message elements) and defaults are applied when unset.
-// func (b *EventBuilder) FromProto(in *pb.MessageRequest) *EventBuilder {
-// 	if in.Time == nil {
-// 		b.time = time.Now()
-// 	} else {
-// 		b.time = in.Time.AsTime()
-// 	}
-
-// 	if in.Level == nil {
-// 		b.level = LLInfo.String()
-// 	} else {
-// 		b.level = LogLevel(int(*in.Level)).String()
-// 	}
-
-// 	if in.Prefix == nil {
-// 		b.prefix = "log"
-// 	} else {
-// 		b.prefix = *in.Prefix
-// 	}
-
-// 	if in.Sub == nil {
-// 		b.sub = ""
-// 	} else {
-// 		b.sub = *in.Sub
-// 	}
-
-// 	if in.Meta == nil {
-// 		b.metadata = map[string]interface{}{}
-// 	} else {
-// 		b.metadata = in.Meta.AsMap()
-// 	}
-
-// 	b.msg = in.Msg
-
-// 	return b
-// }
-
-// func (b *EventBuilder) FromGob(p []byte) (*Event, error) {
-// 	msg := &Event{}
-
-// 	buf := bytes.NewBuffer(p)
-// 	dec := gob.NewDecoder(buf)
-// 	err := dec.Decode(msg)
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return msg, nil
-// }
 
 // Build method will create a new timestamp, review all elements in the `EventBuilder`,
 // apply any defaults to non-defined elements, and return a pointer to a Event

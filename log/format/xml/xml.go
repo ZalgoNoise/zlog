@@ -11,15 +11,6 @@ import (
 // can apply to a LogMessage
 type FmtXML struct{}
 
-type logMessage struct {
-	Time     time.Time `xml:"timestamp,omitempty"`
-	Prefix   string    `xml:"service,omitempty"`
-	Sub      string    `xml:"module,omitempty"`
-	Level    string    `xml:"level,omitempty"`
-	Msg      string    `xml:"message,omitempty"`
-	Metadata []Field   `xml:"metadata,omitempty"`
-}
-
 // Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
 //
 // This method will process the input LogMessage and marshal it according to this LogFormatter
@@ -29,7 +20,16 @@ func (f *FmtXML) Format(log *event.Event) (buf []byte, err error) {
 		*log.Msg = log.GetMsg()[:len(log.GetMsg())-1]
 	}
 
-	xmlMsg := &logMessage{
+	type Event struct {
+		Time     time.Time `xml:"timestamp,omitempty"`
+		Prefix   string    `xml:"service,omitempty"`
+		Sub      string    `xml:"module,omitempty"`
+		Level    string    `xml:"level,omitempty"`
+		Msg      string    `xml:"message,omitempty"`
+		Metadata []Field   `xml:"metadata,omitempty"`
+	}
+
+	xmlMsg := &Event{
 		Time:     log.Time.AsTime(),
 		Prefix:   log.GetPrefix(),
 		Sub:      log.GetSub(),

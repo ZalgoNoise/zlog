@@ -12,7 +12,7 @@ import (
 func main() {
 	logger := log.New(
 		log.WithFormat(log.TextColorLevelFirst),
-		// log.WithFilter(log.LLWarn),
+		// log.WithFilter(event.Level_warn),
 	)
 
 	grpcLogger, errCh := client.New(
@@ -23,9 +23,9 @@ func main() {
 		),
 		client.WithGRPCOpts(),
 		client.WithTLS(
-			"cert/ca/ca-cert.pem",
-			// "cert/client/client-cert.pem",
-			// "cert/client/client-key.pem",
+			"cert/ca/cacert.pem",
+			// "cert/client/client.pem",
+			// "cert/client/client.key",
 		),
 	)
 	_, done := grpcLogger.Channels()
@@ -37,10 +37,9 @@ func main() {
 	grpcLogger.Log(msg1)
 	grpcLogger.Log(msg1)
 
-	msg2 := event.New().Level(event.LLWarn)
 	for i := 0; i < 10000; i++ {
-		grpcLogger.Log(msg2.Message(fmt.Sprintf("#%v", i)).Build())
-		time.Sleep(time.Millisecond * 2000)
+		grpcLogger.Log(event.New().Level(event.Level_warn).Message(fmt.Sprintf("#%v", i)).Build())
+		time.Sleep(time.Millisecond * 200)
 	}
 
 	// done <- struct{}{}

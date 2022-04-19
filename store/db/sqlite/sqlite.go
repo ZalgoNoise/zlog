@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/zalgonoise/zlog/log"
@@ -43,10 +42,10 @@ func (o *SQLite) Create(msg ...*event.Event) error {
 		return nil
 	}
 
-	var msgs []*model.LogMessage
+	var msgs []*model.Event
 
 	for _, m := range msg {
-		var entry = &model.LogMessage{}
+		var entry = &model.Event{}
 
 		if err := entry.From(m); err != nil {
 			return err
@@ -99,14 +98,8 @@ func initialMigration(path string) (*gorm.DB, error) {
 	}
 
 	// Migrate the schema
-	db.AutoMigrate(&model.LogMessage{})
+	db.AutoMigrate(&model.Event{})
 	return db, nil
-}
-
-// LCSQLite struct defines the Logger Config object that adds a SQLite writer to a Logger
-type LCSQLite struct {
-	out io.Writer
-	fmt log.LogFormatter
 }
 
 // WithSQLite function takes in a path to a .db file, and a table name; and returns a LoggerConfig
@@ -118,16 +111,8 @@ func WithSQLite(path string) log.LoggerConfig {
 		os.Exit(1)
 	}
 
-	//TODO(zalgonoise): benchmark this decision -- confirm if gob is more performant,
-	// considering that JSON will (usually) have less bytes per (small) message
-	return &LCSQLite{
-		out: db,
-		fmt: log.FormatGob,
+	return &log.LCDatabase{
+		Out: db,
+		Fmt: log.FormatProtobuf,
 	}
-}
-
-// Apply method will set the input LoggerBuilder's outputs and format to the LCSQLite object's.
-func (c *LCSQLite) Apply(lb *log.LoggerBuilder) {
-	lb.Out = c.out
-	lb.Fmt = c.fmt
 }

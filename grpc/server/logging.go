@@ -13,7 +13,7 @@ import (
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	pb "github.com/zalgonoise/zlog/proto/message"
+	pb "github.com/zalgonoise/zlog/proto/service"
 )
 
 // UnaryServerLogging returns a new unary server interceptor that adds a gRPC Server Logger
@@ -50,9 +50,9 @@ func UnaryServerLogging(logger log.Logger, withTimer bool) grpc.UnaryServerInter
 			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- message handling failed with an error").Metadata(meta).Build())
 		} else {
 			meta["response"] = event.Field{
-				"id":    res.(*pb.MessageResponse).GetReqID(),
-				"ok":    res.(*pb.MessageResponse).GetOk(),
-				"bytes": res.(*pb.MessageResponse).GetBytes(),
+				"id":    res.(*pb.LogResponse).GetReqID(),
+				"ok":    res.(*pb.LogResponse).GetOk(),
+				"bytes": res.(*pb.LogResponse).GetBytes(),
 			}
 
 			logger.Log(event.New().Level(event.Level_trace).Prefix("gRPC").Sub("logger").Message("[send] unary RPC -- " + method).Metadata(meta).Build())
@@ -162,8 +162,8 @@ func (w loggingStream) SendMsg(m interface{}) error {
 	if err != nil {
 		meta["error"] = err.Error()
 
-		if m.(*pb.MessageResponse).GetReqID() != "" {
-			res["id"] = m.(*pb.MessageResponse).GetReqID()
+		if m.(*pb.LogResponse).GetReqID() != "" {
+			res["id"] = m.(*pb.LogResponse).GetReqID()
 			meta["response"] = res
 		}
 
@@ -172,14 +172,14 @@ func (w loggingStream) SendMsg(m interface{}) error {
 		return err
 	}
 
-	res["id"] = m.(*pb.MessageResponse).GetReqID()
-	res["ok"] = m.(*pb.MessageResponse).GetOk()
-	res["bytes"] = m.(*pb.MessageResponse).GetBytes()
+	res["id"] = m.(*pb.LogResponse).GetReqID()
+	res["ok"] = m.(*pb.LogResponse).GetOk()
+	res["bytes"] = m.(*pb.LogResponse).GetBytes()
 
-	if !m.(*pb.MessageResponse).GetOk() {
+	if !m.(*pb.LogResponse).GetOk() {
 		var err error
-		if m.(*pb.MessageResponse).GetErr() != "" {
-			err = errors.New(m.(*pb.MessageResponse).GetErr())
+		if m.(*pb.LogResponse).GetErr() != "" {
+			err = errors.New(m.(*pb.LogResponse).GetErr())
 		} else {
 			err = ErrMessageParse
 		}

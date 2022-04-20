@@ -9,7 +9,7 @@ import (
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	pb "github.com/zalgonoise/zlog/proto/message"
+	pb "github.com/zalgonoise/zlog/proto/service"
 )
 
 // UnaryServerTiming returns a new unary server interceptor that adds a gRPC Server Logger
@@ -34,7 +34,7 @@ func UnaryServerTiming(logger log.Logger) grpc.UnaryServerInterceptor {
 			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("timer").
 				Message("[send] unary RPC -- message handling failed with an error").Metadata(meta).Build())
 		} else {
-			meta["response"] = event.Field{"id": res.(*pb.MessageResponse).GetReqID()}
+			meta["response"] = event.Field{"id": res.(*pb.LogResponse).GetReqID()}
 
 			logger.Log(event.New().Level(event.Level_trace).Prefix("gRPC").Sub("timer").
 				Message("[send] unary RPC").Metadata(meta).Build())
@@ -124,8 +124,8 @@ func (w timingStream) SendMsg(m interface{}) error {
 	if err != nil {
 		meta["error"] = err.Error()
 
-		if m.(*pb.MessageResponse).GetReqID() != "" {
-			res["id"] = m.(*pb.MessageResponse).GetReqID()
+		if m.(*pb.LogResponse).GetReqID() != "" {
+			res["id"] = m.(*pb.LogResponse).GetReqID()
 			meta["response"] = res
 		}
 
@@ -134,7 +134,7 @@ func (w timingStream) SendMsg(m interface{}) error {
 		return err
 	}
 
-	res["id"] = m.(*pb.MessageResponse).GetReqID()
+	res["id"] = m.(*pb.LogResponse).GetReqID()
 	meta["response"] = res
 
 	w.logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("timer").

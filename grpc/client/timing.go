@@ -10,7 +10,7 @@ import (
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	pb "github.com/zalgonoise/zlog/proto/message"
+	pb "github.com/zalgonoise/zlog/proto/service"
 )
 
 // UnaryClientTiming returns a new unary client interceptor that shows the time taken to complete RPCs
@@ -27,22 +27,22 @@ func UnaryClientTiming(logger log.Logger) grpc.UnaryClientInterceptor {
 				"method": method,
 				"time":   time.Since(now).String(),
 			}).Build())
-		} else if !reply.(*pb.MessageResponse).GetOk() {
+		} else if !reply.(*pb.LogResponse).GetOk() {
 			// handle errors in the response; return the error in the message
 			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("timer").Message("[recv] unary RPC -- message returned a not-OK status").Metadata(event.Field{
-				"error":    reply.(*pb.MessageResponse).GetErr(),
+				"error":    reply.(*pb.LogResponse).GetErr(),
 				"method":   method,
-				"response": event.Field{"id": reply.(*pb.MessageResponse).GetReqID()},
+				"response": event.Field{"id": reply.(*pb.LogResponse).GetReqID()},
 				"time":     time.Since(now).String(),
 			}).Build())
 
-			return errors.New(reply.(*pb.MessageResponse).GetErr())
+			return errors.New(reply.(*pb.LogResponse).GetErr())
 
 		} else {
 			// log an OK transaction
 			logger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("timer").Message("[recv] unary RPC").Metadata(event.Field{
 				"method":   method,
-				"response": event.Field{"id": reply.(*pb.MessageResponse).GetReqID()},
+				"response": event.Field{"id": reply.(*pb.LogResponse).GetReqID()},
 				"time":     time.Since(now).String(),
 			}).Build())
 		}

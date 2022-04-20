@@ -7,7 +7,7 @@ import (
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	pb "github.com/zalgonoise/zlog/proto/message"
+	pb "github.com/zalgonoise/zlog/proto/service"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -34,7 +34,7 @@ func UnaryClientLogging(logger log.Logger, withTimer bool) grpc.UnaryClientInter
 
 		// validate response fields
 		var res = event.Field{}
-		if r, ok := reply.(*pb.MessageResponse); ok && r != nil {
+		if r, ok := reply.(*pb.LogResponse); ok && r != nil {
 			res["ok"] = r.GetOk()
 			res["id"] = r.GetReqID()
 
@@ -62,12 +62,12 @@ func UnaryClientLogging(logger log.Logger, withTimer bool) grpc.UnaryClientInter
 			// handle errors in the transaction
 			meta["error"] = err.Error()
 			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message handling failed with an error").Metadata(meta).Build())
-		} else if !reply.(*pb.MessageResponse).GetOk() {
+		} else if !reply.(*pb.LogResponse).GetOk() {
 			// handle errors in the response; return the error in the message
-			meta["error"] = reply.(*pb.MessageResponse).GetErr()
+			meta["error"] = reply.(*pb.LogResponse).GetErr()
 			logger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("logger").Message("[recv] unary RPC logger -- message returned a not-OK status").Metadata(meta).Build())
 
-			return errors.New(reply.(*pb.MessageResponse).GetErr())
+			return errors.New(reply.(*pb.LogResponse).GetErr())
 
 		} else {
 			// log an OK transaction
@@ -208,8 +208,8 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 	if err != nil {
 		meta["error"] = err.Error()
 
-		if m.(*pb.MessageResponse) != nil && m.(*pb.MessageResponse).GetReqID() != "" {
-			res["id"] = m.(*pb.MessageResponse).GetReqID()
+		if m.(*pb.LogResponse) != nil && m.(*pb.LogResponse).GetReqID() != "" {
+			res["id"] = m.(*pb.LogResponse).GetReqID()
 			meta["response"] = res
 		}
 
@@ -217,16 +217,16 @@ func (w loggingStream) RecvMsg(m interface{}) error {
 		return err
 	}
 
-	res["id"] = m.(*pb.MessageResponse).GetReqID()
-	res["ok"] = m.(*pb.MessageResponse).GetOk()
-	res["bytes"] = m.(*pb.MessageResponse).GetBytes()
+	res["id"] = m.(*pb.LogResponse).GetReqID()
+	res["ok"] = m.(*pb.LogResponse).GetOk()
+	res["bytes"] = m.(*pb.LogResponse).GetBytes()
 
 	// there are no errors in the response; check the response's OK value
 	// if not OK, register this as a local bad response error and continue
-	if !m.(*pb.MessageResponse).GetOk() {
+	if !m.(*pb.LogResponse).GetOk() {
 		var err error
-		if m.(*pb.MessageResponse).GetErr() != "" {
-			err = errors.New(m.(*pb.MessageResponse).GetErr())
+		if m.(*pb.LogResponse).GetErr() != "" {
+			err = errors.New(m.(*pb.LogResponse).GetErr())
 		} else {
 			err = ErrBadResponse
 		}

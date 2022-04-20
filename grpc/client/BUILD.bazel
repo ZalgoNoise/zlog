@@ -15,7 +15,6 @@ go_library(
         "//grpc/address",
         "//log",
         "//log/event",
-        "//proto/message",
         "//proto/service",
         "@com_github_grpc_ecosystem_go_grpc_middleware//:go-grpc-middleware",
         "@org_golang_google_grpc//:go_default_library",

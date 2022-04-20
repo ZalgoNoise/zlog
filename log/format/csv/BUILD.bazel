@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "csv",
+    srcs = ["csv.go"],
+    importpath = "github.com/zalgonoise/zlog/log/format/csv",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//log/event",
+        "//log/format/text",
+    ],
+)

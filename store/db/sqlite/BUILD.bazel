@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "sqlite",
+    srcs = ["sqlite.go"],
+    importpath = "github.com/zalgonoise/zlog/store/db/sqlite",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//store/db",
+        "//store/db/message",
+        "@io_gorm_driver_sqlite//:sqlite",
+        "@io_gorm_gorm//:gorm",
+    ],
+)

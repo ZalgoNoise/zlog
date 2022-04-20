@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "protobuf",
+    srcs = ["protobuf.go"],
+    importpath = "github.com/zalgonoise/zlog/log/format/protobuf",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//log/event",
+        "@org_golang_google_protobuf//proto",
+    ],
+)

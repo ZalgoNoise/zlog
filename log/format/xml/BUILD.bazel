@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "xml",
+    srcs = ["xml.go"],
+    importpath = "github.com/zalgonoise/zlog/log/format/xml",
+    visibility = ["//visibility:public"],
+    deps = ["//log/event"],
+)
+
+go_test(
+    name = "xml_test",
+    srcs = ["xml_test.go"],
+    embed = [":xml"],
+    deps = ["//log/event"],
+)

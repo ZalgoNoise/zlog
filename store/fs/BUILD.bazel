@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "fs",
+    srcs = ["logfile.go"],
+    importpath = "github.com/zalgonoise/zlog/store/fs",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "fs_test",
+    srcs = ["logfile_test.go"],
+    embed = [":fs"],
+)

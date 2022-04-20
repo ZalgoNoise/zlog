@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "mongo",
+    srcs = ["mongo.go"],
+    importpath = "github.com/zalgonoise/zlog/store/db/mongo",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//store/db",
+        "@org_mongodb_go_mongo_driver//bson",
+        "@org_mongodb_go_mongo_driver//mongo",
+        "@org_mongodb_go_mongo_driver//mongo/options",
+    ],
+)

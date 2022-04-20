@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "json",
+    srcs = ["json.go"],
+    importpath = "github.com/zalgonoise/zlog/log/format/json",
+    visibility = ["//visibility:public"],
+    deps = ["//log/event"],
+)

@@ -1,0 +1,39 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@bazel_gazelle//:def.bzl", "gazelle")
+load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
+
+# gazelle:prefix github.com/zalgonoise/zlog
+gazelle(name = "gazelle")
+
+buildifier(
+    name = "buildifier-check",
+    lint_mode = "warn",
+    mode = "check",
+    multi_diff = True,
+)
+
+buildifier(
+    name = "buildifier-fix",
+    lint_mode = "fix",
+    mode = "fix",
+    multi_diff = True,
+)
+
+go_library(
+    name = "zlog_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/zalgonoise/zlog",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//log/format/text",
+        "//store/fs",
+    ],
+)
+
+go_binary(
+    name = "zlog",
+    embed = [":zlog_lib"],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,16 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "postgres",
+    srcs = ["postgres.go"],
+    importpath = "github.com/zalgonoise/zlog/store/db/postgres",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//store/db",
+        "//store/db/message",
+        "@io_gorm_driver_postgres//:postgres",
+        "@io_gorm_gorm//:gorm",
+    ],
+)

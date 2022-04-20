@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "event",
+    srcs = [
+        "builder.go",
+        "event.go",
+        "event.pb.go",
+        "field.go",
+        "level.go",
+    ],
+    importpath = "github.com/zalgonoise/zlog/log/event",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//log/trace",
+        "@org_golang_google_protobuf//encoding/protojson",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//reflect/protoreflect",
+        "@org_golang_google_protobuf//runtime/protoimpl",
+        "@org_golang_google_protobuf//types/known/structpb",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)

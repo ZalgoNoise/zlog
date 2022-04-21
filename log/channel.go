@@ -13,7 +13,7 @@ type ChanneledLogger interface {
 }
 
 // LogChannel struct defines what a minimal logging channel must contain:
-//   - a channel to receive pointers to LogMessages
+//   - a channel to receive pointers to event.Event
 //   - a channel to receive a done signal (to close the goroutine)
 type LogChannel struct {
 	logCh chan *event.Event
@@ -27,7 +27,7 @@ type LogChannel struct {
 // used to spawn a go routine and use its channel to send messages:
 //
 //
-//     logger := log.New("logger", TextFormat)
+//     logger := log.New(log.WithPrefix("logger"), log.CfgTextFormat)
 //     logCh := NewLogCh(logger)
 //
 //	   // then, either the "classic" channeled message approach:
@@ -67,7 +67,7 @@ func NewLogCh(logger Logger) (logCh ChanneledLogger) {
 	return
 }
 
-// Log method will take in any number of pointers to LogMessages, and iterating through each of them,
+// Log method will take in any number of pointers to event.Event, and iterating through each of them,
 // pushing them to the LogMessage channel.
 //
 // As these messages are queued, they will be then printed within the spawned goroutine, using a Logger.Log()
@@ -75,12 +75,12 @@ func NewLogCh(logger Logger) (logCh ChanneledLogger) {
 //
 // This method is a wrapper for not having to call the Channels() method, and then working with these separately
 //
-//     logger := log.New("logger", TextFormat)
+//     logger := log.New(log.WithPrefix("logger"), log.CfgTextFormat)
 //     logCh := NewLogCh(logger)
 //
 //     logCh.Log(
-//       log.NewMessage().Message("this works too").Build(),
-//       log.NewMessage().Message("with many messages").Build(),
+//       event.New().Message("this works too").Build(),
+//       event.New().Message("with many messages").Build(),
 //     )
 //
 //     logCh.Close()
@@ -91,19 +91,21 @@ func (c LogChannel) Log(msg ...*event.Event) {
 	}
 
 	for _, m := range msg {
-		c.logCh <- m
+		if m != nil {
+			c.logCh <- m
+		}
 	}
 }
 
 // Close method will send a signal (an empty struct) to the done channel, triggering the spawned goroutine to
 // return
 //
-//     logger := log.New("logger", TextFormat)
+//     logger := log.New(log.WithPrefix("logger"), log.CfgTextFormat)
 //     logCh := NewLogCh(logger)
 //
 //     logCh.Log(
-//       log.NewMessage().Message("this works too").Build(),
-//       log.NewMessage().Message("with many messages").Build(),
+//       event.New().Message("this works too").Build(),
+//       event.New().Message("with many messages").Build(),
 //     )
 //
 //     logCh.Close()
@@ -115,7 +117,7 @@ func (c LogChannel) Close() {
 // Channels method will return the LogMessage channel and the done channel, so that they can be used
 // directly with the same channel messaging patterns
 //
-//     logger := log.New("logger", TextFormat)
+//     logger := log.New(log.WithPrefix("logger"), log.CfgTextFormat)
 //     logCh := log.NewLogCh(logger)
 //
 //	   ch, done := logCh.Channels()

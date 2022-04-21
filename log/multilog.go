@@ -1,7 +1,6 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -148,9 +147,8 @@ func (l *multiLogger) IsSkipExit() bool {
 // range through all of its configured loggers and execute the same IsSkipExit() method call
 // on each of them -- ensuring that no errors are found through all writes.
 //
-// If errors are found, they are concatenated and returned as a single error. The reasoning for
-// this decision is because the io.Writer interface returns a single error. However, blocking
-// the whole operation if one writer fails seems less approachable
+// If errors are found, they are safely wrapped together and returned as a single error, since
+// the io.Writer implementation involves returning an int and an error, only.
 func (l *multiLogger) Write(p []byte) (n int, err error) {
 
 	var errs []error
@@ -168,7 +166,21 @@ func (l *multiLogger) Write(p []byte) (n int, err error) {
 	}
 
 	if len(errs) > 0 {
-		return -1, errors.New(fmt.Sprint("failed to write with errors: ", errs))
+		if len(errs) == 1 {
+			return -1, errs[0]
+		}
+
+		var err error
+
+		for _, e := range errs {
+			if err == nil {
+				err = e
+			} else {
+				err = fmt.Errorf("%w ; %s", err, e.Error())
+			}
+		}
+
+		return -1, fmt.Errorf("multiple errors when writing message: %w", err)
 	}
 
 	return n, nil

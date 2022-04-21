@@ -11,7 +11,7 @@ import (
 //
 // Besides the "raw" (Output(), Log()) methods, this interface extends
 // the logger's API to have plenty of quick-access methods to print messages
-// on different log levels, without relying on the MessageBuilder
+// on different log levels, without relying on the event.EventBuilder
 //
 // Similar to the standard library fmt package, its methods will follow the
 // same logic and design as an fmt.Print(), fmt.Println(), and fmt.Printf() call
@@ -78,7 +78,7 @@ func (l *logger) checkDefaults(m *event.Event) {
 	}
 }
 
-// Output method will take in a pointer to a LogMessage, apply defaults to any unset elements
+// Output method will take in a pointer to an event.Event, apply defaults to any unset elements
 // (or add its metadata to the message), format it -- and lastly to write it in the output io.Writer
 //
 // The `Output()` method is the the placeholder action to write a generic message to the logger's io.Writer
@@ -151,12 +151,11 @@ func (l *logger) Printf(format string, v ...interface{}) {
 	l.Output(log)
 }
 
-// Log method will take in a pointer to one or more LogMessages, and write it to the Logger's
+// Log method will take in a pointer to one or more event.Events, and write it to the Logger's
 // io.Writer without returning an error message.
 //
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
-// as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
-// Logfiles, this is assumed to be safe.
+// as a blind-write for this Logger.
 func (l *logger) Log(m ...*event.Event) {
 	if len(m) == 0 || m == nil {
 		return
@@ -181,7 +180,8 @@ func (l *logger) Log(m ...*event.Event) {
 // Panic method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Panic.
 //
-// This method will end calling `panic()` with the LogMessage's message content
+// This method will end calling `panic()` with the event.Event's message content, if the logger is not set to
+// skip exit calls.
 func (l *logger) Panic(v ...interface{}) {
 	// build message
 	log := event.New().Level(event.Level_panic).Prefix(l.prefix).Message(
@@ -198,7 +198,8 @@ func (l *logger) Panic(v ...interface{}) {
 // Panicln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Panic.
 //
-// This method will end calling `panic()` with the LogMessage's message content
+// This method will end calling `panic()` with the event.Event's message content, if the logger is not set to
+// skip exit calls.
 func (l *logger) Panicln(v ...interface{}) {
 	// build message
 	log := event.New().Level(event.Level_panic).Prefix(l.prefix).Message(
@@ -216,7 +217,8 @@ func (l *logger) Panicln(v ...interface{}) {
 // Panicf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Panic.
 //
-// This method will end calling `panic()` with the LogMessage's message content
+// This method will end calling `panic()` with the event.Event's message content, if the logger is not set to
+// skip exit calls.
 func (l *logger) Panicf(format string, v ...interface{}) {
 	// build message
 	log := event.New().Level(event.Level_panic).Prefix(l.prefix).Message(
@@ -234,7 +236,7 @@ func (l *logger) Panicf(format string, v ...interface{}) {
 // Fatal method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Fatal.
 //
-// This method will end calling `os.Exit(1)`
+// This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *logger) Fatal(v ...interface{}) {
 	// build message
 	log := event.New().Level(event.Level_fatal).Prefix(l.prefix).Message(
@@ -251,7 +253,7 @@ func (l *logger) Fatal(v ...interface{}) {
 // Fatalln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Fatal.
 //
-// This method will end calling `os.Exit(1)`
+// This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *logger) Fatalln(v ...interface{}) {
 	// build message
 	log := event.New().Level(event.Level_fatal).Prefix(l.prefix).Message(
@@ -268,7 +270,7 @@ func (l *logger) Fatalln(v ...interface{}) {
 // Fatalf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Fatal.
 //
-// This method will end calling `os.Exit(1)`
+// This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *logger) Fatalf(format string, v ...interface{}) {
 	// build message
 	log := event.New().Level(event.Level_fatal).Prefix(l.prefix).Message(
@@ -492,12 +494,11 @@ func (l *multiLogger) Printf(format string, v ...interface{}) {
 	}
 }
 
-// Log method will take in a pointer to a LogMessage, and write it to each Logger's io.Writer
+// Log method will take in a pointer to a event.Event, and write it to each Logger's io.Writer
 // without returning an error message.
 //
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
-// as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
-// Logfiles, this is assumed to be safe.
+// as a blind-write for this Logger.
 func (l *multiLogger) Log(m ...*event.Event) {
 	for _, logger := range l.loggers {
 		logger.Log(m...)
@@ -507,7 +508,8 @@ func (l *multiLogger) Log(m ...*event.Event) {
 // Panic method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern
 // across all configured Loggers, while automatically applying LogLevel Panic.
 //
-// This method will end calling `panic()` with the LogMessage's message content
+// This method will end calling `panic()` with the event.Event's message content, if the logger is not set to
+// skip exit calls.
 func (l *multiLogger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
 
@@ -528,7 +530,8 @@ func (l *multiLogger) Panic(v ...interface{}) {
 // Panicln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern
 // across all configured Loggers, while automatically applying LogLevel Panic.
 //
-// This method will end calling `panic()` with the LogMessage's message content
+// This method will end calling `panic()` with the event.Event's message content, if the logger is not set to
+// skip exit calls.
 func (l *multiLogger) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
 
@@ -544,7 +547,8 @@ func (l *multiLogger) Panicln(v ...interface{}) {
 // Panicf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern
 // across all configured Loggers, while automatically applying LogLevel Panic.
 //
-// This method will end calling `panic()` with the LogMessage's message content
+// This method will end calling `panic()` with the event.Event's message content, if the logger is not set to
+// skip exit calls.
 func (l *multiLogger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
 
@@ -560,7 +564,7 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 // Fatal method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern
 // across all configured Loggers, while automatically applying LogLevel Fatal.
 //
-// This method will end calling `os.Exit(1)`
+// This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatal(v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprint(v...)).Build())
@@ -574,7 +578,7 @@ func (l *multiLogger) Fatal(v ...interface{}) {
 // Fatalln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern
 // across all configured Loggers, while automatically applying LogLevel Fatal.
 //
-// This method will end calling `os.Exit(1)`
+// This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatalln(v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintln(v...)).Build())
@@ -588,7 +592,7 @@ func (l *multiLogger) Fatalln(v ...interface{}) {
 // Fatalf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern
 // across all configured Loggers, while automatically applying LogLevel Fatal.
 //
-// This method will end calling `os.Exit(1)`
+// This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatalf(format string, v ...interface{}) {
 	for _, logger := range l.loggers {
 		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintf(format, v...)).Build())
@@ -741,12 +745,11 @@ func Printf(format string, v ...interface{}) {
 	std.Printf(format, v...)
 }
 
-// Log function will take in a pointer to a LogMessage, and write it to the Logger's io.Writer
+// Log function will take in a pointer to a event.Event, and write it to the Logger's io.Writer
 // without returning an error message.
 //
 // While the resulting error message of running `Logger.Output()` is simply ignored, this is done
-// as a blind-write for this Logger. Since this package also supports creation (and maintainance) of
-// Logfiles, this is assumed to be safe.
+// as a blind-write for this Logger.
 func Log(m ...*event.Event) {
 	std.Log(m...)
 }
@@ -754,7 +757,8 @@ func Log(m ...*event.Event) {
 // Panic function (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Panic.
 //
-// This function will end calling `panic()` with the LogMessage's message content
+// This function will end calling `panic()` with the event.Event's message content, if the logger is not
+// set to skip exit calls.
 func Panic(v ...interface{}) {
 	std.Panic(v...)
 }
@@ -762,7 +766,8 @@ func Panic(v ...interface{}) {
 // Panicln function (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Panic.
 //
-// This function will end calling `panic()` with the LogMessage's message content
+// This function will end calling `panic()` with the event.Event's message content, if the logger is not
+// set to skip exit calls.
 func Panicln(v ...interface{}) {
 	std.Panicln(v...)
 }
@@ -770,7 +775,8 @@ func Panicln(v ...interface{}) {
 // Panicf function (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Panic.
 //
-// This function will end calling `panic()` with the LogMessage's message content
+// This function will end calling `panic()` with the event.Event's message content, if the logger is not
+// set to skip exit calls.
 func Panicf(format string, v ...interface{}) {
 	std.Panicf(format, v...)
 }
@@ -778,7 +784,7 @@ func Panicf(format string, v ...interface{}) {
 // Fatal function (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Fatal.
 //
-// This function will end calling `os.Exit(1)`
+// This function will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func Fatal(v ...interface{}) {
 	std.Fatal(v...)
 }
@@ -786,7 +792,7 @@ func Fatal(v ...interface{}) {
 // Fatalln function (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
 // automatically applying LogLevel Fatal.
 //
-// This function will end calling `os.Exit(1)`
+// This function will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func Fatalln(v ...interface{}) {
 	std.Fatalln(v...)
 }
@@ -794,7 +800,7 @@ func Fatalln(v ...interface{}) {
 // Fatalf function (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
 // automatically applying LogLevel Fatal.
 //
-// This function will end calling `os.Exit(1)`
+// This function will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func Fatalf(format string, v ...interface{}) {
 	std.Fatalf(format, v...)
 }

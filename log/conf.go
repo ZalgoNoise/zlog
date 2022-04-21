@@ -204,11 +204,8 @@ func WithFilter(level event.Level) LoggerConfig {
 	}
 }
 
-// WithDatabase function creates a Logger config to use a database as a writer, with the most efficient
-// encoder in terms of encoding speed and percision.
-//
-// TODO(zalgonoise): benchmark this and Gob encoding -- timing thousands of requests show that JSON is
-// faster (probably because of complex metadata) but this needs to be verified
+// WithDatabase function creates a Logger config to use a database as a writer, while protobuf encoding
+// events, to transmit to writers
 func WithDatabase(dbs ...io.WriteCloser) LoggerConfig {
 	if len(dbs) == 0 {
 		return nil

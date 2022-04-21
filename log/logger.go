@@ -21,8 +21,8 @@
 //     }
 //
 //     type Printer interface {
-//         Output(m *LogMessage) (n int, err error)
-//         Log(m ...*LogMessage)
+//         Output(m *event.Event) (n int, err error)
+//         Log(m ...*event.Event)
 //
 //         Print(v ...interface{})
 //         Println(v ...interface{})
@@ -58,9 +58,9 @@
 //     }
 //
 //     type ChanneledLogger interface {
-//         Log(msg ...*LogMessage)
+//         Log(msg ...*event.Event)
 //         Close()
-//         Channels() (logCh chan *LogMessage, done chan struct{})
+//         Channels() (logCh chan *event.Event, done chan struct{})
 //     }
 //
 // The remaining interfaces found in this package (LoggerConfig interface, LogFormatter interface)
@@ -224,10 +224,10 @@ func (l *logger) AddOuts(outs ...io.Writer) Logger {
 
 // Prefix method will set a Logger-scoped (as opposed to message-scoped) prefix string to the logger
 //
-// Logger-scoped prefix strings can be set in order to avoid calling the `MessageBuilder.Prefix()` method
+// Logger-scoped prefix strings can be set in order to avoid calling the `event.New().Prefix()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function
 //
-// A logger-scoped prefix is not cleared with new Log messages, but `MessageBuilder.Prefix()` calls will
+// A logger-scoped prefix is not cleared with new Log events, but `event.New().Prefix()` calls will
 // replace it.
 func (l *logger) Prefix(prefix string) Logger {
 	l.mu.Lock()
@@ -246,10 +246,10 @@ func (l *logger) Prefix(prefix string) Logger {
 // Sub method will set a Logger-scoped (as opposed to message-scoped) sub-prefix string to the logger
 //
 //
-// Logger-scoped sub-prefix strings can be set in order to avoid calling the `MessageBuilder.Sub()` method
+// Logger-scoped sub-prefix strings can be set in order to avoid calling the `event.New().Sub()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function
 //
-// A logger-scoped sub-prefix is not cleared with new Log messages, but `MessageBuilder.Sub()` calls will
+// A logger-scoped sub-prefix is not cleared with new Log events, but `event.New().Sub()` calls will
 // replace it.
 func (l *logger) Sub(sub string) Logger {
 	l.mu.Lock()
@@ -262,10 +262,10 @@ func (l *logger) Sub(sub string) Logger {
 
 // Fields method will set Logger-scoped (as opposed to message-scoped) metadata fields to the logger
 //
-// Logger-scoped metadata can be set in order to avoid calling the `MessageBuilder.Metadata()` method
+// Logger-scoped metadata can be set in order to avoid calling the `event.New().Metadata()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function.
 //
-// Logger-scoped metadata fields are not cleared with new log messages, but only added to the existing
+// Logger-scoped metadata fields are not cleared with new log events, but only added to the existing
 // metadata map. These can be cleared with a call to `Logger.Fields(nil)`
 func (l *logger) Fields(fields map[string]interface{}) Logger {
 	l.mu.Lock()
@@ -293,13 +293,11 @@ func (l *logger) IsSkipExit() bool {
 // Write method implements the io.Writer interface, to allow a logger to be used in a more
 // abstract way, simply as a writer.
 //
-// To allow support for LogMessages, these can be gob-encoded and passed into this function
-// by calling its Bytes() method.
-//
-// A gob-encoded LogMessage can be decoded by a Logger serving as an io.Writer; and correctly
+// As the event.Event struct is using protocol buffers, this method will check if the message
+// is properly encoded. If it is, it can be decoded by a Logger serving as an io.Writer; and correctly
 // format the message to be written with all fields it contains.
 //
-// Otherwise, if a simple slice of bytes is passed, it is considered to be the LogMessage.Msg
+// Otherwise, if a simple slice of bytes is passed, it is considered to be the event.Event.Msg
 // portion, and the remaining fields will default to the Logger's set elements
 func (l *logger) Write(p []byte) (n int, err error) {
 	// decode bytes

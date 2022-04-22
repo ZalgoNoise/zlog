@@ -289,7 +289,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 	}
 
 	// there are live connections; log input message on each of the remote gRPC Log Servers
-	for remote, conn := range c.addr.Map() {
+	for remote, conn := range c.addr.AsMap() {
 		defer conn.Close()
 		client := pb.NewLogServiceClient(conn)
 
@@ -353,7 +353,7 @@ func (c GRPCLogClient) stream() {
 	}
 
 	// there are live connections; setup a stream with each of the remote gRPC Log Servers
-	for remote, conn := range c.addr.Map() {
+	for remote, conn := range c.addr.AsMap() {
 		logClient := pb.NewLogServiceClient(conn)
 
 		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("stream").Metadata(event.Field{
@@ -544,7 +544,7 @@ func (c GRPCLogClient) handleStreamMessages(
 // sends the done signal to its channel, which causes all open streams to
 // cancel their context and exit gracefully
 func (c GRPCLogClient) Close() {
-	for _, conn := range c.addr.Map() {
+	for _, conn := range c.addr.AsMap() {
 		conn.Close()
 	}
 	c.done <- struct{}{}

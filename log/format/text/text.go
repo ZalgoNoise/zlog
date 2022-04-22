@@ -144,10 +144,7 @@ func (b *FmtTextBuilder) NoLevel() *FmtTextBuilder {
 	return b
 }
 
-// Build method will ensure the mandatory elements of FmtText are set
-// and set them as default if otherwise, returning a pointer to a
-// (custom) FmtText object
-func (b *FmtTextBuilder) Build() *FmtText {
+func (b *FmtTextBuilder) checkDefaults() *FmtTextBuilder {
 	if b.timeFormat == "" {
 		b.timeFormat = LTRFC3339Nano
 	}
@@ -164,6 +161,16 @@ func (b *FmtTextBuilder) Build() *FmtText {
 		b.upper = false
 	}
 
+	return b
+}
+
+// Build method will ensure the mandatory elements of FmtText are set
+// and set them as default if otherwise, returning a pointer to a
+// (custom) FmtText object
+func (b *FmtTextBuilder) Build() *FmtText {
+
+	b.checkDefaults()
+
 	return &FmtText{
 		timeFormat:  b.timeFormat.String(),
 		levelFirst:  b.levelFirst,
@@ -176,9 +183,9 @@ func (b *FmtTextBuilder) Build() *FmtText {
 	}
 }
 
-// Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
+// Format method will take in a pointer to an event.Event; and returns a buffer and an error.
 //
-// This method will process the input LogMessage and marshal it according to this LogFormatter
+// This method will process the input event.Event and marshal it according to this LogFormatter
 func (f *FmtText) Format(log *event.Event) (buf []byte, err error) {
 	var sb strings.Builder
 
@@ -274,6 +281,8 @@ func (f *FmtText) capitalize(s string) string {
 
 }
 
+// FmtMetadata method is a general-purpose converter for map[string]interface{} metadata,
+// to display it in a somewhat human readable format, as a string.
 func (f *FmtText) FmtMetadata(data map[string]interface{}) string {
 	size := len(data)
 
@@ -308,7 +317,7 @@ func (f *FmtText) FmtMetadata(data map[string]interface{}) string {
 			sb.WriteString(k)
 			sb.WriteString(" = [ ")
 			for idx, m := range value {
-				sb.WriteString(f.FmtMetadata(m.ToMap()))
+				sb.WriteString(f.FmtMetadata(m.AsMap()))
 				if idx < len(value)-1 {
 					sb.WriteString("; ")
 				}
@@ -331,7 +340,7 @@ func (f *FmtText) FmtMetadata(data map[string]interface{}) string {
 		case event.Field:
 			sb.WriteString(k)
 			sb.WriteString(" = ")
-			sb.WriteString(f.FmtMetadata(value.ToMap()))
+			sb.WriteString(f.FmtMetadata(value.AsMap()))
 			count++
 			if count < size {
 				sb.WriteString("; ")

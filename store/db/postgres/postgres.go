@@ -3,12 +3,12 @@ package postgres
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	dbw "github.com/zalgonoise/zlog/store/db"
 	model "github.com/zalgonoise/zlog/store/db/message"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -26,8 +26,8 @@ type Postgres struct {
 }
 
 // New function will take in a postgres DB address, port and database name; and create
-// a new instance of a Postgres object; returning a pointer to one and an error.
-func New(address, port, database string) (sqldb dbw.DBWriter, err error) {
+// a new instance of a Postgres object; returning an io.WriteCloser and an error.
+func New(address, port, database string) (sqldb io.WriteCloser, err error) {
 	db, err := initialMigration(address, port, database)
 
 	if err != nil {
@@ -44,7 +44,7 @@ func New(address, port, database string) (sqldb dbw.DBWriter, err error) {
 	return
 }
 
-// Create method will register any number of LogMessages in the Postgres database, returning
+// Create method will register any number of event.Event in the Postgres database, returning
 // an error
 func (d *Postgres) Create(msg ...*event.Event) error {
 	if len(msg) == 0 {
@@ -69,9 +69,7 @@ func (d *Postgres) Create(msg ...*event.Event) error {
 // Write method implements the io.Writer interface, for Postgres DBs to be used with Logger,
 // as its writer.
 //
-// This implementation relies on JSON or gob-encoding the messages, so they are passed onto
-// this writer. Then, it is unmarshalled into a message object which is sent in an Insert()
-// call.
+// The input message is expected to be a protobuf-marshalled event.Event, which is decoded
 func (s *Postgres) Write(p []byte) (n int, err error) {
 	if s.db == nil && s.addr != "" {
 		if s.port == "" {

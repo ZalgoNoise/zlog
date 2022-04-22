@@ -2,11 +2,11 @@ package sqlite
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	dbw "github.com/zalgonoise/zlog/store/db"
 	model "github.com/zalgonoise/zlog/store/db/message"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -19,8 +19,8 @@ type SQLite struct {
 }
 
 // New function will take in a path to a .db file; and create a new
-// instance of a SQLite3 object; returning a pointer to one and an error.
-func New(path string) (sqldb dbw.DBWriter, err error) {
+// instance of a SQLite3 object; returning an io.WriteCloser and an error.
+func New(path string) (sqldb io.WriteCloser, err error) {
 	db, err := initialMigration(path)
 
 	if err != nil {
@@ -35,7 +35,7 @@ func New(path string) (sqldb dbw.DBWriter, err error) {
 	return
 }
 
-// Create method will register any number of LogMessages in the SQLite database, returning
+// Create method will register any number of event.Event in the SQLite database, returning
 // an error
 func (o *SQLite) Create(msg ...*event.Event) error {
 	if len(msg) == 0 {
@@ -60,9 +60,7 @@ func (o *SQLite) Create(msg ...*event.Event) error {
 // Write method implements the io.Writer interface, for SQLite DBs to be used with Logger,
 // as its writer.
 //
-// This implementation relies on JSON or gob-encoding the messages, so they are passed onto
-// this writer. Then, it is unmarshalled into a message object which is sent in an Insert()
-// call.
+// The input message is expected to be a protobuf-marshalled event.Event, which is decoded
 func (s *SQLite) Write(p []byte) (n int, err error) {
 	if s.db == nil && s.path != "" {
 		new, err := New(s.path)

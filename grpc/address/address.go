@@ -8,7 +8,7 @@ import "google.golang.org/grpc"
 type ConnAddr map[string]*grpc.ClientConn
 
 // Map method will return a ConnAddr object in a map[string]*grpc.ClientConn format
-func (a *ConnAddr) Map() map[string]*grpc.ClientConn {
+func (a *ConnAddr) AsMap() map[string]*grpc.ClientConn {
 	return *a
 }
 

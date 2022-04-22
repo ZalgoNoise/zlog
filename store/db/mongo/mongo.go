@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	dbw "github.com/zalgonoise/zlog/store/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -19,6 +19,7 @@ var (
 	ErrNoURI error = errors.New("no URI provided -- supply an environment variable containing the mongodb URI, or set it in the MONGODB_URI environment variable")
 )
 
+// Mongo struct is a wrapper for a MongoDB database to be used as a Log Writer
 type Mongo struct {
 	uri        string
 	addr       string
@@ -27,7 +28,9 @@ type Mongo struct {
 	db         *mongo.Client
 }
 
-func New(address, database, collection string) (dbw.DBWriter, error) {
+// New function will take in a MongoDB address, database and collection names; and
+// create a new instance of a Mongo object; returning an io.WriteCloser and an error.
+func New(address, database, collection string) (io.WriteCloser, error) {
 	// getting the target URI
 	//   mongodb://user:password@127.0.0.1:27017/?maxPoolSize=20&w=majority
 	var uri = strings.Builder{}
@@ -55,6 +58,7 @@ func New(address, database, collection string) (dbw.DBWriter, error) {
 	}, nil
 }
 
+// Close method is used to terminate the live connection to the MongoDB instance.
 func (d *Mongo) Close() error {
 	if err := d.db.Disconnect(context.Background()); err != nil {
 		return err
@@ -62,6 +66,8 @@ func (d *Mongo) Close() error {
 	return nil
 }
 
+// Create method will register any number of event.Event in the Postgres database, returning
+// an error
 func (d *Mongo) Create(msg ...*event.Event) error {
 	if len(msg) == 0 {
 		return nil
@@ -97,6 +103,10 @@ func (d *Mongo) Create(msg ...*event.Event) error {
 	return nil
 }
 
+// Write method implements the io.Writer interface, for Postgres DBs to be used with Logger,
+// as its writer.
+//
+// The input message is expected to be a protobuf-marshalled event.Event, which is decoded
 func (d *Mongo) Write(p []byte) (n int, err error) {
 	if d.db == nil && d.addr != "" {
 		if d.database == "" {

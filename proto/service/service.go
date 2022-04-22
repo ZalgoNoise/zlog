@@ -29,7 +29,7 @@ func init() {
 	close(closedchan)
 }
 
-// LogServer struct defines the elements of a gRPC Log Server, used as a log message, internal logs,
+// LogServer struct defines the elements of a gRPC Log Server, used as a event, internal logs,
 // errors and done channel router, for a GRPCLogServer object.
 type LogServer struct {
 	ErrCh chan error

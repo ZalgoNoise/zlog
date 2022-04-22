@@ -10,11 +10,6 @@ var (
 	ErrShortWrite = errors.New("short write")
 )
 
-// DBWriter interface is a small wrapper for a Database Writer, to be used in a Logger
-type DBWriter interface {
-	io.WriteCloser
-}
-
 type multiWriteCloser struct {
 	writers []io.WriteCloser
 }

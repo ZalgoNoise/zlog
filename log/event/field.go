@@ -10,8 +10,8 @@ import (
 // Field type is a generic type to build Event Metadata
 type Field map[string]interface{}
 
-// ToMap method returns the Field in it's (raw) string-interface{} map format
-func (f Field) ToMap() map[string]interface{} {
+// AsMap method returns the Field in it's (raw) string-interface{} map format
+func (f Field) AsMap() map[string]interface{} {
 	return f
 }
 
@@ -21,7 +21,7 @@ func (f Field) ToMap() map[string]interface{} {
 // The metadata (a map[string]interface{}) is converted to JSON (bytes), and this data is
 // unmarshalled into a *structpb.Struct object.
 func (f Field) ToStructPB() (*structpb.Struct, error) {
-	b, err := json.Marshal(f.ToMap())
+	b, err := json.Marshal(f.AsMap())
 	if err != nil {
 		return nil, err
 	}

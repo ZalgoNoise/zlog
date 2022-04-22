@@ -11,7 +11,7 @@ import (
 )
 
 // FmtCSV struct describes the different manipulations and processing that a CSV LogFormatter
-// can apply to a LogMessage
+// can apply to an event.Event
 type FmtCSV struct {
 	UnixTime bool
 	JsonMeta bool
@@ -28,7 +28,7 @@ type FmtCSVBuilder struct {
 	jsonMeta bool
 }
 
-// NewCSVFormat function will create a new instance of a FmtCSVBuilder
+// New function will create a new instance of a FmtCSVBuilder
 func New() *FmtCSVBuilder {
 	return &FmtCSVBuilder{}
 }
@@ -54,9 +54,9 @@ func (b *FmtCSVBuilder) Build() *FmtCSV {
 	}
 }
 
-// Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
+// Format method will take in a pointer to an event.Event; and returns a buffer and an error.
 //
-// This method will process the input LogMessage and marshal it according to this LogFormatter
+// This method will process the input event.Event and marshal it according to this LogFormatter
 func (f *FmtCSV) Format(log *event.Event) (buf []byte, err error) {
 	b := bytes.NewBuffer(buf)
 	w := csv.NewWriter(b)

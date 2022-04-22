@@ -26,7 +26,7 @@ var (
 //
 // Besides the gRPC-related elements, this struct will contain two Loggers (Logger
 // and SvcLogger). This allows the gRPC Server to both do its job -- and register
-// any (important) log messages to a different output, with its own configuration
+// any (important) log events to a different output, with its own configuration
 // and requirements.
 type GRPCLogServer struct {
 	Addr      string
@@ -167,7 +167,7 @@ func (s GRPCLogServer) listen() net.Listener {
 //
 // This is done via the Output() method which, like the io.Writer, returns the
 // number of bytes written and an error. From this point, depending on the outcome,
-// a pb.MessageResponse object is built and sent to the Responses channel
+// a pb.LogResponse object is built and sent to the Responses channel
 func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 	n, err := s.Logger.Output(logmsg)
 	n32 := int32(n)

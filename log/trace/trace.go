@@ -22,13 +22,15 @@ type goRoutine struct {
 	stack  []callStack
 }
 
+// New function will return the current callstack in a map[string]interface{} format,
+// to be added in an event's metadata
 func New(all bool) map[string]interface{} {
 	return newCallStack().
 		getCallStack(all).
 		splitCallStack().
 		parseCallStack().
 		mapCallStack().
-		toMap()
+		asMap()
 }
 
 func newCallStack() *stacktrace {
@@ -136,16 +138,9 @@ func (s *stacktrace) mapCallStack() *stacktrace {
 	return s
 }
 
-func (s *stacktrace) toMap() map[string]interface{} {
+func (s *stacktrace) asMap() map[string]interface{} {
 	if s.out == nil || len(s.out) <= 0 {
 		s.mapCallStack()
 	}
 	return s.out
 }
-
-// func (s *stacktrace) toField() map[string]interface{} {
-// 	if s.out == nil {
-// 		s.mapCallStack()
-// 	}
-// 	return s.out
-// }

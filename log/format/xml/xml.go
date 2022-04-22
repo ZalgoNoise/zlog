@@ -8,12 +8,12 @@ import (
 )
 
 // FmtXML struct describes the different manipulations and processing that a XML LogFormatter
-// can apply to a LogMessage
+// can apply to an event.Event
 type FmtXML struct{}
 
-// Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
+// Format method will take in a pointer to an event.Event; and returns a buffer and an error.
 //
-// This method will process the input LogMessage and marshal it according to this LogFormatter
+// This method will process the input event.Event and marshal it according to this LogFormatter
 func (f *FmtXML) Format(log *event.Event) (buf []byte, err error) {
 	// remove trailing newline on XML format
 	if log.GetMsg()[len(log.GetMsg())-1] == 10 {
@@ -42,11 +42,17 @@ func (f *FmtXML) Format(log *event.Event) (buf []byte, err error) {
 
 }
 
+// Field type designates how a metadata element should be displayed, in XML
+//
+// As such, each mapped item in an event.Event's metadata will be converted to
+// an object containing key / value elements.
 type Field struct {
 	Key string      `xml:"key,omitempty"`
 	Val interface{} `xml:"value,omitempty"`
 }
 
+// Mappify function will take in a metadata map[string]interface{}, and convert it
+// into a slice of (XML) Fields.
 func Mappify(data map[string]interface{}) []Field {
 	var fields []Field
 
@@ -74,7 +80,7 @@ func Mappify(data map[string]interface{}) []Field {
 
 			for _, im := range value {
 				ifield := Field{}
-				for ik, iv := range im.ToMap() {
+				for ik, iv := range im.AsMap() {
 					ifield.Key = ik
 					ifield.Val = iv
 				}
@@ -94,7 +100,7 @@ func Mappify(data map[string]interface{}) []Field {
 		case event.Field:
 			fields = append(fields, Field{
 				Key: k,
-				Val: Mappify(value.ToMap()),
+				Val: Mappify(value.AsMap()),
 			})
 		default:
 			fields = append(fields, Field{

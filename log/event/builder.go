@@ -8,9 +8,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// EventBuilder struct describes the elements in a Events's builder, which will
+// EventBuilder struct describes the elements in an Events's builder, which will
 // be the target of different changes until its `Build()` method is called -- returning
-// then a pointer to a Events object
+// then a pointer to an Events object
 type EventBuilder struct {
 	time     *time.Time
 	prefix   *string
@@ -20,7 +20,7 @@ type EventBuilder struct {
 	metadata *map[string]interface{}
 }
 
-// New function is the initializer of a EventBuilder. From this call, further
+// New function is the initializer of an EventBuilder. From this call, further
 // EventBuilder methods can be chained since they all return pointers to the same
 //
 // This builder returns an EventBuilder struct with initialized pointers to its elements,
@@ -105,7 +105,7 @@ func (b *EventBuilder) CallStack(all bool) *EventBuilder {
 }
 
 // Build method will create a new timestamp, review all elements in the `EventBuilder`,
-// apply any defaults to non-defined elements, and return a pointer to a Event
+// apply any defaults to non-defined elements, and return a pointer to an Event
 func (b *EventBuilder) Build() *Event {
 	var timestamp *timestamppb.Timestamp
 	var loglevel *Level

@@ -8,12 +8,12 @@ import (
 )
 
 // FmtJSON struct describes the different manipulations and processing that a JSON LogFormatter
-// can apply to a LogMessage
+// can apply to an event.Event
 type FmtJSON struct{}
 
-// Format method will take in a pointer to a LogMessage; and returns a buffer and an error.
+// Format method will take in a pointer to an event.Event; and returns a buffer and an error.
 //
-// This method will process the input LogMessage and marshal it according to this LogFormatter
+// This method will process the input event.Event and marshal it according to this LogFormatter
 func (f *FmtJSON) Format(log *event.Event) (buf []byte, err error) {
 	// remove trailing newline on JSON format
 	if log.GetMsg()[len(log.GetMsg())-1] == 10 {

@@ -489,7 +489,7 @@ func TestStacktraceToMap(t *testing.T) {
 	}
 
 	var verify = func(id int, test test, stack *stacktrace) {
-		callmap := stack.toMap()
+		callmap := stack.asMap()
 
 		for _, v := range callmap {
 			routine := v.(map[string]interface{})

@@ -20,17 +20,20 @@ type multiWriteCloser struct {
 // Writes are sequential. If an error is retrieved from a write, the remainder of the
 // operation is cancelled, returning the error encountered.
 func (m *multiWriteCloser) Write(p []byte) (n int, err error) {
+	var errs []error
+
 	for _, w := range m.writers {
 		n, err = w.Write(p)
 		if err != nil {
-			return
+			errs = append(errs, err)
+			continue
 		}
 		if n != len(p) {
-			err = ErrShortWrite
-			return
+			errs = append(errs, ErrShortWrite)
+			continue
 		}
 	}
-	return len(p), nil
+	return len(p), wrapErrors(errs)
 }
 
 // Close method is a wrapper for io.Closer, which calls this method across all
@@ -54,6 +57,10 @@ func (m *multiWriteCloser) Close() error {
 		}
 	}
 
+	return wrapErrors(errs)
+}
+
+func wrapErrors(errs []error) error {
 	if len(errs) > 0 {
 		if len(errs) == 1 {
 			return errs[0]
@@ -69,7 +76,7 @@ func (m *multiWriteCloser) Close() error {
 			}
 		}
 
-		return fmt.Errorf("multiple errors when closing writers: %w", err)
+		return err
 	}
 
 	return nil
@@ -87,6 +94,15 @@ func (m *multiWriteCloser) Close() error {
 // with the Close() call, which is intended to be sent to all writers regardless of errors
 // retrieved. It will return a single error encapsulating all errors if existing
 func MultiWriteCloser(wc ...io.WriteCloser) io.WriteCloser {
+	if len(wc) == 0 {
+		return nil
+	}
+
+	// short-circuit if one single writer is supplied
+	if len(wc) == 1 {
+		return wc[0]
+	}
+
 	allWriters := make([]io.WriteCloser, 0, len(wc))
 	for _, w := range wc {
 		if mw, ok := w.(*multiWriteCloser); ok {

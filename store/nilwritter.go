@@ -1,6 +1,8 @@
 package store
 
-import "io"
+import (
+	"io"
+)
 
 // EmptyWriter is an exported, initialized nilWriter
 var EmptyWriter io.Writer = nilWritter{}

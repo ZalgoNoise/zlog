@@ -7,14 +7,20 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	module := "Trace"
+	funcname := "New()"
+
 	var tests = []struct {
-		all bool
+		name string
+		all  bool
 	}{
 		{
-			all: true,
+			name: "getting callstack: all = true",
+			all:  true,
 		},
 		{
-			all: false,
+			name: "getting callstack: all = false",
+			all:  false,
 		},
 	}
 
@@ -23,23 +29,31 @@ func TestNew(t *testing.T) {
 
 		if len(stack) == 0 {
 			t.Errorf(
-				"#%v -- FAILED -- trace.New(%v) -- empty map",
+				"#%v -- FAILED -- [%s] [%s] -- empty map -- action: %s",
 				id,
-				test.all,
+				module,
+				funcname,
+				test.name,
 			)
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- trace.NEW(%v)",
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
 			id,
-			test.all,
+			module,
+			funcname,
+			test.name,
 		)
 
 	}
 }
 
 func TestGetCallStack(t *testing.T) {
+	module := "Trace"
+	funcname := "getCallstack()"
+
 	type test struct {
+		name  string
 		stack *stacktrace
 		all   bool
 		want  []byte
@@ -47,11 +61,13 @@ func TestGetCallStack(t *testing.T) {
 
 	var tests = []test{
 		{
+			name:  "getting callstack: all = true",
 			stack: newCallStack(),
 			all:   true,
 			want:  []byte("goroutine"),
 		},
 		{
+			name:  "getting callstack: all = false",
 			stack: newCallStack(),
 			all:   false,
 			want:  []byte("goroutine"),
@@ -61,10 +77,12 @@ func TestGetCallStack(t *testing.T) {
 	var verify = func(id int, test test, stack *stacktrace) {
 		if len(stack.buf) <= 0 {
 			t.Errorf(
-				"#%v -- FAILED -- stacktrace.getCallStack(%v) -- empty buffer error: buffer is %v bytes in length",
+				"#%v -- FAILED -- [%s] [%s] -- empty buffer error: buffer is %v bytes in length -- action: %s",
 				id,
-				test.all,
+				module,
+				funcname,
 				len(stack.buf),
+				test.name,
 			)
 			return
 		}
@@ -73,21 +91,24 @@ func TestGetCallStack(t *testing.T) {
 		for idx, c := range header {
 			if c != test.want[idx] {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v) -- character mismatch error: got %s ; wanted %s",
+					"#%v -- FAILED -- [%s] [%s] -- character mismatch error: got %s ; wanted %s -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					string(test.want),
 					string(header),
+					test.name,
 				)
 				return
 			}
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- stacktrace.getCallStack(%v) -- %s",
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
 			id,
-			test.all,
-			string(stack.buf),
+			module,
+			funcname,
+			test.name,
 		)
 	}
 
@@ -100,7 +121,11 @@ func TestGetCallStack(t *testing.T) {
 }
 
 func TestSplitCallStack(t *testing.T) {
+	module := "Trace"
+	funcname := "splitCallStack()"
+
 	type test struct {
+		name     string
 		stack    *stacktrace
 		all      bool
 		minLines int
@@ -109,18 +134,21 @@ func TestSplitCallStack(t *testing.T) {
 
 	var tests = []test{
 		{
+			name:     "splitting callstack: all = true",
 			stack:    newCallStack().getCallStack(true),
 			all:      true,
 			want:     []byte("goroutine"),
 			minLines: 21,
 		},
 		{
+			name:     "splitting callstack: all = false",
 			stack:    newCallStack().getCallStack(false),
 			all:      false,
 			want:     []byte("goroutine"),
 			minLines: 9,
 		},
 		{
+			name:     "splitting callstack: defaults",
 			stack:    newCallStack(),
 			all:      false,
 			want:     []byte("goroutine"),
@@ -131,21 +159,25 @@ func TestSplitCallStack(t *testing.T) {
 	var verify = func(id int, test test, stack *stacktrace) {
 		if len(stack.buf) <= 0 {
 			t.Errorf(
-				"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack() -- empty buffer error: buffer is %v bytes in length",
+				"#%v -- FAILED -- [%s] [%s] -- empty buffer error: buffer is %v bytes in length -- action: %s",
 				id,
-				test.all,
+				module,
+				funcname,
 				len(stack.buf),
+				test.name,
 			)
 			return
 		}
 
 		if len(stack.split) < test.minLines {
 			t.Errorf(
-				"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack() -- buffer splitting issue: wanted %v lines ; got %v lines",
+				"#%v -- FAILED -- [%s] [%s] -- buffer splitting issue: wanted %v lines ; got %v lines -- action: %s",
 				id,
-				test.all,
+				module,
+				funcname,
 				test.minLines,
 				len(stack.split),
+				test.name,
 			)
 			return
 		}
@@ -154,21 +186,24 @@ func TestSplitCallStack(t *testing.T) {
 		for idx, c := range header {
 			if c != test.want[idx] {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack() -- character mismatch error: got %s ; wanted %s",
+					"#%v -- FAILED -- [%s] [%s] -- character mismatch error: got %s ; wanted %s -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					string(test.want),
 					string(header),
+					test.name,
 				)
 				return
 			}
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- stacktrace.getCallStack(%v).splitCallStack() -- %s",
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
 			id,
-			test.all,
-			string(stack.buf),
+			module,
+			funcname,
+			test.name,
 		)
 	}
 
@@ -180,7 +215,11 @@ func TestSplitCallStack(t *testing.T) {
 }
 
 func TestParseCallStack(t *testing.T) {
+	module := "Trace"
+	funcname := "parseCallStack()"
+
 	type test struct {
+		name        string
 		stack       *stacktrace
 		all         bool
 		minRoutines int
@@ -190,6 +229,7 @@ func TestParseCallStack(t *testing.T) {
 
 	var tests = []test{
 		{
+			name:        "parsing callstack: all = true",
 			stack:       newCallStack().getCallStack(true).splitCallStack(),
 			all:         true,
 			minRoutines: 2,
@@ -197,6 +237,7 @@ func TestParseCallStack(t *testing.T) {
 			want:        []string{"running", "chan receive"},
 		},
 		{
+			name:        "parsing callstack: all = false",
 			stack:       newCallStack().getCallStack(false).splitCallStack(),
 			all:         false,
 			minRoutines: 1,
@@ -204,6 +245,7 @@ func TestParseCallStack(t *testing.T) {
 			want:        []string{"running"},
 		},
 		{
+			name:        "parsing callstack: defaults",
 			stack:       newCallStack(),
 			all:         false,
 			minRoutines: 1,
@@ -215,21 +257,25 @@ func TestParseCallStack(t *testing.T) {
 	var verify = func(id int, test test, stack *stacktrace) {
 		if len(stack.buf) <= 0 {
 			t.Errorf(
-				"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack() -- empty buffer error: buffer is %v bytes in length",
+				"#%v -- FAILED -- [%s] [%s] -- empty buffer error: buffer is %v bytes in length -- action: %s",
 				id,
-				test.all,
+				module,
+				funcname,
 				len(stack.buf),
+				test.name,
 			)
 			return
 		}
 
 		if len(stack.stacks) < test.minRoutines {
 			t.Errorf(
-				"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack() -- parsed less goroutines than expected: wanted %v ; got %v",
+				"#%v -- FAILED -- [%s] [%s] -- parsed less goroutines than expected: wanted %v ; got %v -- aciton: %s",
 				id,
-				test.all,
+				module,
+				funcname,
 				test.minRoutines,
 				len(stack.stacks),
+				test.name,
 			)
 			return
 		}
@@ -238,42 +284,49 @@ func TestParseCallStack(t *testing.T) {
 			id, err := strconv.Atoi(r.id)
 			if err != nil {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack() -- failed to convert ID with error: %s",
+					"#%v -- FAILED -- [%s] [%s] -- failed to convert ID with error: %s -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					err,
+					test.name,
 				)
 				return
 			}
 
 			if id < test.minID {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack() -- ID is lower than minimum: wanted > %v ; got %v",
+					"#%v -- FAILED -- [%s] [%s] -- ID is lower than minimum: wanted > %v ; got %v -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					test.minID,
 					id,
+					test.name,
 				)
 				return
 			}
 
 			if r.status != test.want[idx] {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack() -- status mismatch: wanted %s ; got %s",
+					"#%v -- FAILED -- [%s] [%s] -- status mismatch: wanted %s ; got %s -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					test.want,
 					r.status,
+					test.name,
 				)
 				return
 			}
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack() -- %s",
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
 			id,
-			test.all,
-			string(stack.buf),
+			module,
+			funcname,
+			test.name,
 		)
 	}
 
@@ -285,7 +338,11 @@ func TestParseCallStack(t *testing.T) {
 }
 
 func TestMapCallStack(t *testing.T) {
+	module := "Trace"
+	funcname := "mapCallStack()"
+
 	type test struct {
+		name        string
 		stack       *stacktrace
 		all         bool
 		minRoutines int
@@ -295,6 +352,7 @@ func TestMapCallStack(t *testing.T) {
 
 	var tests = []test{
 		{
+			name:        "mapping callstack: all = true",
 			stack:       newCallStack().getCallStack(true).splitCallStack().parseCallStack(),
 			all:         true,
 			minRoutines: 2,
@@ -302,6 +360,7 @@ func TestMapCallStack(t *testing.T) {
 			want:        []string{"running", "chan receive"},
 		},
 		{
+			name:        "mapping callstack: all = false",
 			stack:       newCallStack().getCallStack(false).splitCallStack().parseCallStack(),
 			all:         false,
 			minRoutines: 1,
@@ -309,6 +368,7 @@ func TestMapCallStack(t *testing.T) {
 			want:        []string{"running"},
 		},
 		{
+			name:        "mapping callstack: defaults",
 			stack:       newCallStack(),
 			all:         false,
 			minRoutines: 1,
@@ -320,21 +380,25 @@ func TestMapCallStack(t *testing.T) {
 	var verify = func(id int, test test, stack *stacktrace) {
 		if len(stack.buf) <= 0 {
 			t.Errorf(
-				"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- empty buffer error: buffer is %v bytes in length",
+				"#%v -- FAILED -- [%s] [%s] -- empty buffer error: buffer is %v bytes in length -- action: %s",
 				id,
-				test.all,
+				module,
+				funcname,
 				len(stack.buf),
+				test.name,
 			)
 			return
 		}
 
 		if len(stack.stacks) < test.minRoutines {
 			t.Errorf(
-				"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- parsed less goroutines than expected: wanted %v ; got %v",
+				"#%v -- FAILED -- [%s] [%s] -- parsed less goroutines than expected: wanted %v ; got %v -- action: %s",
 				id,
-				test.all,
+				module,
+				funcname,
 				test.minRoutines,
 				len(stack.stacks),
+				test.name,
 			)
 			return
 		}
@@ -343,32 +407,38 @@ func TestMapCallStack(t *testing.T) {
 			id, err := strconv.Atoi(r.id)
 			if err != nil {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- failed to convert ID with error: %s",
+					"#%v -- FAILED -- [%s] [%s] -- failed to convert ID with error: %s -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					err,
+					test.name,
 				)
 				return
 			}
 
 			if id < test.minID {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- ID is lower than minimum: wanted > %v ; got %v",
+					"#%v -- FAILED -- [%s] [%s] -- ID is lower than minimum: wanted > %v ; got %v -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					test.minID,
 					id,
+					test.name,
 				)
 				return
 			}
 
 			if r.status != test.want[idx] {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- status mismatch: wanted %s ; got %s",
+					"#%v -- FAILED -- [%s] [%s] -- status mismatch: wanted %s ; got %s -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					test.want,
 					r.status,
+					test.name,
 				)
 				return
 			}
@@ -378,31 +448,37 @@ func TestMapCallStack(t *testing.T) {
 			routine, ok := callmap["goroutine-"+r.id]
 			if !ok {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- field not found in output object: expected key %s, wasn't found",
+					"#%v -- FAILED -- [%s] [%s] -- field not found in output object: expected key %s, wasn't found -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					"goroutine-"+r.id,
+					test.name,
 				)
 				return
 			}
 
 			if routine.(map[string]interface{})["id"] != r.id {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- ID field mismatch: expected %s, got %s",
+					"#%v -- FAILED -- [%s] [%s] -- ID field mismatch: expected %s, got %s -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					r.id,
 					routine.(map[string]interface{})["id"],
+					test.name,
 				)
 				return
 			}
 			if routine.(map[string]interface{})["status"] != test.want[idx] {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- status field mismatch: expected %s, got %s",
+					"#%v -- FAILED -- [%s] [%s] -- status field mismatch: expected %s, got %s -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					test.want[idx],
 					routine.(map[string]interface{})["status"],
+					test.name,
 				)
 				return
 			}
@@ -411,10 +487,12 @@ func TestMapCallStack(t *testing.T) {
 
 			if !ok {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- failed to retrieve stack map: expected key %s, wasn't found",
+					"#%v -- FAILED -- [%s] [%s] -- failed to retrieve stack map: expected key %s, wasn't found -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
 					"stack",
+					test.name,
 				)
 				return
 			}
@@ -422,17 +500,21 @@ func TestMapCallStack(t *testing.T) {
 			for _, f := range stackmap.([]map[string]interface{}) {
 				if f["method"] == "" {
 					t.Errorf(
-						"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- stack map method key is empty",
+						"#%v -- FAILED -- [%s] [%s] -- stack map method key is empty -- action: %s",
 						id,
-						test.all,
+						module,
+						funcname,
+						test.name,
 					)
 					return
 				}
 				if f["reference"] == "" {
 					t.Errorf(
-						"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- stack map reference key is empty",
+						"#%v -- FAILED -- [%s] [%s] -- stack map reference key is empty -- action: %s",
 						id,
-						test.all,
+						module,
+						funcname,
+						test.name,
 					)
 					return
 				}
@@ -441,10 +523,11 @@ func TestMapCallStack(t *testing.T) {
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack() -- %s",
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
 			id,
-			test.all,
-			string(stack.buf),
+			module,
+			funcname,
+			test.name,
 		)
 	}
 
@@ -455,8 +538,12 @@ func TestMapCallStack(t *testing.T) {
 	}
 }
 
-func TestStacktraceToMap(t *testing.T) {
+func TestStacktraceAsMap(t *testing.T) {
+	module := "Trace"
+	funcname := "asMap()"
+
 	type test struct {
+		name        string
 		stack       *stacktrace
 		all         bool
 		minRoutines int
@@ -466,6 +553,7 @@ func TestStacktraceToMap(t *testing.T) {
 
 	var tests = []test{
 		{
+			name:        "converting callstack map: all = true",
 			stack:       newCallStack().getCallStack(true).splitCallStack().parseCallStack().mapCallStack(),
 			all:         true,
 			minRoutines: 2,
@@ -473,6 +561,7 @@ func TestStacktraceToMap(t *testing.T) {
 			want:        []string{"running", "chan receive"},
 		},
 		{
+			name:        "converting callstack map: all = false",
 			stack:       newCallStack().getCallStack(false).splitCallStack().parseCallStack().mapCallStack(),
 			all:         false,
 			minRoutines: 1,
@@ -480,6 +569,7 @@ func TestStacktraceToMap(t *testing.T) {
 			want:        []string{"running"},
 		},
 		{
+			name:        "converting callstack map: defaults",
 			stack:       newCallStack(),
 			all:         false,
 			minRoutines: 1,
@@ -497,9 +587,11 @@ func TestStacktraceToMap(t *testing.T) {
 
 			if routine["id"] == nil || routine["id"] == "" {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack().toMap() -- empty ID field",
+					"#%v -- FAILED -- [%s] [%s] -- empty ID field -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
+					test.name,
 				)
 				return
 			}
@@ -514,28 +606,33 @@ func TestStacktraceToMap(t *testing.T) {
 
 			if !match {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack().toMap() -- status mismatch",
+					"#%v -- FAILED -- [%s] [%s] -- status mismatch -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
+					test.name,
 				)
 				return
 			}
 
 			if len(routine["stack"].([]map[string]interface{})) <= 0 {
 				t.Errorf(
-					"#%v -- FAILED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack().toMap() -- call stack is unexpectedly empty",
+					"#%v -- FAILED -- [%s] [%s] -- call stack is unexpectedly empty -- action: %s",
 					id,
-					test.all,
+					module,
+					funcname,
+					test.name,
 				)
 				return
 			}
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- stacktrace.getCallStack(%v).splitCallStack().parseCallStack().mapCallStack().toMap() -- %s",
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
 			id,
-			test.all,
-			callmap,
+			module,
+			funcname,
+			test.name,
 		)
 	}
 

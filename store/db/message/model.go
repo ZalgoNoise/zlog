@@ -31,7 +31,7 @@ func (m *Event) From(msg *event.Event) error {
 	m.Level = msg.GetLevel().String()
 	m.Msg = msg.GetMsg()
 
-	meta, err := json.Marshal(msg.Meta.AsMap())
+	meta, err := json.Marshal(msg.GetMeta().AsMap())
 
 	if err != nil {
 		return err

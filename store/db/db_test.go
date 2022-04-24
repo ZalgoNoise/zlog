@@ -156,21 +156,23 @@ func TestMultiWriteCloser(t *testing.T) {
 	var verify = func(idx int, test test, out io.WriteCloser) {
 		if !reflect.DeepEqual(out, test.wants) {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] expected results mismatch: wanted %v ; got %v",
+				"#%v -- FAILED -- [%s] [%s] expected results mismatch: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				test.wants,
 				out,
+				test.name,
 			)
 			return
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [%s] [%s]",
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
 			idx,
 			module,
 			funcname,
+			test.name,
 		)
 	}
 
@@ -266,11 +268,12 @@ func TestMultiWriteCloserWrite(t *testing.T) {
 		if err != nil {
 			if len(test.err) == 0 {
 				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] unexpected error: %v",
+					"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 					idx,
 					module,
 					funcname,
 					err,
+					test.name,
 				)
 				return
 			}
@@ -299,7 +302,7 @@ func TestMultiWriteCloserWrite(t *testing.T) {
 
 			if len(errs) != len(testErrs) {
 				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] error length mismatch: wanted %v errors ; got %v -- n: %v -- %v",
+					"#%v -- FAILED -- [%s] [%s] error length mismatch: wanted %v errors ; got %v -- n: %v -- %v -- action: %s",
 					idx,
 					module,
 					funcname,
@@ -307,6 +310,7 @@ func TestMultiWriteCloserWrite(t *testing.T) {
 					len(errs),
 					n,
 					errs,
+					test.name,
 				)
 				return
 			}
@@ -320,22 +324,24 @@ func TestMultiWriteCloserWrite(t *testing.T) {
 				}
 				if !ok {
 					t.Errorf(
-						"#%v -- FAILED -- [%s] [%s] error mismatch: error %v does not match expected: %v",
+						"#%v -- FAILED -- [%s] [%s] error mismatch: error %v does not match expected: %v -- action: %s",
 						idx,
 						module,
 						funcname,
 						e,
 						testErrs,
+						test.name,
 					)
 					return
 				}
 			}
 
 			t.Logf(
-				"#%v -- PASSED -- [%s] [%s]",
+				"#%v -- PASSED -- [%s] [%s] -- action: %s",
 				idx,
 				module,
 				funcname,
+				test.name,
 			)
 		}
 
@@ -430,11 +436,12 @@ func TestMultiWriteCloserClose(t *testing.T) {
 		if err != nil {
 			if len(test.err) == 0 {
 				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] unexpected error: %v",
+					"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 					idx,
 					module,
 					funcname,
 					err,
+					test.name,
 				)
 				return
 			}
@@ -463,13 +470,14 @@ func TestMultiWriteCloserClose(t *testing.T) {
 
 			if len(errs) != len(testErrs) {
 				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] error length mismatch: wanted %v errors ; got %v -- %v",
+					"#%v -- FAILED -- [%s] [%s] error length mismatch: wanted %v errors ; got %v -- %v -- action: %s",
 					idx,
 					module,
 					funcname,
 					len(testErrs),
 					len(errs),
 					errs,
+					test.name,
 				)
 				return
 			}
@@ -483,22 +491,24 @@ func TestMultiWriteCloserClose(t *testing.T) {
 				}
 				if !ok {
 					t.Errorf(
-						"#%v -- FAILED -- [%s] [%s] error mismatch: error %v does not match expected: %v",
+						"#%v -- FAILED -- [%s] [%s] error mismatch: error %v does not match expected: %v -- action: %s",
 						idx,
 						module,
 						funcname,
 						e,
 						testErrs,
+						test.name,
 					)
 					return
 				}
 			}
 
 			t.Logf(
-				"#%v -- PASSED -- [%s] [%s]",
+				"#%v -- PASSED -- [%s] [%s] -- action: %s",
 				idx,
 				module,
 				funcname,
+				test.name,
 			)
 		}
 

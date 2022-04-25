@@ -28,7 +28,6 @@ type EventBuilder struct {
 // protobuf-specific data types
 func New() *EventBuilder {
 	var (
-		time     time.Time
 		prefix   string = Default_Event_Prefix
 		sub      string
 		level    Level = Default_Event_Level
@@ -36,7 +35,6 @@ func New() *EventBuilder {
 	)
 
 	return &EventBuilder{
-		time:     &time,
 		prefix:   &prefix,
 		sub:      &sub,
 		level:    &level,
@@ -94,12 +92,12 @@ func (b *EventBuilder) Metadata(m map[string]interface{}) *EventBuilder {
 // CallStack method will grab the current call stack, and add it as a "callstack" object
 // in the EventBuilder's metadata.
 func (b *EventBuilder) CallStack(all bool) *EventBuilder {
-	if b.metadata == nil {
-		b.metadata = &map[string]interface{}{}
+	if *b.metadata == nil {
+		*b.metadata = map[string]interface{}{}
 	}
 	mcopy := *b.metadata
 	mcopy["callstack"] = trace.New(all)
-	b.metadata = &mcopy
+	*b.metadata = mcopy
 
 	return b
 }
@@ -107,28 +105,26 @@ func (b *EventBuilder) CallStack(all bool) *EventBuilder {
 // Build method will create a new timestamp, review all elements in the `EventBuilder`,
 // apply any defaults to non-defined elements, and return a pointer to an Event
 func (b *EventBuilder) Build() *Event {
-	var timestamp *timestamppb.Timestamp
-	var loglevel *Level
+	var timestamp *timestamppb.Timestamp = timestamppb.Now()
 	var meta *structpb.Struct
 
-	if t := *b.time; t.IsZero() {
-		timestamp = timestamppb.Now()
-	} else {
-		timestamp = timestamppb.New(*b.time)
+	if b.level == nil {
+		b.level = new(Level)
+		*b.level = Default_Event_Level
 	}
 
 	if b.prefix == nil {
+		b.prefix = new(string)
 		*b.prefix = Default_Event_Prefix
 	}
 
-	if b.level == nil {
-		*loglevel = Default_Event_Level
-	} else {
-		loglevel = b.level
+	if b.sub == nil {
+		b.sub = new(string)
+		*b.sub = ""
 	}
 
 	if b.metadata == nil {
-		meta = &structpb.Struct{}
+		meta = new(structpb.Struct)
 	} else {
 		f := Field(*b.metadata)
 		meta = f.Encode()
@@ -138,7 +134,7 @@ func (b *EventBuilder) Build() *Event {
 		Time:   timestamp,
 		Prefix: b.prefix,
 		Sub:    b.sub,
-		Level:  loglevel,
+		Level:  b.level,
 		Msg:    &b.msg,
 		Meta:   meta,
 	}

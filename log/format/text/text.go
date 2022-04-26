@@ -85,7 +85,7 @@ type FmtTextBuilder struct {
 
 // New function will initialize a FmtTextBuilder
 func New() *FmtTextBuilder {
-	return &FmtTextBuilder{}
+	return new(FmtTextBuilder)
 }
 
 // Time method will set a FmtTextBuilder's timeFormat, and return itself

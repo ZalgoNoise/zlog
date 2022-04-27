@@ -268,7 +268,13 @@ func (f *FmtText) fmtTime(t time.Time) string {
 
 func (f *FmtText) colorize(level string) string {
 	if f.colored && runtime.GOOS != "windows" {
-		return levelColorMap[level] + f.capitalize(level) + colorReset
+
+		var sb strings.Builder
+		sb.WriteString(levelColorMap[level])
+		sb.WriteString(f.capitalize(level))
+		sb.WriteString(colorReset)
+
+		return sb.String()
 	}
 	return f.capitalize(level)
 }

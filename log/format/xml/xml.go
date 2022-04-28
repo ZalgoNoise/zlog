@@ -4,32 +4,32 @@ import (
 	"encoding/xml"
 	"time"
 
-	"github.com/zalgonoise/zlog/log/event"
+	e "github.com/zalgonoise/zlog/log/event"
 )
 
 // FmtXML struct describes the different manipulations and processing that a XML LogFormatter
 // can apply to an event.Event
 type FmtXML struct{}
 
+type entry struct {
+	Time     time.Time `xml:"timestamp,omitempty"`
+	Prefix   string    `xml:"service,omitempty"`
+	Sub      string    `xml:"module,omitempty"`
+	Level    string    `xml:"level,omitempty"`
+	Msg      string    `xml:"message,omitempty"`
+	Metadata []Field   `xml:"metadata,omitempty"`
+}
+
 // Format method will take in a pointer to an event.Event; and returns a buffer and an error.
 //
 // This method will process the input event.Event and marshal it according to this LogFormatter
-func (f *FmtXML) Format(log *event.Event) (buf []byte, err error) {
+func (f *FmtXML) Format(log *e.Event) (buf []byte, err error) {
 	// remove trailing newline on XML format
 	if log.GetMsg()[len(log.GetMsg())-1] == 10 {
 		*log.Msg = log.GetMsg()[:len(log.GetMsg())-1]
 	}
 
-	type Event struct {
-		Time     time.Time `xml:"timestamp,omitempty"`
-		Prefix   string    `xml:"service,omitempty"`
-		Sub      string    `xml:"module,omitempty"`
-		Level    string    `xml:"level,omitempty"`
-		Msg      string    `xml:"message,omitempty"`
-		Metadata []Field   `xml:"metadata,omitempty"`
-	}
-
-	xmlMsg := &Event{
+	xmlMsg := &entry{
 		Time:     log.Time.AsTime(),
 		Prefix:   log.GetPrefix(),
 		Sub:      log.GetSub(),
@@ -75,7 +75,7 @@ func Mappify(data map[string]interface{}) []Field {
 				Key: k,
 				Val: f,
 			})
-		case []event.Field:
+		case []e.Field:
 			f := []Field{}
 
 			for _, im := range value {
@@ -97,7 +97,7 @@ func Mappify(data map[string]interface{}) []Field {
 				Key: k,
 				Val: Mappify(value),
 			})
-		case event.Field:
+		case e.Field:
 			fields = append(fields, Field{
 				Key: k,
 				Val: Mappify(value.AsMap()),

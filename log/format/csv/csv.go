@@ -17,6 +17,8 @@ type FmtCSV struct {
 	JsonMeta bool
 }
 
+type entry [6]string
+
 // FmtCSVBuilder struct allows creating custom CSV Formatters. Its default values will leave
 // its supported options set as false, so it's not required to always use this struct.
 //
@@ -89,7 +91,7 @@ func (f *FmtCSV) Format(log *event.Event) (buf []byte, err error) {
 
 	// default format for:
 	// "timestamp","level","prefix","sub","message","metadata"
-	record := []string{
+	record := entry{
 		t,
 		log.GetLevel().String(),
 		log.GetPrefix(),
@@ -98,7 +100,7 @@ func (f *FmtCSV) Format(log *event.Event) (buf []byte, err error) {
 		m,
 	}
 
-	if err = w.Write(record); err != nil {
+	if err = w.Write(record[:]); err != nil {
 		return nil, err
 	}
 

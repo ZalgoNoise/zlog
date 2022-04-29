@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/zalgonoise/zlog/log/event"
 	"github.com/zalgonoise/zlog/log/format/text"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // FmtCSV struct describes the different manipulations and processing that a CSV LogFormatter
@@ -68,7 +71,7 @@ func (f *FmtCSV) Format(log *event.Event) (buf []byte, err error) {
 
 	if f.UnixTime {
 		// Unix micros in string format
-		t = strconv.FormatInt(log.Time.AsTime().Unix(), 10)
+		t = strconv.FormatInt(log.Time.AsTime().UnixNano(), 10)
 	} else {
 		// RFC 3339 timestamp in string format
 		t = log.Time.AsTime().Format(text.LTRFC3339Nano.String())
@@ -111,4 +114,86 @@ func (f *FmtCSV) Format(log *event.Event) (buf []byte, err error) {
 	}
 	return b.Bytes(), nil
 
+}
+
+func Decode(buf []byte) (*event.Event, error) {
+	b := bytes.NewBuffer(buf)
+	r := csv.NewReader(b)
+
+	record, err := r.Read()
+
+	if err != nil {
+		return nil, err
+	}
+
+	meta := new(map[string]interface{})
+	err = json.Unmarshal([]byte(record[5]), meta)
+
+	if err != nil {
+		return nil, err
+	}
+
+	timestamp, err := convTime(record[0])
+
+	e := event.New().
+		Level(event.Level(event.Level_value[record[1]])).
+		Prefix(record[2]).
+		Sub(record[3]).
+		Message(record[4]).
+		Metadata(*meta).
+		Build()
+
+	e.Time = timestamppb.New(timestamp)
+
+	return e, nil
+}
+
+func convTime(in string) (out time.Time, err error) {
+	rfcTime, rErr := convRFC3339(in)
+
+	if rErr != nil {
+		err = fmt.Errorf("RFC3339 timestamp conversion failed: %w", rErr)
+
+		unixTime, uErr := convUnix(in)
+
+		if uErr != nil {
+			uerr := fmt.Errorf("unix timestamp conversion failed: %w", uErr)
+			err = fmt.Errorf("failed to convert timestamp with either method -- %w", uerr)
+			return
+		}
+
+		out = unixTime
+		err = nil
+
+		return
+
+	}
+
+	out = rfcTime
+	err = nil
+
+	return
+}
+
+func convRFC3339(t string) (time.Time, error) {
+	return time.Parse(text.LTRFC3339Nano.String(), t)
+}
+
+func convUnix(t string) (time.Time, error) {
+	var out time.Time
+
+	usec := t[:10]
+	unano := t[len(t)-9:]
+
+	unixtime, err := strconv.ParseInt(usec, 10, 64)
+
+	if err != nil {
+		return out, err
+	}
+
+	unixnano, err := strconv.ParseInt(unano, 10, 64)
+	if err != nil {
+		return out, err
+	}
+	return time.Unix(unixtime, unixnano), nil
 }

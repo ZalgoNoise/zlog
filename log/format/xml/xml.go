@@ -29,13 +29,15 @@ func (f *FmtXML) Format(log *e.Event) (buf []byte, err error) {
 		*log.Msg = log.GetMsg()[:len(log.GetMsg())-1]
 	}
 
+	meta := log.GetMeta().AsMap()
+
 	xmlMsg := &entry{
 		Time:     log.Time.AsTime(),
 		Prefix:   log.GetPrefix(),
 		Sub:      log.GetSub(),
 		Level:    log.GetLevel().String(),
 		Msg:      log.GetMsg(),
-		Metadata: Mappify(log.GetMeta().AsMap()),
+		Metadata: Mappify(meta),
 	}
 
 	return xml.Marshal(xmlMsg)
@@ -49,6 +51,46 @@ func (f *FmtXML) Format(log *e.Event) (buf []byte, err error) {
 type Field struct {
 	Key string      `xml:"key,omitempty"`
 	Val interface{} `xml:"value,omitempty"`
+}
+
+func mapField(f Field) (k string, v interface{}) {
+	k = f.Key
+	v = procField(f.Val)
+	return
+}
+
+func procField(in interface{}) interface{} {
+	switch t := in.(type) {
+	case []Field:
+		if len(t) == 1 {
+			m := map[string]interface{}{}
+			m[t[0].Key] = t[0].Val
+			return m
+		}
+
+		sm := []map[string]interface{}{}
+
+		for _, field := range t {
+
+			inner := map[string]interface{}{}
+			k, v := mapField(field)
+			inner[k] = v
+
+			sm = append(sm, inner)
+
+		}
+		return sm
+	default:
+		return in
+	}
+}
+
+func mapMetadata(f []Field) map[string]interface{} {
+	out := map[string]interface{}{}
+
+	k, v := mapField(f[0])
+	out[k] = v
+	return out
 }
 
 // Mappify function will take in a metadata map[string]interface{}, and convert it

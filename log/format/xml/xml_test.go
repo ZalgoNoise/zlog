@@ -1,6 +1,8 @@
 package xml
 
 import (
+	"encoding/json"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -25,6 +27,16 @@ func TestFormat(t *testing.T) {
 			name:  "simple event",
 			e:     event.New().Message("null\n").Build(),
 			regex: `<entry><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z<\/timestamp><service>log<\/service><level>info<\/level><message>null<\/message><\/entry>`,
+		},
+		{
+			name:  "simple event; metadata with empty map",
+			e:     event.New().Message("null\n").Metadata(map[string]interface{}{"empty": map[string]interface{}{}}).Build(),
+			regex: `<entry><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z<\/timestamp><service>log<\/service><level>info<\/level><message>null<\/message><metadata><key>empty<\/key><\/metadata><\/entry>`,
+		},
+		{
+			name:  "complete event",
+			e:     event.New().Prefix("test").Sub("testing").Level(event.Level_warn).Message("null").Metadata(event.Field{"a": true}).Build(),
+			regex: `<entry><timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z<\/timestamp><service>test<\/service><module>testing<\/module><level>warn<\/level><message>null<\/message><metadata><key>a<\/key><value>true<\/value><\/metadata><\/entry>`,
 		},
 	}
 
@@ -95,20 +107,19 @@ func TestMappify(t *testing.T) {
 	type test struct {
 		name string
 		data map[string]interface{}
-		obj  []Field
 	}
 
 	var tests = []test{
 		{
+			name: "boolean obj",
+			data: map[string]interface{}{
+				"data": true,
+			},
+		},
+		{
 			name: "simple obj",
 			data: map[string]interface{}{
 				"data": "object",
-			},
-			obj: []Field{
-				{
-					Key: "data",
-					Val: "object",
-				},
 			},
 		},
 		{
@@ -116,17 +127,6 @@ func TestMappify(t *testing.T) {
 			data: map[string]interface{}{
 				"data": map[string]interface{}{
 					"a": 1,
-				},
-			},
-			obj: []Field{
-				{
-					Key: "data",
-					Val: []Field{
-						{
-							Key: "a",
-							Val: 1,
-						},
-					},
 				},
 			},
 		},
@@ -137,33 +137,12 @@ func TestMappify(t *testing.T) {
 					"a": 1,
 				},
 			},
-			obj: []Field{
-				{
-					Key: "data",
-					Val: []Field{
-						{
-							Key: "a",
-							Val: 1,
-						},
-					},
-				},
-			},
 		},
 		{
 			name: "with slice of maps",
 			data: map[string]interface{}{
 				"data": []map[string]interface{}{
 					{"a": 1}, {"b": 2}, {"c": 3},
-				},
-			},
-			obj: []Field{
-				{
-					Key: "data",
-					Val: []Field{
-						{Key: "a", Val: 1},
-						{Key: "b", Val: 2},
-						{Key: "c", Val: 3},
-					},
 				},
 			},
 		},
@@ -174,16 +153,6 @@ func TestMappify(t *testing.T) {
 					{"a": 1}, {"b": 2}, {"c": 3},
 				},
 			},
-			obj: []Field{
-				{
-					Key: "data",
-					Val: []Field{
-						{Key: "a", Val: 1},
-						{Key: "b", Val: 2},
-						{Key: "c", Val: 3},
-					},
-				},
-			},
 		},
 	}
 
@@ -191,46 +160,24 @@ func TestMappify(t *testing.T) {
 
 		fields := Mappify(test.data)
 
-		if len(fields) != len(test.obj) {
+		conv := mapMetadata(fields)
+
+		tm, _ := json.Marshal(test.data)
+		om, _ := json.Marshal(conv)
+
+		if !reflect.DeepEqual(om, tm) {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] -- object len %v does not match expected len %v -- action: %s",
+				"#%v -- FAILED -- [%s] [%s] -- output mismatch error: wanted %v ; got %v -- raw-want: %s ; raw-got: %s -- action: %s",
 				id,
 				module,
 				funcname,
-				len(fields),
-				len(test.obj),
+				test.data,
+				conv,
+				string(tm),
+				string(om),
 				test.name,
 			)
 			return
-		}
-
-		for i := 0; i < len(fields); i++ {
-			if fields[i].Key != test.obj[i].Key {
-				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] -- object key mismatch: wanted %s ; got %s -- action: %s",
-					id,
-					module,
-					funcname,
-					test.obj[i].Key,
-					fields[i].Key,
-					test.name,
-				)
-				return
-			}
-
-			ok := match(fields[i].Val, test.obj[i].Val)
-			if !ok {
-				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] -- object value mismatch: wanted %s ; got %s -- action: %s",
-					id,
-					module,
-					funcname,
-					test.obj[i].Val,
-					fields[i].Val,
-					test.name,
-				)
-				return
-			}
 		}
 
 		t.Logf(

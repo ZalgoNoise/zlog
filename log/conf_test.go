@@ -1,23 +1,30 @@
 package log
 
 import (
-	"bytes"
+	"io"
 	"os"
 	"reflect"
 	"testing"
 
-	"github.com/zalgonoise/zlog/log/format/json"
-	"github.com/zalgonoise/zlog/store"
+	"github.com/zalgonoise/zlog/log/event"
 )
 
 func TestMultiConf(t *testing.T) {
+	module := "LoggerConfig"
+	funcname := "MultiConf()"
+
+	_ = module
+	_ = funcname
+
 	type test struct {
+		name string
 		conf LoggerConfig
 		want *LoggerBuilder
 	}
 
 	tests := []test{
 		{
+			name: "default MultiConf()",
 			conf: MultiConf(),
 			want: &LoggerBuilder{
 				Out:         os.Stderr,
@@ -29,6 +36,7 @@ func TestMultiConf(t *testing.T) {
 			},
 		},
 		{
+			name: "MultiConf() w/ SkipExit, JSON format, and StdOut config",
 			conf: MultiConf(SkipExit, WithFormat(FormatJSON), StdOut),
 			want: &LoggerBuilder{
 				Out:         os.Stderr,
@@ -40,6 +48,7 @@ func TestMultiConf(t *testing.T) {
 			},
 		},
 		{
+			name: "MultiConf() w/ SkipExit, Level filter, and custom prefix",
 			conf: MultiConf(SkipExit, FilterInfo, WithPrefix("test")),
 			want: &LoggerBuilder{
 				Out:         nil,
@@ -52,80 +61,41 @@ func TestMultiConf(t *testing.T) {
 		},
 	}
 
-	var verify = func(id int, test test, builder *LoggerBuilder) {
-		if builder.Out != test.want.Out {
-			t.Errorf(
-				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching outputs: got %v ; expected %v",
-				id,
-				builder.Out,
-				test.want.Out,
-			)
-			return
-		}
+	var init = func(test test) *LoggerBuilder {
+		builder := &LoggerBuilder{}
 
-		if builder.Prefix != test.want.Prefix {
-			t.Errorf(
-				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching prefixes: got %s ; expected %s",
-				id,
-				builder.Prefix,
-				test.want.Prefix,
-			)
-			return
-		}
+		MultiConf(test.conf).Apply(builder)
 
-		if builder.Sub != test.want.Sub {
-			t.Errorf(
-				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching sub-prefixes: got %s ; expected %s",
-				id,
-				builder.Sub,
-				test.want.Sub,
-			)
-			return
-		}
+		return builder
+	}
 
-		if builder.Fmt != test.want.Fmt {
-			t.Errorf(
-				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching formats: got %v ; expected %v",
-				id,
-				builder.Fmt,
-				test.want.Fmt,
-			)
-			return
-		}
+	var verify = func(idx int, test test) {
+		builder := init(test)
 
-		if builder.SkipExit != test.want.SkipExit {
+		if !reflect.DeepEqual(*builder, *test.want) {
 			t.Errorf(
-				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching skip-exit opts: got %v ; expected %v",
-				id,
-				builder.SkipExit,
-				test.want.SkipExit,
-			)
-			return
-		}
-
-		if builder.LevelFilter != test.want.LevelFilter {
-			t.Errorf(
-				"#%v -- FAILED -- [Conf] MultiConf(...confs) -- mismatching level filters: got %v ; expected %v",
-				id,
-				builder.LevelFilter,
-				test.want.LevelFilter,
+				"#%v -- FAILED -- [%s] [%s] -- output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				*test.want,
+				*builder,
+				test.name,
 			)
 			return
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [Conf] MultiConf(...confs)",
-			id,
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
+			module,
+			funcname,
+			test.name,
 		)
 	}
 
-	for id, test := range tests {
-		builder := &LoggerBuilder{}
-
-		MultiConf(test.conf).Apply(builder)
-
-		verify(id, test, builder)
-
+	for idx, test := range tests {
+		verify(idx, test)
 	}
 
 }
@@ -135,28 +105,14 @@ func TestNilLogger(t *testing.T) {
 	funcname := "NilLogger()"
 
 	type test struct {
+		name  string
 		input []LoggerConfig
 		wants Logger
 	}
 
 	var tests = []test{
 		{
-			input: []LoggerConfig{
-				WithOut(),
-				WithPrefix("test"),
-				WithSub("new"),
-				WithFormat(FormatJSON),
-			},
-			wants: &logger{
-				out:         os.Stderr,
-				prefix:      "test",
-				sub:         "new",
-				fmt:         &json.FmtJSON{},
-				skipExit:    false,
-				levelFilter: 0,
-			},
-		},
-		{
+			name: "test nil logger config routine",
 			input: []LoggerConfig{
 				NilLogger(),
 			},
@@ -164,355 +120,273 @@ func TestNilLogger(t *testing.T) {
 		},
 	}
 
-	var verify = func(id int, test test, input Logger) {
-		switch v := input.(type) {
-		case *logger:
-			if !reflect.DeepEqual(v, test.wants.(*logger)) {
-				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] -- logger mismatch: wanted %v ; got %v",
-					id,
-					module,
-					funcname,
-					test.wants.(*logger),
-					v,
-				)
-				return
-			}
-
-		case *nilLogger:
-			var checkWriter bool = false
-			var checkExit bool = false
-			var isNil bool = false
-
-			for _, v := range test.input {
-				if multi, ok := v.(*multiconf); ok {
-					for _, conf := range multi.confs {
-						if out, ok := conf.(*LCOut); ok && out.out == store.EmptyWriter {
-							checkWriter = true
-						}
-						if _, ok := conf.(*LCSkipExit); ok {
-							checkExit = true
-						}
-					}
-				}
-			}
-
-			_, isNil = input.(*nilLogger)
-
-			if !checkWriter || !checkExit || !isNil {
-				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] -- nilLogger checks failed: check writer: %v ; check exit: %v ; check nilLogger type: %v",
-					id,
-					module,
-					funcname,
-					checkWriter,
-					checkExit,
-					isNil,
-				)
-				return
-			}
-		}
+	var init = func(test test) Logger {
+		return New(test.input...)
 	}
 
-	for id, test := range tests {
-		logger := New(test.input...)
+	var verify = func(idx int, test test) {
+		input := init(test)
 
-		verify(id, test, logger)
+		if !reflect.DeepEqual(*input.(*nilLogger), *test.wants.(*nilLogger)) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				*test.wants.(*nilLogger),
+				*input.(*nilLogger),
+				test.wants,
+			)
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
+			module,
+			funcname,
+			test.wants,
+		)
+	}
+
+	for idx, test := range tests {
+
+		verify(idx, test)
 
 	}
 }
 
-func TestLCPrefix(t *testing.T) {
-	type test struct {
-		conf LoggerConfig
-		want *LoggerBuilder
-	}
+func FuzzPrefix(f *testing.F) {
+	module := "LoggerConfig"
+	funcname := "WithPrefix()"
 
-	tests := []test{
-		{
-			conf: WithPrefix(""),
-			want: &LoggerBuilder{
-				Prefix: "",
-			},
-		},
-		{
-			conf: WithPrefix("log"),
-			want: &LoggerBuilder{
-				Prefix: "log",
-			},
-		},
-		{
-			conf: WithPrefix("test"),
-			want: &LoggerBuilder{
-				Prefix: "test",
-			},
-		},
-	}
+	f.Add("test-prefix")
+	f.Fuzz(func(t *testing.T, a string) {
+		e := WithPrefix(a)
 
-	var verify = func(id int, test test, builder *LoggerBuilder) {
+		builder := &LoggerBuilder{}
 
-		if builder.Prefix != test.want.Prefix {
+		e.Apply(builder)
+
+		if builder.Prefix != a {
 			t.Errorf(
-				"#%v -- FAILED -- [Conf] WithPrefix(prefix) -- mismatching prefixes: got %s ; expected %s",
-				id,
+				"FAILED -- [%s] [%s] fuzzed prefix mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
 				builder.Prefix,
-				test.want.Prefix,
 			)
-			return
 		}
-
-		t.Logf(
-			"#%v -- PASSED -- [Conf] WithPrefix(prefix)",
-			id,
-		)
-	}
-
-	for id, test := range tests {
-		builder := &LoggerBuilder{}
-
-		test.conf.Apply(builder)
-
-		verify(id, test, builder)
-	}
+	})
 }
 
-func TestLCSub(t *testing.T) {
-	type test struct {
-		conf LoggerConfig
-		want *LoggerBuilder
-	}
+func FuzzSub(f *testing.F) {
+	module := "LoggerConfig"
+	funcname := "WithSub()"
 
-	tests := []test{
-		{
-			conf: WithSub(""),
-			want: &LoggerBuilder{
-				Sub: "",
-			},
-		},
-		{
-			conf: WithSub("log"),
-			want: &LoggerBuilder{
-				Sub: "log",
-			},
-		},
-		{
-			conf: WithSub("test"),
-			want: &LoggerBuilder{
-				Sub: "test",
-			},
-		},
-	}
+	f.Add("test-sub")
+	f.Fuzz(func(t *testing.T, a string) {
+		e := WithSub(a)
 
-	var verify = func(id int, test test, builder *LoggerBuilder) {
+		builder := &LoggerBuilder{}
 
-		if builder.Sub != test.want.Sub {
+		e.Apply(builder)
+
+		if builder.Sub != a {
 			t.Errorf(
-				"#%v -- FAILED -- [Conf] WithSub(sub) -- mismatching sub-prefixes: got %s ; expected %s",
-				id,
-				builder.Prefix,
-				test.want.Prefix,
+				"FAILED -- [%s] [%s] fuzzed sub-prefix mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				builder.Sub,
 			)
-			return
 		}
-
-		t.Logf(
-			"#%v -- PASSED -- [Conf] WithSub(sub)",
-			id,
-		)
-	}
-
-	for id, test := range tests {
-		builder := &LoggerBuilder{}
-
-		test.conf.Apply(builder)
-
-		verify(id, test, builder)
-	}
+	})
 }
 
-func TestLCOut(t *testing.T) {
+func TestOut(t *testing.T) {
+	module := "LoggerConfig"
+	funcname := "WithOut()"
+
+	_ = module
+	_ = funcname
+
 	type test struct {
-		conf LoggerConfig
-		want *LoggerBuilder
+		name  string
+		outs  []io.Writer
+		wants *LCOut
 	}
 
-	buf := &bytes.Buffer{}
-
-	tests := []test{
+	var tests = []test{
 		{
-			conf: WithOut(),
-			want: &LoggerBuilder{
-				Out: os.Stderr,
-			},
+			name:  "test defaults",
+			outs:  []io.Writer{},
+			wants: &LCOut{out: os.Stderr},
 		},
 		{
-			conf: WithOut(os.Stderr),
-			want: &LoggerBuilder{
-				Out: os.Stderr,
-			},
+			name:  "test single writer",
+			outs:  []io.Writer{os.Stdout},
+			wants: &LCOut{out: os.Stdout},
 		},
 		{
-			conf: WithOut(buf),
-			want: &LoggerBuilder{
-				Out: buf,
-			},
+			name:  "test multi writers",
+			outs:  []io.Writer{os.Stdout, os.Stderr},
+			wants: &LCOut{out: io.MultiWriter(os.Stdout, os.Stderr)},
 		},
 	}
 
-	var verify = func(id int, test test, builder *LoggerBuilder) {
+	var init = func(test test) LoggerConfig {
+		return WithOut(test.outs...)
+	}
+	var verify = func(idx int, test test) {
+		conf := init(test)
 
-		if builder.Out != test.want.Out {
+		if !reflect.DeepEqual(conf.(*LCOut).out, test.wants.out) {
 			t.Errorf(
-				"#%v -- FAILED -- [Conf] WithOut(...Outs) -- mismatching outputs: got %v ; expected %v",
-				id,
-				builder.Out,
-				test.want.Out,
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				*test.wants,
+				*conf.(*LCOut),
+				test.name,
 			)
-			return
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [Conf] WithOut(...Outs)",
-			id,
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
+			module,
+			funcname,
+			test.name,
 		)
 	}
 
-	for id, test := range tests {
-		builder := &LoggerBuilder{}
-
-		test.conf.Apply(builder)
-
-		verify(id, test, builder)
+	for idx, test := range tests {
+		verify(idx, test)
 	}
 }
 
-func TestLCSkipExit(t *testing.T) {
+func TestSkipExit(t *testing.T) {
+	module := "LoggerConfig"
+	funcname := "SkipExit"
+
+	_ = module
+	_ = funcname
+
 	type test struct {
+		name string
 		conf LoggerConfig
-		want *LoggerBuilder
+		want bool
 	}
 
 	tests := []test{
 		{
+			name: "SkipExit config",
 			conf: SkipExit,
-			want: &LoggerBuilder{
-				SkipExit: true,
-			},
+			want: true,
 		},
 		{
+			name: "default config",
 			conf: MultiConf(),
-			want: &LoggerBuilder{
-				SkipExit: false,
-			},
-		},
-		{
-			conf: DefaultConfig,
-			want: &LoggerBuilder{
-				SkipExit: false,
-			},
+			want: false,
 		},
 	}
 
-	var verify = func(id int, test test, builder *LoggerBuilder) {
-
-		if builder.SkipExit != test.want.SkipExit {
-			t.Errorf(
-				"#%v -- FAILED -- [Conf] SkipExit() -- mismatching skip-exit opts: got %v ; expected %v",
-				id,
-				builder.SkipExit,
-				test.want.SkipExit,
-			)
-		}
-
-		t.Logf(
-			"#%v -- PASSED -- [Conf] SkipExit()",
-			id,
-		)
-	}
-
-	for id, test := range tests {
+	var init = func(test test) *LoggerBuilder {
 		builder := &LoggerBuilder{}
 
 		test.conf.Apply(builder)
 
-		verify(id, test, builder)
+		return builder
+	}
+
+	var verify = func(idx int, test test) {
+		builder := init(test)
+
+		if builder.SkipExit != test.want {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] -- output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.want,
+				builder.SkipExit,
+				test.name,
+			)
+		}
+
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
+			module,
+			funcname,
+			test.name,
+		)
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
 	}
 }
 
-func TestLCFilter(t *testing.T) {
+func TestFilter(t *testing.T) {
+	module := "LoggerConfig"
+	funcname := "WithFilter()"
+
+	_ = module
+	_ = funcname
+
 	type test struct {
+		name string
 		conf LoggerConfig
-		want *LoggerBuilder
+		want event.Level
 	}
 
-	tests := []test{
+	var tests = []test{
 		{
-			conf: WithFilter(0),
-			want: &LoggerBuilder{
-				LevelFilter: 0,
-			},
+			name: "with level by number",
+			conf: WithFilter(3),
+			want: event.Level_warn,
 		},
 		{
-			conf: WithFilter(5),
-			want: &LoggerBuilder{
-				LevelFilter: 5,
-			},
-		},
-		{
-			conf: WithFilter(9),
-			want: &LoggerBuilder{
-				LevelFilter: 9,
-			},
-		},
-		{
-			conf: FilterInfo,
-			want: &LoggerBuilder{
-				LevelFilter: 2,
-			},
-		},
-		{
-			conf: FilterWarn,
-			want: &LoggerBuilder{
-				LevelFilter: 3,
-			},
-		},
-		{
-			conf: FilterError,
-			want: &LoggerBuilder{
-				LevelFilter: 4,
-			},
-		},
-		{
-			conf: DefaultCfg,
-			want: &LoggerBuilder{
-				LevelFilter: 0,
-			},
+			name: "with level by reference",
+			conf: WithFilter(event.Level_warn),
+			want: event.Level_warn,
 		},
 	}
 
-	var verify = func(id int, test test, builder *LoggerBuilder) {
-
-		if builder.LevelFilter != test.want.LevelFilter {
-			t.Errorf(
-				"#%v -- FAILED -- [Conf] LevelFilter(level) -- mismatching level filters: got %v ; expected %v",
-				id,
-				builder.LevelFilter,
-				test.want.LevelFilter,
-			)
-			return
-		}
-
-		t.Logf(
-			"#%v -- PASSED -- [Conf] LevelFilter(level)",
-			id,
-		)
-	}
-
-	for id, test := range tests {
+	var init = func(test test) *LoggerBuilder {
 		builder := &LoggerBuilder{}
 
 		test.conf.Apply(builder)
 
-		verify(id, test, builder)
+		return builder
 	}
+
+	var verify = func(idx int, test test) {
+		builder := init(test)
+
+		if builder.LevelFilter != test.want.Int() {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.want.String(),
+				event.Level_name[builder.LevelFilter],
+				test.name,
+			)
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
+			module,
+			funcname,
+			test.name,
+		)
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+
 }

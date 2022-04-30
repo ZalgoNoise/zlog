@@ -472,7 +472,7 @@ func TestString(t *testing.T) {
 			return
 		}
 
-		// execute OrotoMessage() method for coverage
+		// execute ProtoMessage() method for coverage
 		test.e.ProtoMessage()
 	}
 

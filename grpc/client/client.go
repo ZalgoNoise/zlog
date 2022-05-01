@@ -13,6 +13,7 @@ import (
 	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/log/logch"
 
 	pb "github.com/zalgonoise/zlog/proto/service"
 	"google.golang.org/grpc"
@@ -51,7 +52,7 @@ var (
 // that its SetOuts() / AddOuts() methods are expecting an io.Writer of type ConnAddr
 type GRPCLogger interface {
 	log.Logger
-	log.ChanneledLogger
+	logch.ChanneledLogger
 }
 
 // GRPCLogClient struct will define the elements required to build and work with

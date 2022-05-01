@@ -55,14 +55,14 @@ type Printer interface {
 func (l *logger) checkDefaults(m *event.Event) {
 	// use logger prefix if default
 	// do not clear Logger.prefix
-	if *m.Prefix == event.Default_Event_Prefix && l.prefix != *m.Prefix {
-		*m.Prefix = l.prefix
+	if m.Prefix == nil || *m.Prefix == event.Default_Event_Prefix && l.prefix != *m.Prefix {
+		m.Prefix = &l.prefix
 	}
 
 	// use logger sub-prefix if default
 	// do not clear Logger.sub
-	if *m.Sub == "" && l.sub != *m.Sub {
-		*m.Sub = l.sub
+	if m.Sub == nil || *m.Sub == "" && l.sub != *m.Sub {
+		m.Sub = &l.sub
 	}
 
 	// push logger metadata to message

@@ -1,4 +1,4 @@
-package channel
+package logch
 
 import (
 	"github.com/zalgonoise/zlog/log"

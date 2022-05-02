@@ -132,6 +132,11 @@ type LoggerBuilder struct {
 // Defaults are automatically applied to all elements which aren't defined
 // in the input configuration.
 func New(confs ...LoggerConfig) Logger {
+	// short-circuit if confs is nil, as a default config logger
+	if confs == nil || len(confs) == 0 {
+		return New(DefaultCfg)
+	}
+
 	builder := &LoggerBuilder{}
 
 	// enforce defaults
@@ -203,7 +208,7 @@ func (l *logger) AddOuts(outs ...io.Writer) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	var newouts []io.Writer
+	var newouts = []io.Writer{}
 
 	for i := 0; i < len(outs); i++ {
 		if outs[i] != nil {

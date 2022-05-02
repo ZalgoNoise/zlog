@@ -45,7 +45,9 @@ func MultiConf(conf ...LoggerConfig) LoggerConfig {
 // run the Apply method on the input pointer to a LoggerBuilder
 func (m multiconf) Apply(lb *LoggerBuilder) {
 	for _, c := range m.confs {
-		c.Apply(lb)
+		if c != nil {
+			c.Apply(lb)
+		}
 	}
 }
 

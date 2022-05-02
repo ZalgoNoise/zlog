@@ -2,997 +2,684 @@ package log
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"os"
 	"reflect"
-	"regexp"
 	"testing"
 
 	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/log/format/text"
 	"github.com/zalgonoise/zlog/store"
 )
 
-func TestFormatTextLogger(t *testing.T) {
-	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
-	regx := regexp.MustCompile(regxStr)
+func TestNew(t *testing.T) {
+	module := "Logger"
+	funcname := "New()"
 
-	prefix := "test-new-logger"
-	format := FormatText
-	msg := "test content"
-	var buf bytes.Buffer
-
-	logger := New(
-		WithPrefix(prefix),
-		WithFormat(format),
-		WithOut(&buf),
-	)
-
-	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
-
-	logger.Log(logMessage)
-
-	if !regx.MatchString(buf.String()) {
-		t.Errorf(
-			"#%v [Logger] [text-fmt] New(%s,%s).Info(%s) = %s ; expected %s",
-			0,
-			prefix,
-			"FormatText",
-			msg,
-			buf.String(),
-			regxStr,
-		)
+	type test struct {
+		name  string
+		conf  []LoggerConfig
+		wants *logger
 	}
 
-	t.Logf(
-		"#%v -- TESTED -- [Logger] [text-fmt] New(%s,%s).Info(%s) = %s",
-		0,
-		prefix,
-		"FormatText",
-		msg,
-		buf.String(),
-	)
-}
-
-func TestFormatJSONLogger(t *testing.T) {
-	prefix := "test-new-logger"
-	format := FormatJSON
-	msg := "test content"
-	buf := &bytes.Buffer{}
-	logEntry := &event.Event{}
-
-	logger := New(
-		WithPrefix(prefix),
-		WithFormat(format),
-		WithOut(buf),
-	)
-
-	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
-
-	logger.Log(logMessage)
-
-	if err := json.Unmarshal(buf.Bytes(), logEntry); err != nil {
-		t.Errorf(
-			"#%v [Logger] [json-fmt] New(%s,%s).Info(%s) -- unmarshal error: %s",
-			0,
-			prefix,
-			"FormatJSON",
-			msg,
-			err,
-		)
+	var tests = []test{
+		{
+			name: "default config",
+			wants: &logger{
+				fmt:    TextColorLevelFirst,
+				out:    os.Stderr,
+				prefix: "log",
+			},
+		},
+		{
+			name: "with empty config: New()",
+			conf: nil,
+			wants: &logger{
+				fmt:    TextColorLevelFirst,
+				out:    os.Stderr,
+				prefix: "log",
+			},
+		},
+		{
+			name: "with empty config: New([]LoggerConfig{})",
+			conf: []LoggerConfig{},
+			wants: &logger{
+				fmt:    TextColorLevelFirst,
+				out:    os.Stderr,
+				prefix: "log",
+			},
+		},
+		{
+			name: "with custom config: JSON, SkipExit",
+			conf: []LoggerConfig{
+				CfgFormatJSON,
+				SkipExit,
+			},
+			wants: &logger{
+				fmt:      FormatJSON,
+				out:      os.Stderr,
+				prefix:   "log",
+				skipExit: true,
+			},
+		},
 	}
 
-	if logEntry.GetLevel().String() != event.Level_info.String() ||
-		logEntry.GetPrefix() != prefix ||
-		logEntry.GetMsg() != msg {
-		t.Errorf(
-			"#%v [Logger] [json-fmt] New(%s,%s).Info(%s) -- data mismatch",
-			0,
-			prefix,
-			"FormatJSON",
-			msg,
-		)
+	var initNil = func() *logger {
+		return New(nil).(*logger)
 	}
 
-	t.Logf(
-		"#%v -- TESTED -- [Logger] [json-fmt] New(%s,%s).Info(%s)",
-		0,
-		prefix,
-		"FormatJSON",
-		msg,
-	)
-}
+	var init = func(test test) *logger {
+		var l Logger
 
-func TestNewSingleWriterLogger(t *testing.T) {
-	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
-	regx := regexp.MustCompile(regxStr)
+		if test.conf == nil {
+			l = New()
+		} else {
+			l = New(test.conf...)
+		}
 
-	prefix := "test-new-logger"
-	format := FormatText
-	msg := "test content"
-	var buf bytes.Buffer
-
-	logger := New(
-		WithPrefix(prefix),
-		WithFormat(format),
-		WithOut(&buf),
-	)
-	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
-
-	logger.Log(logMessage)
-
-	if !regx.MatchString(buf.String()) {
-		t.Errorf(
-			"#%v [Logger] New(%s,%s).Info(%s) = %s ; expected %s",
-			0,
-			prefix,
-			"FormatText",
-			msg,
-			buf.String(),
-			regxStr,
-		)
+		return l.(*logger)
 	}
 
-	t.Logf(
-		"#%v -- TESTED -- [Logger] New(%s,%s).Info(%s) = %s",
-		0,
-		prefix,
-		"FormatText",
-		msg,
-		buf.String(),
-	)
+	var verify = func(idx int, test test) {
+		logger := init(test)
 
-}
-
-func TestNewMultiWriterLogger(t *testing.T) {
-	regxStr := `^\[.*\]\s*\[info\]\s*\[test-new-logger\]\s*test content\s*$`
-	regx := regexp.MustCompile(regxStr)
-
-	prefix := "test-new-logger"
-	format := FormatText
-	msg := "test content"
-
-	var buf1 bytes.Buffer
-	var buf2 bytes.Buffer
-	var buf3 bytes.Buffer
-
-	buffers := []*bytes.Buffer{
-		&buf1, &buf2, &buf3,
-	}
-
-	logger := New(
-		WithPrefix(prefix),
-		WithFormat(format),
-		WithOut(&buf1, &buf2, &buf3),
-	)
-
-	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
-
-	logger.Log(logMessage)
-
-	for id, buf := range buffers {
-		if !regx.MatchString(buf.String()) {
+		if !reflect.DeepEqual(*logger, *test.wants) {
 			t.Errorf(
-				"#%v [Logger] [multi-writer] New(%s,%s).Info(%s) = %s ; expected %s",
-				id,
-				prefix,
-				"FormatText",
-				msg,
-				buf.String(),
-				regxStr,
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				*test.wants,
+				*logger,
+				test.name,
 			)
+			return
 		}
 		t.Logf(
-			"#%v -- TESTED -- [Logger] [multi-writer] New(%s,%s).Info(%s) = %s",
-			id,
-			prefix,
-			"FormatText",
-			msg,
-			buf.String(),
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
+			module,
+			funcname,
+			test.name,
 		)
 	}
 
-}
+	for idx, test := range tests {
+		verify(idx, test)
+	}
 
-func TestNewDefaultWriterLogger(t *testing.T) {
-	regxStr := `^\[.*\]\s*\[info\]\s*\[log\]\s*test content\s*$`
-	regx := regexp.MustCompile(regxStr)
+	// verify New(nil)
+	action := "with empty config: New(nil)"
+	nilOptLogger := initNil()
+	wants := &logger{
+		fmt:    TextColorLevelFirst,
+		out:    os.Stderr,
+		prefix: "log",
+	}
 
-	msg := "test content"
-
-	out := os.Stderr
-	r, w, _ := os.Pipe()
-	os.Stderr = w
-
-	// forcing this override of os.Stderr so that we can read from it
-	logger := New(WithOut(os.Stderr), WithFormat(FormatText))
-
-	logMessage := event.New().Level(event.Level_info).Message(msg).Build()
-
-	// https://stackoverflow.com/questions/10473800
-	// copy the output in a separate goroutine so printing can't block indefinitely
-	outCh := make(chan string)
-	go func() {
-		var buf bytes.Buffer
-		n, err := io.Copy(&buf, r)
-		if err != nil {
-			t.Errorf(
-				"#%v [Logger] [default-writer] New().Info(%s) -- error when copying piped buffer's data: %s",
-				0,
-				msg,
-				err,
-			)
-		}
-
-		if n == 0 {
-			t.Errorf(
-				"#%v [Logger] [default-writer] New().Info(%s) -- piped buffer's data is zero bytes in length",
-				0,
-				msg,
-			)
-		}
-		outCh <- buf.String()
-	}()
-	logger.Log(logMessage)
-
-	w.Close()
-	result := <-outCh
-	os.Stderr = out
-
-	if !regx.MatchString(result) {
+	if !reflect.DeepEqual(*nilOptLogger, *wants) {
 		t.Errorf(
-			"#%v [Logger] [default-writer] New().Info(%s) = %s ; expected %s",
+			"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
 			0,
-			msg,
-			result,
-			regxStr,
+			module,
+			funcname,
+			*wants,
+			*nilOptLogger,
+			action,
+		)
+		return
+	}
+	t.Logf(
+		"#%v -- PASSED -- [%s] [%s] -- action: %s",
+		0,
+		module,
+		funcname,
+		action,
+	)
+}
+
+func TestNewNilLogger(t *testing.T) {
+	module := "Logger"
+	funcname := "New()"
+
+	type test struct {
+		name string
+		conf []LoggerConfig
+	}
+
+	var tests = []test{
+		{
+			name: "NilConfig method",
+			conf: []LoggerConfig{
+				NilConfig,
+			},
+		},
+		{
+			name: "EmptyConfig method",
+			conf: []LoggerConfig{
+				EmptyConfig,
+			},
+		},
+		{
+			name: "NilLogger() function call",
+			conf: []LoggerConfig{
+				NilLogger(),
+			},
+		},
+		{
+			name: "manual config",
+			conf: []LoggerConfig{
+				WithOut(store.EmptyWriter),
+				WithFormat(text.New().NoHeaders().NoTimestamp().NoLevel().Build()),
+				SkipExit,
+			},
+		},
+	}
+
+	var init = func(test test) Logger {
+		return New(test.conf...)
+	}
+
+	var verify = func(idx int, test test) {
+		l := init(test)
+
+		logger, ok := l.(*nilLogger)
+
+		if !ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output logger isn't nilLogger -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
+
+		if !reflect.DeepEqual(*logger, nilLogger{}) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				nilLogger{},
+				*logger,
+				test.name,
+			)
+			return
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
+			module,
+			funcname,
+			test.name,
 		)
 	}
 
-	t.Logf(
-		"#%v -- TESTED -- [Logger] [multi-writer] New().Info(%s) = %s",
-		0,
-		msg,
-		result,
-	)
-
+	for idx, test := range tests {
+		verify(idx, test)
+	}
 }
 
-func TestLoggerSetOuts(t *testing.T) {
+func TestSetOuts(t *testing.T) {
 	module := "Logger"
 	funcname := "SetOuts()"
 
-	tlogger := New(
-		WithPrefix("test-new-logger"),
-		WithFormat(FormatText),
-	)
+	type test struct {
+		name string
+		w    []io.Writer
+	}
 
-	var tests = []struct {
-		name  string
-		input []io.Writer
-		wants io.Writer
-	}{
+	var defBuf = &bytes.Buffer{}
+	var bufs = []*bytes.Buffer{{}, {}, {}}
+	var l Logger = New(WithOut(defBuf))
+
+	var tests = []test{
 		{
-			name:  "switching to buffer #0",
-			input: []io.Writer{mockBufs[0]},
-			wants: io.MultiWriter(mockBufs[0]),
+			name: "set a different writer",
+			w:    []io.Writer{bufs[0]},
 		},
 		{
-			name:  "switching to os.Stderr",
-			input: []io.Writer{os.Stderr},
-			wants: io.MultiWriter(os.Stderr),
+			name: "add multiple writers",
+			w:    []io.Writer{bufs[0], bufs[1], bufs[2]},
 		},
 		{
-			name:  "switching to multi-buffer #0",
-			input: []io.Writer{mockBufs[0], mockBufs[1], mockBufs[3]},
-			wants: io.MultiWriter(mockBufs[0], mockBufs[1], mockBufs[3]),
+			name: "add no writers",
+			w:    []io.Writer{},
 		},
 		{
-			name:  "switching to default writer with zero arguments",
-			input: nil,
-			wants: os.Stderr,
+			name: "add nil writers",
+			w:    []io.Writer{nil, nil, nil},
 		},
 		{
-			name:  "switching to default writer with nil writers",
-			input: []io.Writer{nil, nil, nil},
-			wants: os.Stderr,
-		},
-		{
-			name:  "ensure the empty writer works",
-			input: []io.Writer{store.EmptyWriter},
-			wants: io.MultiWriter(store.EmptyWriter),
+			name: "add a good writer mixed in nil writers",
+			w:    []io.Writer{nil, bufs[0], nil},
 		},
 	}
 
-	var verify = func(id int, logw, w io.Writer, action string) {
+	var init = func(test test) io.Writer {
+		var outs []io.Writer
 
-		if !reflect.DeepEqual(logw, w) {
+		if len(test.w) == 0 {
+			return stdout
+		} else if len(test.w) > 0 {
+			for _, w := range test.w {
+				if w != nil {
+					outs = append(outs, w)
+				}
+			}
+		}
+
+		if len(outs) > 0 {
+			return io.MultiWriter(outs...)
+
+		}
+
+		return stdout
+	}
+
+	var verify = func(idx int, test test) {
+		out := init(test)
+
+		lcopy := l
+
+		lcopy.SetOuts(test.w...)
+
+		if !reflect.DeepEqual(lcopy.(*logger).out, out) {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v -- action: %s",
-				id,
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
 				module,
 				funcname,
-				w,
-				logw,
-				action,
+				out,
+				lcopy.(*logger).out,
+				test.name,
 			)
 			return
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [%s] [%s]",
-			id,
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
 			module,
 			funcname,
+			test.name,
 		)
 	}
 
-	for id, test := range tests {
-		if test.input != nil {
-			tlogger.SetOuts(test.input...)
-		} else {
-			tlogger.SetOuts()
-		}
-
-		logw := tlogger.(*logger).out
-
-		verify(id, logw, test.wants, test.name)
-
+	for idx, test := range tests {
+		verify(idx, test)
 	}
 }
 
-func TestLoggerAddOuts(t *testing.T) {
+func TestAddOuts(t *testing.T) {
 	module := "Logger"
 	funcname := "AddOuts()"
 
-	tlogger := New(
-		WithPrefix("test-new-logger"),
-		WithOut(mockBufs[5]),
-		WithFormat(FormatText),
-	)
+	type test struct {
+		name string
+		w    []io.Writer
+		out  io.Writer
+	}
 
-	var tests = []struct {
-		name  string
-		input []io.Writer
-		wants io.Writer
-	}{
+	var defBuf = &bytes.Buffer{}
+	var bufs = []*bytes.Buffer{{}, {}, {}}
+	var l Logger = New(WithOut(defBuf))
+
+	var tests = []test{
 		{
-			name:  "adding buffer #0",
-			input: []io.Writer{mockBufs[0]},
-			wants: io.MultiWriter(mockBufs[0], mockBufs[5]),
+			name: "set a different writer",
+			w:    []io.Writer{bufs[0]},
+			out:  io.MultiWriter(bufs[0], defBuf),
 		},
 		{
-			name:  "adding os.Stderr",
-			input: []io.Writer{os.Stderr},
-			wants: io.MultiWriter(os.Stderr, mockBufs[5]),
+			name: "add multiple writers",
+			w:    []io.Writer{bufs[0], bufs[1], bufs[2]},
+			out:  io.MultiWriter(bufs[0], bufs[1], bufs[2], defBuf),
 		},
 		{
-			name:  "adding multi-buffer #0",
-			input: []io.Writer{mockBufs[0], mockBufs[1], mockBufs[3]},
-			wants: io.MultiWriter(mockBufs[0], mockBufs[1], mockBufs[3], mockBufs[5]),
+			name: "add no writers",
+			w:    []io.Writer{},
+			out:  io.MultiWriter(defBuf),
 		},
 		{
-			name:  "adding default writer with zero arguments",
-			input: nil,
-			wants: io.MultiWriter(mockBufs[5]),
+			name: "add nil writers",
+			w:    []io.Writer{nil, nil, nil},
+			out:  io.MultiWriter(defBuf),
 		},
 		{
-			name:  "adding default writer with nil writers",
-			input: []io.Writer{nil, nil, nil},
-			wants: io.MultiWriter(mockBufs[5]),
-		},
-		{
-			name:  "ensure the empty writer works",
-			input: []io.Writer{store.EmptyWriter},
-			wants: io.MultiWriter(store.EmptyWriter, mockBufs[5]),
+			name: "add a good writer mixed in nil writers",
+			w:    []io.Writer{nil, bufs[0], nil},
+			out:  io.MultiWriter(bufs[0], defBuf),
 		},
 	}
 
-	var verify = func(id int, logw, w io.Writer, action string) {
+	var reset = func() {
+		l.SetOuts(defBuf)
+	}
 
-		if !reflect.DeepEqual(logw, w) {
+	var init = func(test test) io.Writer {
+		var outs []io.Writer
+
+		if len(test.w) == 0 {
+			return io.MultiWriter(defBuf)
+		} else if len(test.w) > 0 {
+			for _, w := range test.w {
+				if w != nil {
+					outs = append(outs, w)
+				}
+			}
+		}
+
+		if len(outs) > 0 {
+			outs = append(outs, defBuf)
+			return io.MultiWriter(outs...)
+
+		}
+
+		return io.MultiWriter(defBuf)
+	}
+
+	var verify = func(idx int, test test) {
+
+		out := init(test)
+
+		lcopy := l
+
+		lcopy.AddOuts(test.w...)
+
+		if !reflect.DeepEqual(lcopy.(*logger).out, out) {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] writer mismatch: wanted %v ; got %v -- action: %s",
-				id,
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
 				module,
 				funcname,
-				w,
-				logw,
-				action,
+				out,
+				lcopy.(*logger).out,
+				test.name,
 			)
 			return
 		}
 
 		t.Logf(
-			"#%v -- PASSED -- [%s] [%s]",
-			id,
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
 			module,
 			funcname,
+			test.name,
 		)
+
 	}
 
-	for id, test := range tests {
-
-		if test.input != nil {
-			tlogger.AddOuts(test.input...)
-		} else {
-			tlogger.AddOuts()
-		}
-
-		logw := tlogger.(*logger).out
-
-		verify(id, logw, test.wants, test.name)
-
-		// reset
-		tlogger.SetOuts(mockBufs[5])
-
+	for idx, test := range tests {
+		reset()
+		verify(idx, test)
+		reset()
 	}
 }
 
-func TestLoggerPrefix(t *testing.T) {
+func FuzzLoggerPrefix(f *testing.F) {
 	module := "Logger"
 	funcname := "Prefix()"
 
-	tlogger := New(
-		WithPrefix("test-new-logger"),
-		WithOut(mockBufs[0]),
-		WithFormat(FormatText),
-	)
+	l := New(WithPrefix("seed"))
 
-	var tests = []struct {
-		name  string
-		input string
-		wants string
-	}{
-		{
-			name:  "switch logger prefixes",
-			input: "logger-prefix",
-			wants: "logger-prefix",
-		},
-		{
-			name:  "switch logger prefixes",
-			input: "logger-test",
-			wants: "logger-test",
-		},
-		{
-			name:  "switch logger prefixes",
-			input: "logger-new",
-			wants: "logger-new",
-		},
-		{
-			name:  "switch to defaults",
-			input: "",
-			wants: "log",
-		},
-	}
+	f.Add("")
+	f.Add("test-prefix")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Prefix(a)
 
-	var verify = func(id int, p, wants, action string) {
-		if p != wants {
+		if l.(*logger).prefix != a && a != "" {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] prefix mismatch: wanted %s ; got %s -- action: %s",
-				id,
+				"FAILED -- [%s] [%s] fuzzed prefix mismatch: wanted %s ; got %s",
 				module,
 				funcname,
-				p,
-				wants,
-				action,
+				a,
+				l.(*logger).prefix,
 			)
 			return
 		}
-		t.Logf(
-			"#%v -- PASSED -- [%s] [%s]",
-			id,
-			module,
-			funcname,
-		)
-	}
-
-	for id, test := range tests {
-		tlogger.Prefix(test.input)
-
-		p := tlogger.(*logger).prefix
-
-		verify(id, p, test.wants, test.name)
-
-	}
-
+	})
 }
 
-func TestLoggerSub(t *testing.T) {
+func FuzzLoggerSub(f *testing.F) {
 	module := "Logger"
 	funcname := "Sub()"
 
-	tlogger := New(
-		WithPrefix("test-new-logger"),
-		WithOut(mockBufs[0]),
-		WithFormat(FormatText),
-	)
+	l := New(WithSub("seed"))
 
-	var tests = []struct {
-		name  string
-		input string
-		wants string
-	}{
-		{
-			name:  "switch logger sub-prefixes",
-			input: "logger-subprefix",
-			wants: "logger-subprefix",
-		},
-		{
-			name:  "switch logger sub-prefixes",
-			input: "logger-test",
-			wants: "logger-test",
-		},
-		{
-			name:  "switch logger sub-prefixes",
-			input: "logger-new",
-			wants: "logger-new",
-		},
-		{
-			name:  "switch to defaults",
-			input: "",
-			wants: "",
-		},
-	}
+	f.Add("test-sub-prefix")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Sub(a)
 
-	var verify = func(id int, s, wants, action string) {
-		if s != wants {
+		if l.(*logger).sub != a {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] subprefix mismatch: wanted %s ; got %s -- action: %s",
-				id,
+				"FAILED -- [%s] [%s] fuzzed sub-prefix mismatch: wanted %s ; got %s",
 				module,
 				funcname,
-				s,
-				wants,
-				action,
+				a,
+				l.(*logger).sub,
 			)
 			return
 		}
-		t.Logf(
-			"#%v -- PASSED -- [%s] [%s]",
-			id,
-			module,
-			funcname,
-		)
-	}
-
-	for id, test := range tests {
-		tlogger.Sub("")
-
-		tlogger.Sub(test.input)
-
-		s := tlogger.(*logger).sub
-
-		verify(id, s, test.wants, test.name)
-
-		tlogger.Sub("")
-	}
-
+	})
 }
 
 func TestLoggerFields(t *testing.T) {
 	module := "Logger"
 	funcname := "Fields()"
 
-	tlogger := New(
-		WithPrefix("test-new-logger"),
-		WithOut(mockBufs[0]),
-		WithFormat(FormatText),
-	)
-
-	var tests = []struct {
+	type test struct {
 		name  string
+		init  map[string]interface{}
 		input map[string]interface{}
 		wants map[string]interface{}
-	}{
+	}
+
+	l := New()
+
+	var tests = []test{
 		{
-			name:  "switch logger metadata",
-			input: testObjects[0],
-			wants: testObjects[0],
+			name:  "set simple metadata",
+			init:  nil,
+			input: map[string]interface{}{"a": true},
+			wants: map[string]interface{}{"a": true},
 		},
 		{
-			name:  "switch logger metadata",
-			input: testObjects[1],
-			wants: testObjects[1],
+			name:  "replace simple metadata",
+			init:  map[string]interface{}{"a": true},
+			input: map[string]interface{}{"b": false},
+			wants: map[string]interface{}{"b": false},
 		},
 		{
-			name:  "switch logger metadata",
-			input: testObjects[2],
-			wants: testObjects[2],
-		},
-		{
-			name:  "switch logger metadata",
-			input: testObjects[3],
-			wants: testObjects[3],
-		},
-		{
-			name:  "switch to defaults",
-			input: map[string]interface{}{},
-			wants: map[string]interface{}{},
-		},
-		{
-			name:  "nil input check",
+			name:  "reset simple metadata",
+			init:  map[string]interface{}{"a": true},
 			input: nil,
 			wants: map[string]interface{}{},
 		},
 	}
 
-	var verify = func(id int, m, wants map[string]interface{}, action string) {
-		if len(m) != len(wants) {
-			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] metadata length mismatch: wanted %v ; got %v -- action: %s",
-				id,
-				module,
-				funcname,
-				len(m),
-				len(wants),
-				action,
-			)
+	var init = func(test test) {
+		if test.init == nil {
 			return
 		}
 
-		// empty content expected, exit successfully
-		if len(m) == 0 && len(wants) == 0 {
-			t.Logf(
-				"#%v -- PASSED -- [%s] [%s]",
-				id,
-				module,
-				funcname,
-			)
-			return
-		}
-
-		if !reflect.DeepEqual(m, wants) {
-			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] metadata content mismatch: wanted %v ; got %v -- action: %s",
-				id,
-				module,
-				funcname,
-				m,
-				wants,
-				action,
-			)
-			return
-		}
-
-		t.Logf(
-			"#%v -- PASSED -- [%s] [%s]",
-			id,
-			module,
-			funcname,
-		)
+		l.Fields(test.init)
 	}
 
-	for id, test := range tests {
-		// reset
-		tlogger.Fields(nil)
+	var reset = func() {
+		l.Fields(nil)
+	}
 
-		tlogger.Fields(test.input)
+	var verify = func(idx int, test test) {
+		reset()
+		defer reset()
 
-		m := tlogger.(*logger).meta
+		init(test)
 
-		verify(id, m, test.wants, test.name)
+		l.Fields(test.input)
 
-		// reset
-		tlogger.Fields(nil)
+		if !reflect.DeepEqual(l.(*logger).meta, test.wants) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] fuzzed sub-prefix mismatch: wanted %s ; got %s -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				l.(*logger).sub,
+				test.name,
+			)
+			return
+		}
+
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+
+}
+
+func TestLoggerIsSkipExit(t *testing.T) {
+	module := "Logger"
+	funcname := "IsSkipExit()"
+
+	type test struct {
+		name  string
+		conf  []LoggerConfig
+		wants bool
+	}
+
+	var tests = []test{
+		{
+			name:  "default config",
+			wants: false,
+		},
+		{
+			name:  "with SkipExit opt",
+			conf:  []LoggerConfig{SkipExit},
+			wants: true,
+		},
+	}
+
+	var init = func(test test) Logger {
+		return New(test.conf...)
+	}
+
+	var verify = func(idx int, test test) {
+		l := init(test)
+
+		skip := l.IsSkipExit()
+
+		if skip != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] is-skip-exit mismatch: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				skip,
+				test.name,
+			)
+			return
+		}
+		t.Logf(
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
+			module,
+			funcname,
+			test.name,
+		)
+		return
+
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
 	}
 
 }
 
 func TestLoggerWrite(t *testing.T) {
+	module := "Logger"
+	funcname := "Write()"
+
 	type test struct {
-		msg    []byte
-		prefix string
-		sub    string
-		level  event.Level
-		body   string
+		name string
+		msg  []byte
 	}
 
 	var tests = []test{
 		{
-			msg:    event.New().Level(event.Level_info).Prefix("test").Sub("tester").Message("write test").Build().Encode(),
-			prefix: "test",
-			sub:    "tester",
-			level:  event.Level_info,
-			body:   "write test",
+			name: "non-encoded message",
+			msg:  []byte("null"),
 		},
 		{
-			msg:    []byte("hello world"),
-			prefix: "log",
-			sub:    "",
-			level:  event.Level_info,
-			body:   "hello world",
+			name: "non-encoded message",
+			msg:  event.New().Message("null").Build().Encode(),
 		},
 	}
 
-	logger := New(WithFormat(FormatJSON), WithOut(mockBuffer))
+	buf := &bytes.Buffer{}
 
-	var verify = func(id int, test test, buf []byte) {
+	l := New(WithOut(buf), SkipExit)
 
-		logEntry := &event.Event{}
+	var verify = func(idx int, test test) {
+		buf.Reset()
+		defer buf.Reset()
 
-		err := json.Unmarshal(buf, logEntry)
+		n, err := l.Write(test.msg)
+
 		if err != nil {
 			t.Errorf(
-				"#%v [Logger] -- FAILED -- Write([]byte) -- JSON decoding error: %s",
-				id,
+				"#%v -- FAILED -- [%s] [%s] error writing message: %v -- action: %s",
+				idx,
+				module,
+				funcname,
 				err,
+				test.name,
 			)
 			return
 		}
 
-		if logEntry.GetPrefix() != test.prefix {
+		if n == 0 {
 			t.Errorf(
-				"#%v [Logger] -- FAILED -- Write([]byte) -- prefix mismatch: wanted %s ; got %s",
-				id,
-				logEntry.GetPrefix(),
-				test.prefix,
+				"#%v -- FAILED -- [%s] [%s] zero-bytes written error -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
 			)
 			return
 		}
 
-		if logEntry.GetSub() != test.sub {
+		if n != buf.Len() {
 			t.Errorf(
-				"#%v [Logger] -- FAILED -- Write([]byte) -- sub-prefix mismatch: wanted %s ; got %s",
-				id,
-				logEntry.GetSub(),
-				test.sub,
-			)
-			return
-		}
-
-		if logEntry.GetLevel() != test.level {
-			t.Errorf(
-				"#%v [Logger] -- FAILED -- Write([]byte) -- log level mismatch: wanted %s ; got %s",
-				id,
-				logEntry.Level.String(),
-				test.level.String(),
-			)
-			return
-		}
-
-		if logEntry.GetMsg() != test.body {
-			t.Errorf(
-				"#%v [Logger] -- FAILED -- Write([]byte) -- message mismatch: wanted %s ; got %s",
-				id,
-				logEntry.GetMsg(),
-				test.body,
+				"#%v -- FAILED -- [%s] [%s] invalid write length: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				buf.Len(),
+				n,
+				test.name,
 			)
 			return
 		}
 
 		t.Logf(
-			"#%v [Logger] -- PASSED -- Write([]byte)",
-			id,
-		)
-
-	}
-
-	for id, test := range tests {
-		mockBuffer.Reset()
-		n, err := logger.Write(test.msg)
-
-		if err != nil {
-			t.Errorf(
-				"#%v [Logger] -- FAILED -- Write([]byte) -- write error: %s",
-				id,
-				err,
-			)
-		}
-
-		if n <= 0 {
-			t.Errorf(
-				"#%v [Logger] -- FAILED -- Write([]byte) -- no bytes written: %v",
-				id,
-				n,
-			)
-		}
-
-		verify(id, test, mockBuffer.Bytes())
-	}
-}
-
-// func (l *nilLogger) Write(p []byte) (n int, err error)           { return 0, nil }
-func TestNilLoggerWrite(t *testing.T) {
-	module := "NilLogger"
-	funcname := "Write()"
-
-	nillog := New(NilConfig)
-
-	var tests = []struct {
-		input []byte
-		n     int
-		err   error
-	}{
-		{
-			input: []byte("abc"),
-			n:     1,
-			err:   nil,
-		},
-		{
-			input: []byte("123"),
-			n:     1,
-			err:   nil,
-		},
-		{
-			input: []byte("!@#"),
-			n:     1,
-			err:   nil,
-		},
-	}
-
-	for id, test := range tests {
-		n, err := nillog.Write(test.input)
-
-		if n != test.n {
-			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] bytes written mismatch: wanted %v ; got %v",
-				id,
-				module,
-				funcname,
-				test.n,
-				n,
-			)
-			return
-
-		}
-
-		if err != test.err {
-			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] returning error mismatch: wanted %v ; got %v",
-				id,
-				module,
-				funcname,
-				test.err,
-				err,
-			)
-			return
-		}
-	}
-}
-
-// func (l *nilLogger) SetOuts(outs ...io.Writer) Logger            { return l }
-func TestNilLoggerSetOuts(t *testing.T) {
-	// module := "NilLogger"
-	// funcname := "Write()"
-
-	nillog := New(NilConfig)
-
-	var tests = []struct {
-		input []io.Writer
-	}{
-		{
-			input: []io.Writer{mockBufs[0]},
-		},
-		{
-			input: []io.Writer{mockBufs[0], mockBufs[1]},
-		},
-		{
-			input: []io.Writer{},
-		},
-	}
-
-	for _, test := range tests {
-		nillog.SetOuts(test.input...)
-	}
-}
-
-// func (l *nilLogger) AddOuts(outs ...io.Writer) Logger            { return l }
-func TestNilLoggerAddOuts(t *testing.T) {
-	// module := "NilLogger"
-	// funcname := "Write()"
-
-	nillog := New(NilConfig)
-
-	var tests = []struct {
-		input []io.Writer
-	}{
-		{
-			input: []io.Writer{mockBufs[0]},
-		},
-		{
-			input: []io.Writer{mockBufs[0], mockBufs[1]},
-		},
-		{
-			input: []io.Writer{},
-		},
-	}
-
-	for _, test := range tests {
-		nillog.AddOuts(test.input...)
-	}
-}
-
-// func (l *nilLogger) Prefix(prefix string) Logger                 { return l }
-func TestNilLoggerPrefix(t *testing.T) {
-	// module := "NilLogger"
-	// funcname := "Write()"
-
-	nillog := New(NilConfig)
-
-	var tests = []struct {
-		input string
-	}{
-		{
-			input: "test",
-		},
-		{
-			input: "for",
-		},
-		{
-			input: "nothing",
-		},
-	}
-
-	for _, test := range tests {
-		nillog.Prefix(test.input)
-	}
-}
-
-// func (l *nilLogger) Sub(sub string) Logger                       { return l }
-func TestNilLoggerSub(t *testing.T) {
-	// module := "NilLogger"
-	// funcname := "Write()"
-
-	nillog := New(NilConfig)
-
-	var tests = []struct {
-		input string
-	}{
-		{
-			input: "test",
-		},
-		{
-			input: "for",
-		},
-		{
-			input: "nothing",
-		},
-	}
-
-	for _, test := range tests {
-		nillog.Sub(test.input)
-	}
-}
-
-// func (l *nilLogger) Fields(fields map[string]interface{}) Logger { return l }
-func TestNilLoggerFields(t *testing.T) {
-	// module := "NilLogger"
-	// funcname := "Write()"
-
-	nillog := New(NilConfig)
-
-	var tests = []struct {
-		input map[string]interface{}
-	}{
-		{
-			input: map[string]interface{}{"a": 0},
-		},
-		{
-			input: map[string]interface{}{"a": "b"},
-		},
-		{
-			input: map[string]interface{}{},
-		},
-	}
-
-	for _, test := range tests {
-		nillog.Fields(test.input)
-	}
-}
-
-// func (l *nilLogger) IsSkipExit() bool                            { return true }
-func TestNilLoggerIsSkipExit(t *testing.T) {
-	module := "NilLogger"
-	funcname := "IsSkipExit()"
-
-	nillog := New(NilConfig)
-
-	if !nillog.IsSkipExit() {
-		t.Errorf(
-			"-- FAILED -- [%s] [%s] nilLogger should be set as skipping exit",
+			"#%v -- PASSED -- [%s] [%s] -- action: %s",
+			idx,
 			module,
 			funcname,
+			test.name,
 		)
+		return
+
 	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+
 }

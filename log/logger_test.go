@@ -83,14 +83,14 @@ func TestNew(t *testing.T) {
 	var verify = func(idx int, test test) {
 		logger := init(test)
 
-		if !reflect.DeepEqual(*logger, *test.wants) {
+		if !reflect.DeepEqual(logger, test.wants) {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
-				*test.wants,
-				*logger,
+				test.wants,
+				logger,
 				test.name,
 			)
 			return
@@ -117,14 +117,14 @@ func TestNew(t *testing.T) {
 		prefix: "log",
 	}
 
-	if !reflect.DeepEqual(*nilOptLogger, *wants) {
+	if !reflect.DeepEqual(nilOptLogger, wants) {
 		t.Errorf(
 			"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
 			0,
 			module,
 			funcname,
-			*wants,
-			*nilOptLogger,
+			wants,
+			nilOptLogger,
 			action,
 		)
 		return
@@ -682,4 +682,335 @@ func TestLoggerWrite(t *testing.T) {
 		verify(idx, test)
 	}
 
+}
+
+func TestNilLoggerSetOuts(t *testing.T) {
+	module := "nilLogger"
+	funcname := "SetOuts()"
+
+	type test struct {
+		name string
+		w    []io.Writer
+	}
+
+	var bufs = []*bytes.Buffer{{}, {}, {}}
+
+	var tests = []test{
+		{
+			name: "no writers",
+			w:    []io.Writer{},
+		},
+		{
+			name: "nil writers",
+			w:    nil,
+		},
+		{
+			name: "w/ writers",
+			w:    []io.Writer{bufs[0], bufs[1], bufs[2]},
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		nl := New(NilConfig)
+
+		new := nl.SetOuts(test.w...)
+
+		if !reflect.DeepEqual(new, nl) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				nl,
+				new,
+				test.name,
+			)
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestNilLoggerAddOuts(t *testing.T) {
+	module := "nilLogger"
+	funcname := "AddOuts()"
+
+	type test struct {
+		name string
+		w    []io.Writer
+	}
+
+	var bufs = []*bytes.Buffer{{}, {}, {}}
+
+	var tests = []test{
+		{
+			name: "no writers",
+			w:    []io.Writer{},
+		},
+		{
+			name: "nil writers",
+			w:    nil,
+		},
+		{
+			name: "w/ writers",
+			w:    []io.Writer{bufs[0], bufs[1], bufs[2]},
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		nl := New(NilConfig)
+
+		new := nl.AddOuts(test.w...)
+
+		if !reflect.DeepEqual(new, nl) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				nl,
+				new,
+				test.name,
+			)
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestNilLoggerPrefix(t *testing.T) {
+	module := "nilLogger"
+	funcname := "Prefix()"
+
+	type test struct {
+		name string
+		p    string
+	}
+
+	var tests = []test{
+		{
+			name: "no input",
+			p:    "",
+		},
+		{
+			name: "any input",
+			p:    "something",
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		nl := New(NilConfig)
+
+		new := nl.Prefix(test.p)
+
+		if !reflect.DeepEqual(new, nl) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				nl,
+				new,
+				test.name,
+			)
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestNilLoggerSub(t *testing.T) {
+	module := "nilLogger"
+	funcname := "Sub()"
+
+	type test struct {
+		name string
+		s    string
+	}
+
+	var tests = []test{
+		{
+			name: "no input",
+			s:    "",
+		},
+		{
+			name: "any input",
+			s:    "something",
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		nl := New(NilConfig)
+
+		new := nl.Sub(test.s)
+
+		if !reflect.DeepEqual(new, nl) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				nl,
+				new,
+				test.name,
+			)
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestNilLoggerFields(t *testing.T) {
+	module := "nilLogger"
+	funcname := "Fields()"
+
+	type test struct {
+		name string
+		m    map[string]interface{}
+	}
+
+	var tests = []test{
+		{
+			name: "no input",
+			m:    map[string]interface{}{},
+		},
+		{
+			name: "nil input",
+			m:    nil,
+		},
+		{
+			name: "any input",
+			m:    map[string]interface{}{"a": true},
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		nl := New(NilConfig)
+
+		new := nl.Fields(test.m)
+
+		if !reflect.DeepEqual(new, nl) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				nl,
+				new,
+				test.name,
+			)
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestNilLoggerIsSkipExit(t *testing.T) {
+	module := "nilLogger"
+	funcname := "IsSkipExit()"
+
+	type test struct {
+		name  string
+		wants bool
+	}
+
+	var tests = []test{
+		{
+			name:  "default",
+			wants: true,
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		nl := New(NilConfig)
+
+		ok := nl.IsSkipExit()
+
+		if ok != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				ok,
+				test.name,
+			)
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestNilLoggerWrite(t *testing.T) {
+	module := "nilLogger"
+	funcname := "Write()"
+
+	type test struct {
+		name string
+		b    []byte
+	}
+
+	var tests = []test{
+		{
+			name: "no input",
+			b:    []byte{},
+		},
+		{
+			name: "nil input",
+			b:    nil,
+		},
+		{
+			name: "event input",
+			b:    event.New().Message("null").Build().Encode(),
+		},
+		{
+			name: "byte message input",
+			b:    []byte("null"),
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		nl := New(NilConfig)
+
+		n, err := nl.Write(test.b)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] write op returned an unexpected error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+		}
+
+		if n != 1 {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] write op returned an unexpected write length: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				n,
+				test.name,
+			)
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
 }

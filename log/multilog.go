@@ -12,6 +12,42 @@ type multiLogger struct {
 	loggers []Logger
 }
 
+func (ml *multiLogger) addLoggers(l ...Logger) {
+	ml.loggers = make([]Logger, 0, len(l))
+	for _, logger := range l {
+		ml.addLogger(logger)
+	}
+}
+
+func (ml *multiLogger) addLogger(l Logger) {
+	if l == nil {
+		return
+	}
+
+	if iml, ok := l.(*multiLogger); ok {
+		for _, logger := range iml.loggers {
+			ml.addLogger(logger)
+		}
+		return
+	}
+
+	ml.loggers = append(ml.loggers, l)
+	return
+
+}
+
+func (ml *multiLogger) build() Logger {
+	if len(ml.loggers) == 0 {
+		return nil
+	}
+
+	if len(ml.loggers) == 1 {
+		return ml.loggers[0]
+	}
+
+	return ml
+}
+
 // MultiLogger function is a wrapper for multiple Logger
 //
 // Similar to how io.MultiWriter() is implemented, this function generates a single
@@ -20,10 +56,19 @@ type multiLogger struct {
 // As such, a single Logger can have multiple Loggers with different configurations and
 // output files, while still registering the same log message.
 func MultiLogger(loggers ...Logger) Logger {
-	allLoggers := make([]Logger, 0, len(loggers))
-	allLoggers = append(allLoggers, loggers...)
 
-	return &multiLogger{allLoggers}
+	if loggers == nil || len(loggers) == 0 {
+		return nil
+	}
+
+	if len(loggers) == 1 {
+		return loggers[0]
+	}
+
+	ml := new(multiLogger)
+
+	ml.addLoggers(loggers...)
+	return ml.build()
 }
 
 // SetOuts method is similar to a Logger.SetOuts() method, however the multiLogger will
@@ -35,6 +80,10 @@ func MultiLogger(loggers ...Logger) Logger {
 // considering if there are different formats or more than one logger, it will result in
 // different types of messages and / or repeated ones, respectively.
 func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
+	if outs == nil || len(outs) == 0 {
+		return l
+	}
+
 	var addrMap = make([]io.Writer, 0)
 	var writers = make([]io.Writer, 0)
 
@@ -49,11 +98,11 @@ func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
 	}
 
 	for _, log := range l.loggers {
-		if l, ok := log.(*logger); ok {
+		l, ok := log.(*logger)
+
+		if ok {
 			l.SetOuts(writers...)
-		} else if ml, ok := log.(*multiLogger); ok {
-			ml.SetOuts(writers...)
-		} else {
+		} else if !ok {
 			log.SetOuts(addrMap...)
 		}
 

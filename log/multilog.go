@@ -120,6 +120,10 @@ func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
 // the best action considering if there are different formats or more than one logger, it will
 // result in different types of messages and / or repeated ones, respectively.
 func (l *multiLogger) AddOuts(outs ...io.Writer) Logger {
+	if outs == nil || len(outs) == 0 {
+		return l
+	}
+
 	var addrMap = make([]io.Writer, 0)
 	var writers = make([]io.Writer, 0)
 
@@ -136,8 +140,6 @@ func (l *multiLogger) AddOuts(outs ...io.Writer) Logger {
 	for _, log := range l.loggers {
 		if l, ok := log.(*logger); ok {
 			l.AddOuts(writers...)
-		} else if ml, ok := log.(*multiLogger); ok {
-			ml.AddOuts(writers...)
 		} else {
 			log.AddOuts(addrMap...)
 		}
@@ -158,16 +160,6 @@ func (l *multiLogger) Prefix(prefix string) Logger {
 	return l
 }
 
-// Fields method is similar to a Logger.Fields() method, however the multiLogger will
-// range through all of its configured loggers and execute the same Fields() method call
-// on each of them -- applying the input Metadata map as the Logger's metadata.
-func (l *multiLogger) Fields(fields map[string]interface{}) Logger {
-	for _, logger := range l.loggers {
-		logger.Fields(fields)
-	}
-	return l
-}
-
 // Sub method is similar to a Logger.Sub() method, however the multiLogger will
 // range through all of its configured loggers and execute the same Sub() method call
 // on each of them -- applying the input sub-prefix string as each Logger's sub-prefix.
@@ -178,18 +170,32 @@ func (l *multiLogger) Sub(sub string) Logger {
 	return l
 }
 
+// Fields method is similar to a Logger.Fields() method, however the multiLogger will
+// range through all of its configured loggers and execute the same Fields() method call
+// on each of them -- applying the input Metadata map as the Logger's metadata.
+func (l *multiLogger) Fields(fields map[string]interface{}) Logger {
+	for _, logger := range l.loggers {
+		logger.Fields(fields)
+	}
+	return l
+}
+
 // IsSkipExit method is similar to a Logger.IsSkipExit() method, however the multiLogger will
 // range through all of its configured loggers and execute the same IsSkipExit() method call
-// on each of them -- the first (if any) Logger which lists having this option set to true
-// will cause an immediate return of this value, otherwise it will return as false
+// on each of them -- the first (if any) Logger which lists having this option set to false
+// will cause an immediate return of this value, otherwise it will return as true if all loggers
+// are skipping exit calls.
+//
+// This way, the caller can be sure whether the overall Logger is in fact with a SkipExit config,
+// and there won't be any leaking exit calls on a specific logger from this group.
 func (l *multiLogger) IsSkipExit() bool {
 	for _, logger := range l.loggers {
 		ok := logger.IsSkipExit()
-		if ok {
-			return ok // true
+		if !ok {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 // IsSkipExit method is similar to a Logger.IsSkipExit() method, however the multiLogger will

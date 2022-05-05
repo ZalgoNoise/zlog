@@ -231,7 +231,7 @@ func (l *multiLogger) Write(p []byte) (n int, err error) {
 			if err == nil {
 				err = e
 			} else {
-				err = fmt.Errorf("%w ; %s", err, e.Error())
+				err = fmt.Errorf("%w ; %v", err, e)
 			}
 		}
 

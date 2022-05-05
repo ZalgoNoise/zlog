@@ -12,9 +12,62 @@ import (
 	"github.com/zalgonoise/zlog/log/event"
 )
 
-var loggers = []Logger{
-	New(), New(), New(), New(),
+type testLogger struct {
+	outs []io.Writer
 }
+
+func (l *testLogger) Write(p []byte) (n int, err error) {
+	if len(p) < 10 {
+		return
+	}
+
+	if len(p) > 40 {
+		n = len(p)
+		err = errors.New("testing a write error")
+		return
+	}
+
+	n = len(p)
+	return
+}
+func (l *testLogger) SetOuts(outs ...io.Writer) Logger {
+	l.outs = outs
+	return l
+}
+func (l *testLogger) AddOuts(outs ...io.Writer) Logger {
+	l.outs = append(l.outs, outs...)
+	return l
+}
+func (l *testLogger) Prefix(prefix string) Logger                 { return l }
+func (l *testLogger) Sub(sub string) Logger                       { return l }
+func (l *testLogger) Fields(fields map[string]interface{}) Logger { return l }
+func (l *testLogger) IsSkipExit() bool                            { return true }
+func (l *testLogger) Output(m *event.Event) (n int, err error)    { return 1, nil }
+func (l *testLogger) Log(m ...*event.Event)                       {}
+func (l *testLogger) Print(v ...interface{})                      {}
+func (l *testLogger) Println(v ...interface{})                    {}
+func (l *testLogger) Printf(format string, v ...interface{})      {}
+func (l *testLogger) Panic(v ...interface{})                      {}
+func (l *testLogger) Panicln(v ...interface{})                    {}
+func (l *testLogger) Panicf(format string, v ...interface{})      {}
+func (l *testLogger) Fatal(v ...interface{})                      {}
+func (l *testLogger) Fatalln(v ...interface{})                    {}
+func (l *testLogger) Fatalf(format string, v ...interface{})      {}
+func (l *testLogger) Error(v ...interface{})                      {}
+func (l *testLogger) Errorln(v ...interface{})                    {}
+func (l *testLogger) Errorf(format string, v ...interface{})      {}
+func (l *testLogger) Warn(v ...interface{})                       {}
+func (l *testLogger) Warnln(v ...interface{})                     {}
+func (l *testLogger) Warnf(format string, v ...interface{})       {}
+func (l *testLogger) Info(v ...interface{})                       {}
+func (l *testLogger) Infoln(v ...interface{})                     {}
+func (l *testLogger) Infof(format string, v ...interface{})       {}
+func (l *testLogger) Debug(v ...interface{})                      {}
+func (l *testLogger) Debugln(v ...interface{})                    {}
+func (l *testLogger) Debugf(format string, v ...interface{})      {}
+func (l *testLogger) Trace(v ...interface{})                      {}
+func (l *testLogger) Traceln(v ...interface{})                    {}
+func (l *testLogger) Tracef(format string, v ...interface{})      {}
 
 func TestMultiLogger(t *testing.T) {
 	module := "MultiLogger"
@@ -24,6 +77,10 @@ func TestMultiLogger(t *testing.T) {
 		name  string
 		l     []Logger
 		wants Logger
+	}
+
+	var loggers = []Logger{
+		New(), New(), New(), New(),
 	}
 
 	var tests = []test{
@@ -96,68 +153,6 @@ func TestMultiLogger(t *testing.T) {
 	}
 
 }
-
-type testLogger struct {
-	outs []io.Writer
-}
-
-func (l *testLogger) Write(p []byte) (n int, err error) {
-	if len(p) < 10 {
-		return
-	}
-
-	if len(p) > 10 && len(p) < 20 {
-		n = 10
-		return
-	}
-
-	if len(p) > 40 {
-		n = len(p)
-		err = errors.New("testing a write error")
-		return
-	}
-
-	n = len(p)
-	return
-}
-func (l *testLogger) SetOuts(outs ...io.Writer) Logger {
-	l.outs = outs
-	return l
-}
-func (l *testLogger) AddOuts(outs ...io.Writer) Logger {
-	l.outs = append(l.outs, outs...)
-	return l
-}
-func (l *testLogger) Prefix(prefix string) Logger                 { return l }
-func (l *testLogger) Sub(sub string) Logger                       { return l }
-func (l *testLogger) Fields(fields map[string]interface{}) Logger { return l }
-func (l *testLogger) IsSkipExit() bool                            { return true }
-func (l *testLogger) Output(m *event.Event) (n int, err error)    { return 1, nil }
-func (l *testLogger) Log(m ...*event.Event)                       {}
-func (l *testLogger) Print(v ...interface{})                      {}
-func (l *testLogger) Println(v ...interface{})                    {}
-func (l *testLogger) Printf(format string, v ...interface{})      {}
-func (l *testLogger) Panic(v ...interface{})                      {}
-func (l *testLogger) Panicln(v ...interface{})                    {}
-func (l *testLogger) Panicf(format string, v ...interface{})      {}
-func (l *testLogger) Fatal(v ...interface{})                      {}
-func (l *testLogger) Fatalln(v ...interface{})                    {}
-func (l *testLogger) Fatalf(format string, v ...interface{})      {}
-func (l *testLogger) Error(v ...interface{})                      {}
-func (l *testLogger) Errorln(v ...interface{})                    {}
-func (l *testLogger) Errorf(format string, v ...interface{})      {}
-func (l *testLogger) Warn(v ...interface{})                       {}
-func (l *testLogger) Warnln(v ...interface{})                     {}
-func (l *testLogger) Warnf(format string, v ...interface{})       {}
-func (l *testLogger) Info(v ...interface{})                       {}
-func (l *testLogger) Infoln(v ...interface{})                     {}
-func (l *testLogger) Infof(format string, v ...interface{})       {}
-func (l *testLogger) Debug(v ...interface{})                      {}
-func (l *testLogger) Debugln(v ...interface{})                    {}
-func (l *testLogger) Debugf(format string, v ...interface{})      {}
-func (l *testLogger) Trace(v ...interface{})                      {}
-func (l *testLogger) Traceln(v ...interface{})                    {}
-func (l *testLogger) Tracef(format string, v ...interface{})      {}
 
 func TestMultiLoggerSetOuts(t *testing.T) {
 	module := "MultiLogger"
@@ -450,6 +445,10 @@ func FuzzMultiLoggerPrefix(f *testing.F) {
 	module := "MultiLogger"
 	funcname := "Prefix()"
 
+	var loggers = []Logger{
+		New(), New(), New(), New(),
+	}
+
 	ml := MultiLogger(loggers...)
 
 	f.Add("test-prefix")
@@ -474,6 +473,10 @@ func FuzzMultiLoggerPrefix(f *testing.F) {
 func FuzzMultiLoggerSub(f *testing.F) {
 	module := "MultiLogger"
 	funcname := "Sub()"
+
+	var loggers = []Logger{
+		New(), New(), New(), New(),
+	}
 
 	ml := MultiLogger(loggers...)
 
@@ -505,6 +508,10 @@ func TestMultiLoggerFields(t *testing.T) {
 		init  map[string]interface{}
 		input map[string]interface{}
 		want  map[string]interface{}
+	}
+
+	var loggers = []Logger{
+		New(), New(), New(), New(),
 	}
 
 	var tests = []test{

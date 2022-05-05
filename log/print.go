@@ -106,12 +106,7 @@ func (l *logger) Output(m *event.Event) (n int, err error) {
 	l.buf = buf
 
 	// write message to outs
-	n, err = l.out.Write(l.buf)
-
-	if err != nil {
-		return n, err
-	}
-	return n, err
+	return l.out.Write(l.buf)
 }
 
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern

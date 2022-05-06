@@ -186,7 +186,7 @@ func (l *logger) Panic(v ...interface{}) {
 	l.Output(log)
 
 	if !l.IsSkipExit() {
-		panic(log.Msg)
+		panic(log.GetMsg())
 	}
 }
 
@@ -204,7 +204,7 @@ func (l *logger) Panicln(v ...interface{}) {
 	l.Output(log)
 
 	if !l.IsSkipExit() {
-		panic(log.Msg)
+		panic(log.GetMsg())
 	}
 
 }
@@ -223,7 +223,7 @@ func (l *logger) Panicf(format string, v ...interface{}) {
 	l.Output(log)
 
 	if !l.IsSkipExit() {
-		panic(log.Msg)
+		panic(log.GetMsg())
 	}
 
 }

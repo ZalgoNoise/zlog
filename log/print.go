@@ -450,13 +450,21 @@ func (l *logger) Tracef(format string, v ...interface{}) {
 // range through all of its configured loggers and execute the same Output() method call
 // on each of them
 func (l *multiLogger) Output(m *event.Event) (n int, err error) {
+	var firstn int
+
 	for _, logger := range l.loggers {
 		n, err := logger.Output(m)
+
+		if firstn == 0 {
+			firstn = n
+		}
+
 		if err != nil {
-			return n, err
+			return firstn, err
 		}
 	}
-	return n, err
+
+	return firstn, err
 }
 
 // Print method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern

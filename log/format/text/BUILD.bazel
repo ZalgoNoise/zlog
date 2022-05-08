@@ -1,9 +1,16 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "text",
     srcs = ["text.go"],
     importpath = "github.com/zalgonoise/zlog/log/format/text",
     visibility = ["//visibility:public"],
+    deps = ["//log/event"],
+)
+
+go_test(
+    name = "text_test",
+    srcs = ["text_test.go"],
+    embed = [":text"],
     deps = ["//log/event"],
 )

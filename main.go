@@ -8,6 +8,7 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
 	"github.com/zalgonoise/zlog/log/format/text"
+	"github.com/zalgonoise/zlog/log/logch"
 	"github.com/zalgonoise/zlog/store/fs"
 )
 
@@ -67,7 +68,7 @@ func main() {
 		event.New().Level(event.Level_trace).Message("this is a custom level log entry").Build(),
 	)
 
-	chlogger := log.NewLogCh(multi)
+	chlogger := logch.New(multi)
 	defer chlogger.Close()
 
 	logCh, _ := chlogger.Channels()

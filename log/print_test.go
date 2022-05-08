@@ -2596,6 +2596,1021 @@ func FuzzMultiLoggerTracef(f *testing.F) {
 	})
 }
 
+func FuzzPrint(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Print()"
+	action := "fuzz testing Print(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().NoLevel().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Print(a)
+
+		// add newline
+		var sb strings.Builder
+		sb.WriteString(a)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzPrintln(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Println()"
+	action := "fuzz testing Println(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().NoLevel().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Println(a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString(a)
+		sb.WriteByte(10)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzPrintf(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Printf()"
+	action := "fuzz testing Printf(format string, v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().NoLevel().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Printf(`"%s"`, a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString(`"`)
+		sb.WriteString(a)
+		sb.WriteString(`"`)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzLog(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Log()"
+	action := "fuzz testing Log(...*event.Event)"
+
+	oldstd := std
+	buf := &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoTimestamp().NoLevel().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-prefix", "test-sub", "test-message")
+	f.Fuzz(func(t *testing.T, a, b, c string) {
+		defer buf.Reset()
+
+		e := event.New().Prefix(a).Sub(b).Message(c).Build()
+
+		Log(e)
+
+		var sb strings.Builder
+		sb.WriteString(`[`)
+		sb.WriteString(a)
+		sb.WriteString("]\t[")
+		sb.WriteString(b)
+		sb.WriteString("]\t")
+		sb.WriteString(c)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func TestLog(t *testing.T) {
+	module := "StdLogger"
+	funcname := "Log()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name  string
+		e     []*event.Event
+		wants string
+		panic bool
+	}
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), WithFormat(text.New().NoTimestamp().NoLevel().Build()))
+	defer func() { std = oldstd }()
+
+	var tests = []test{
+		{
+			name:  "no messages sent -- nil",
+			e:     nil,
+			wants: "",
+			panic: false,
+		},
+		{
+			name:  "no messages sent -- empty slice",
+			e:     []*event.Event{},
+			wants: "",
+			panic: false,
+		},
+		{
+			name:  "no messages sent -- slice w/ nil events",
+			e:     []*event.Event{nil, nil, nil},
+			wants: "",
+			panic: false,
+		},
+		{
+			name:  "no messages sent -- empty slice",
+			e:     []*event.Event{},
+			wants: "",
+			panic: false,
+		},
+		{
+			name: "no messages sent -- empty slice",
+			e: []*event.Event{
+				event.New().Level(event.Level_panic).Message("null").Build(),
+			},
+			wants: "null",
+			panic: true,
+		},
+	}
+
+	var handlePanic = func(idx int, test test) {
+		e := recover()
+
+		if e != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] panicking output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				e,
+				test.name,
+			)
+		}
+	}
+
+	var verify = func(idx int, test test) {
+		defer buf.Reset()
+
+		if test.panic {
+			defer handlePanic(idx, test)
+		}
+
+		Log(test.e...)
+
+		if buf.String() != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				buf.String(),
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func FuzzPanic(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Panic()"
+	action := "fuzz testing Panic(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+
+		var handlePanic = func() {
+			e := recover()
+
+			if e != a {
+				t.Errorf(
+					"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+					module,
+					funcname,
+					a,
+					e,
+					action,
+				)
+				return
+			}
+		}
+
+		defer handlePanic()
+		defer buf.Reset()
+
+		Panic(a)
+
+	})
+}
+
+func FuzzPanicln(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Panicln()"
+	action := "fuzz testing Panicln(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+
+		var handlePanic = func() {
+			e := recover()
+
+			var sb strings.Builder
+			sb.WriteString(a)
+			sb.WriteByte(10)
+
+			if e != sb.String() {
+				t.Errorf(
+					"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+					module,
+					funcname,
+					sb.String(),
+					e,
+					action,
+				)
+				return
+			}
+		}
+
+		defer handlePanic()
+		defer buf.Reset()
+
+		Panicln(a)
+
+	})
+}
+
+func FuzzPanicf(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Panicf()"
+	action := "fuzz testing Panicf(format string, v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+
+		var handlePanic = func() {
+			e := recover()
+
+			var sb strings.Builder
+			sb.WriteString(`"`)
+			sb.WriteString(a)
+			sb.WriteString(`"`)
+
+			if e != sb.String() {
+				t.Errorf(
+					"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+					module,
+					funcname,
+					sb.String(),
+					e,
+					action,
+				)
+				return
+			}
+		}
+
+		defer handlePanic()
+		defer buf.Reset()
+
+		Panicf(`"%s"`, a)
+
+	})
+}
+
+func FuzzFatal(f *testing.F) {
+	module := "Logger"
+	funcname := "Fatal()"
+	action := "fuzz testing Fatal(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Fatal(a)
+
+		// add newline
+		var sb strings.Builder
+		sb.WriteString("[fatal]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzFatalln(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Fatalln()"
+	action := "fuzz testing Fatalln(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Fatalln(a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[fatal]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzFatalf(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Fatalf()"
+	action := "fuzz testing Fatalf(format string, v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Fatalf(`"%s"`, a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[fatal]\t")
+		sb.WriteString(`"`)
+		sb.WriteString(a)
+		sb.WriteString(`"`)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzError(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Error()"
+	action := "fuzz testing Error(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Error(a)
+
+		// add newline
+		var sb strings.Builder
+		sb.WriteString("[error]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzErrorln(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Errorln()"
+	action := "fuzz testing Errorln(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Errorln(a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[error]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzErrorf(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Errorf()"
+	action := "fuzz testing Errorf(format string, v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Errorf(`"%s"`, a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[error]\t")
+		sb.WriteString(`"`)
+		sb.WriteString(a)
+		sb.WriteString(`"`)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzWarn(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Warn()"
+	action := "fuzz testing Warn(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Warn(a)
+
+		// add newline
+		var sb strings.Builder
+		sb.WriteString("[warn]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzWarnln(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Warnln()"
+	action := "fuzz testing Warnln(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Warnln(a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[warn]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzWarnf(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Warnf()"
+	action := "fuzz testing Warnf(format string, v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Warnf(`"%s"`, a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[warn]\t")
+		sb.WriteString(`"`)
+		sb.WriteString(a)
+		sb.WriteString(`"`)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzInfo(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Info()"
+	action := "fuzz testing Info(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Info(a)
+
+		// add newline
+		var sb strings.Builder
+		sb.WriteString("[info]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzInfoln(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Infoln()"
+	action := "fuzz testing Infoln(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Infoln(a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[info]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzInfof(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Infof()"
+	action := "fuzz testing Infof(format string, v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Infof(`"%s"`, a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[info]\t")
+		sb.WriteString(`"`)
+		sb.WriteString(a)
+		sb.WriteString(`"`)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzDebug(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Debug()"
+	action := "fuzz testing Debug(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Debug(a)
+
+		// add newline
+		var sb strings.Builder
+		sb.WriteString("[debug]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzDebugln(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Debugln()"
+	action := "fuzz testing Debugln(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Debugln(a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[debug]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzDebugf(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Debugf()"
+	action := "fuzz testing Debugf(format string, v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Debugf(`"%s"`, a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[debug]\t")
+		sb.WriteString(`"`)
+		sb.WriteString(a)
+		sb.WriteString(`"`)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzTrace(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Trace()"
+	action := "fuzz testing Trace(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Trace(a)
+
+		// add newline
+		var sb strings.Builder
+		sb.WriteString("[trace]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzTraceln(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Debugln()"
+	action := "fuzz testing Debugln(v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Traceln(a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[trace]\t")
+		sb.WriteString(a)
+		sb.WriteByte(10)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+func FuzzTracef(f *testing.F) {
+	module := "StdLogger"
+	funcname := "Tracef()"
+	action := "fuzz testing Tracef(format string, v ...interface{})"
+
+	oldstd := std
+	var buf = &bytes.Buffer{}
+	std = New(WithOut(buf), SkipExit, WithFormat(text.New().NoHeaders().NoTimestamp().Build()))
+	defer func() { std = oldstd }()
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		defer buf.Reset()
+
+		Tracef(`"%s"`, a)
+
+		// add newline x2
+		var sb strings.Builder
+		sb.WriteString("[trace]\t")
+		sb.WriteString(`"`)
+		sb.WriteString(a)
+		sb.WriteString(`"`)
+		sb.WriteByte(10)
+
+		if buf.String() != sb.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] output mismatch error: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				buf.String(),
+				action,
+			)
+		}
+	})
+}
+
+/*
+ *
+ */
+
 // import (
 // 	"bytes"
 // 	"encoding/json"

@@ -8,7 +8,6 @@ go_library(
     deps = [
         "//log",
         "//log/event",
-        "//store/db",
         "//store/db/message",
         "@io_gorm_driver_sqlite//:sqlite",
         "@io_gorm_gorm//:gorm",

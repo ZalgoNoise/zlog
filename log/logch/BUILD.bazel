@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "logch",
+    srcs = ["logch.go"],
+    importpath = "github.com/zalgonoise/zlog/log/logch",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//log",
+        "//log/event",
+    ],
+)
+
+go_test(
+    name = "logch_test",
+    srcs = ["logch_test.go"],
+    embed = [":logch"],
+    deps = [
+        "//log",
+        "//log/event",
+    ],
+)

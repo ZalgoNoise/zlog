@@ -3607,6 +3607,102 @@ func FuzzTracef(f *testing.F) {
 	})
 }
 
+func TestNilLoggerPrint(t *testing.T) {
+	module := "NilLogger"
+
+	_ = module
+
+	type test struct {
+		name string
+		e    *event.Event
+	}
+
+	var tests = []test{
+		{
+			name: "default message",
+			e:    event.New().Message("null").Build(),
+		},
+		{
+			name: "nil message",
+			e:    nil,
+		},
+	}
+
+	nl := New(NilConfig)
+
+	var verify = func(idx int, test test) {
+		var msg string
+
+		if msg = test.e.GetMsg(); msg == "" {
+			msg = "null"
+		}
+
+		n, err := nl.Output(test.e)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] call returned an unexpected error: %v -- action: %s",
+				idx,
+				module,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		if n != 1 {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] call returned an unexpected byte length: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				1,
+				n,
+				test.name,
+			)
+			return
+		}
+
+		// zero action calls
+		nl.Log(test.e)
+
+		nl.Print(msg)
+		nl.Println(msg)
+		nl.Printf("%s", msg)
+
+		nl.Panic(msg)
+		nl.Panicln(msg)
+		nl.Panicf("%s", msg)
+
+		nl.Fatal(msg)
+		nl.Fatalln(msg)
+		nl.Fatalf("%s", msg)
+
+		nl.Error(msg)
+		nl.Errorln(msg)
+		nl.Errorf("%s", msg)
+
+		nl.Warn(msg)
+		nl.Warnln(msg)
+		nl.Warnf("%s", msg)
+
+		nl.Info(msg)
+		nl.Infoln(msg)
+		nl.Infof("%s", msg)
+
+		nl.Debug(msg)
+		nl.Debugln(msg)
+		nl.Debugf("%s", msg)
+
+		nl.Trace(msg)
+		nl.Traceln(msg)
+		nl.Tracef("%s", msg)
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
 /*
  *
  */

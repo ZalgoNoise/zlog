@@ -1,8 +1,14 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "store",
     srcs = ["nilwritter.go"],
     importpath = "github.com/zalgonoise/zlog/store",
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "store_test",
+    srcs = ["nilwritter_test.go"],
+    embed = [":store"],
 )

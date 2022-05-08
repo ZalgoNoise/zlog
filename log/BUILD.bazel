@@ -3,13 +3,11 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "log",
     srcs = [
-        "channel.go",
         "conf.go",
         "format.go",
         "logger.go",
         "multilog.go",
         "print.go",
-        "testdata.go",
     ],
     importpath = "github.com/zalgonoise/zlog/log",
     visibility = ["//visibility:public"],
@@ -31,9 +29,7 @@ go_library(
 go_test(
     name = "log_test",
     srcs = [
-        "channel_test.go",
         "conf_test.go",
-        "format_test.go",
         "logger_test.go",
         "multilog_test.go",
         "print_test.go",
@@ -42,12 +38,7 @@ go_test(
     deps = [
         "//grpc/address",
         "//log/event",
-        "//log/format/bson",
-        "//log/format/csv",
-        "//log/format/gob",
-        "//log/format/json",
         "//log/format/text",
         "//store",
-        "@org_mongodb_go_mongo_driver//bson",
     ],
 )

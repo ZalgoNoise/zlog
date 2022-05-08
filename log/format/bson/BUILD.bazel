@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "bson",
@@ -7,6 +7,14 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//log/event",
+        "@org_golang_google_protobuf//types/known/timestamppb",
         "@org_mongodb_go_mongo_driver//bson",
     ],
+)
+
+go_test(
+    name = "bson_test",
+    srcs = ["bson_test.go"],
+    embed = [":bson"],
+    deps = ["//log/event"],
 )

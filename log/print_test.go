@@ -12,6 +12,11 @@ import (
 	"github.com/zalgonoise/zlog/log/format/text"
 )
 
+type testWC struct{}
+
+func (testWC) Write(p []byte) (n int, err error) { return 1, nil }
+func (testWC) Close() error                      { return nil }
+
 var (
 	testErrFormat error = errors.New("failed to format message")
 	testErrWrite  error = errors.New("failed to write to output")

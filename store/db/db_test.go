@@ -151,6 +151,43 @@ func TestMultiWriteCloser(t *testing.T) {
 			input: nil,
 			wants: nil,
 		},
+		{
+			name: "multi io.WriteCloser w/ nil writers mixed in",
+			input: []io.WriteCloser{
+				wcBuffers[0],
+				nil,
+				nil,
+				wcBuffers[1],
+				nil,
+				wcBuffers[2],
+			},
+			wants: &multiWriteCloser{
+				writers: []io.WriteCloser{
+					wcBuffers[0],
+					wcBuffers[1],
+					wcBuffers[2],
+				},
+			},
+		},
+		{
+			name: "multi io.WriteCloser w/ only 1 being a valid one",
+			input: []io.WriteCloser{
+				nil,
+				nil,
+				wcBuffers[0],
+				nil,
+			},
+			wants: wcBuffers[0],
+		},
+		{
+			name: "multi io.WriteCloser w/ no valid writers",
+			input: []io.WriteCloser{
+				nil,
+				nil,
+				nil,
+			},
+			wants: nil,
+		},
 	}
 
 	var verify = func(idx int, test test, out io.WriteCloser) {

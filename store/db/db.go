@@ -105,11 +105,25 @@ func MultiWriteCloser(wc ...io.WriteCloser) io.WriteCloser {
 
 	allWriters := make([]io.WriteCloser, 0, len(wc))
 	for _, w := range wc {
+
+		if w == nil {
+			continue
+		}
+
 		if mw, ok := w.(*multiWriteCloser); ok {
 			allWriters = append(allWriters, mw.writers...)
 		} else {
 			allWriters = append(allWriters, w)
 		}
 	}
+
+	if len(allWriters) == 0 {
+		return nil
+	}
+
+	if len(allWriters) == 1 {
+		return allWriters[0]
+	}
+
 	return &multiWriteCloser{allWriters}
 }

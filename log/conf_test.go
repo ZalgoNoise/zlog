@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/log/format/protobuf"
+	"github.com/zalgonoise/zlog/store/db"
 )
 
 func TestMultiConf(t *testing.T) {
@@ -389,4 +391,73 @@ func TestFilter(t *testing.T) {
 		verify(idx, test)
 	}
 
+}
+
+func TestWithDatabase(t *testing.T) {
+	module := "LoggerConfig"
+	funcname := "WithDatabase()"
+
+	type test struct {
+		name  string
+		w     []io.WriteCloser
+		wants LoggerConfig
+	}
+
+	var testWCs = []*testWC{{}, {}}
+
+	var tests = []test{
+		{
+			name:  "empty slice",
+			w:     []io.WriteCloser{},
+			wants: nil,
+		},
+		{
+			name:  "nil input",
+			w:     nil,
+			wants: nil,
+		},
+		{
+			name: "one WriteCloser",
+			w:    []io.WriteCloser{testWCs[0]},
+			wants: &LCDatabase{
+				Out: testWCs[0],
+				Fmt: &protobuf.FmtPB{},
+			},
+		},
+		{
+			name: "multiple WriteClosers",
+			w:    []io.WriteCloser{testWCs[0], testWCs[0]},
+			wants: &LCDatabase{
+				Out: db.MultiWriteCloser(testWCs[0], testWCs[1]),
+				Fmt: &protobuf.FmtPB{},
+			},
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		var conf LoggerConfig
+		if test.w == nil {
+			conf = WithDatabase(nil)
+		} else {
+			conf = WithDatabase(test.w...)
+		}
+
+		if !reflect.DeepEqual(conf, test.wants) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				conf,
+				test.name,
+			)
+			return
+		}
+
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
 }

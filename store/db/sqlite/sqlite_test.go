@@ -9,6 +9,16 @@ import (
 	"github.com/zalgonoise/zlog/log/event"
 )
 
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
 func TestNew(t *testing.T) {
 	module := "SQLite"
 	funcname := "New()"
@@ -50,7 +60,19 @@ func TestNew(t *testing.T) {
 
 	var verify = func(idx int, test test) {
 
-		p := os.Getenv(test.envPath)
+		p, ok := getEnv(test.envPath)
+
+		if !ok {
+			t.Logf(
+				"#%v -- SKIPPED -- [%s] [%s] no %s env defined; skipping test as no DB will be used -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.envPath,
+				test.name,
+			)
+			return
+		}
 
 		_, err := New(p)
 
@@ -149,7 +171,19 @@ func TestCreate(t *testing.T) {
 
 	var verify = func(idx int, test test) {
 
-		p := os.Getenv(test.envPath)
+		p, ok := getEnv(test.envPath)
+
+		if !ok {
+			t.Logf(
+				"#%v -- SKIPPED -- [%s] [%s] no %s env defined; skipping test as no DB will be used -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.envPath,
+				test.name,
+			)
+			return
+		}
 
 		db, err := New(p)
 
@@ -252,7 +286,19 @@ func TestWrite(t *testing.T) {
 
 	var verify = func(idx int, test test) {
 
-		p := os.Getenv(test.envPath)
+		p, ok := getEnv(test.envPath)
+
+		if !ok {
+			t.Logf(
+				"#%v -- SKIPPED -- [%s] [%s] no %s env defined; skipping test as no DB will be used -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.envPath,
+				test.name,
+			)
+			return
+		}
 
 		db, err := New(p)
 
@@ -292,7 +338,19 @@ func TestWrite(t *testing.T) {
 
 	var verifyNewFromPath = func(idx int, test test) {
 
-		p := os.Getenv(test.envPath)
+		p, ok := getEnv(test.envPath)
+
+		if !ok {
+			t.Logf(
+				"#%v -- SKIPPED -- [%s] [%s] no %s env defined; skipping test as no DB will be used -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.envPath,
+				test.name,
+			)
+			return
+		}
 
 		db := &SQLite{
 			path: p,
@@ -322,7 +380,19 @@ func TestWrite(t *testing.T) {
 
 	var verifyInvalidMessage = func(idx int, test test) {
 
-		p := os.Getenv(test.envPath)
+		p, ok := getEnv(test.envPath)
+
+		if !ok {
+			t.Logf(
+				"#%v -- SKIPPED -- [%s] [%s] no %s env defined; skipping test as no DB will be used -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.envPath,
+				test.name,
+			)
+			return
+		}
 
 		db := &SQLite{
 			path: p,
@@ -467,7 +537,20 @@ func TestWithSQLite(t *testing.T) {
 
 	var verify = func(idx int, test test) {
 		defer catchPanic(idx, test)
-		p := os.Getenv(test.envPath)
+
+		p, ok := getEnv(test.envPath)
+
+		if !ok {
+			t.Logf(
+				"#%v -- SKIPPED -- [%s] [%s] no %s env defined; skipping test as no DB will be used -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.envPath,
+				test.name,
+			)
+			return
+		}
 
 		c := WithSQLite(p)
 

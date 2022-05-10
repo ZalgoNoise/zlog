@@ -15,7 +15,10 @@ func TestModelFrom(t *testing.T) {
 		name  string
 		event *event.Event
 		model *Event
+		ok    bool
 	}
+
+	var testMessage = "null"
 
 	var tests = []test{
 		{
@@ -28,6 +31,7 @@ func TestModelFrom(t *testing.T) {
 				Msg:      "testing",
 				Metadata: "",
 			},
+			ok: true,
 		},
 		{
 			name:  "default message w/ meta",
@@ -39,15 +43,31 @@ func TestModelFrom(t *testing.T) {
 				Msg:      "testing",
 				Metadata: `{"a":true}`,
 			},
+			ok: true,
+		},
+		{
+			name:  "invalid message",
+			event: &event.Event{},
+			model: nil,
+		},
+		{
+			name:  "most basic message",
+			event: &event.Event{Msg: &testMessage},
+			model: &Event{
+				Prefix: "log",
+				Sub:    "",
+				Level:  "info",
+				Msg:    "null",
+			},
+			ok: true,
 		},
 	}
 
 	var verify = func(idx int, test test, e *Event) {
-		t.Errorf("%s", test.event.GetMeta())
 
 		err := e.From(test.event)
 
-		if err != nil {
+		if test.ok && err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] -- error converting pb message: %v -- action: %s",
 				idx,
@@ -56,6 +76,8 @@ func TestModelFrom(t *testing.T) {
 				err,
 				test.name,
 			)
+			return
+		} else if !test.ok {
 			return
 		}
 

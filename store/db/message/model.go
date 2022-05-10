@@ -2,10 +2,16 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/zalgonoise/zlog/log/event"
 	"gorm.io/gorm"
+)
+
+var (
+	ErrInvalidEvent error = errors.New("invalid event -- missing message body")
 )
 
 // Event struct defines the general structure of a log message, to be used
@@ -25,21 +31,35 @@ type Event struct {
 // From method will take in an event.Event and convert it into a (DB model) Event,
 // returning any errors if existing.
 func (m *Event) From(msg *event.Event) error {
-	m.Time = msg.GetTime().AsTime()
-	m.Prefix = msg.GetPrefix()
-	m.Sub = msg.GetSub()
-	m.Level = msg.GetLevel().String()
-	m.Msg = msg.GetMsg()
+	now := time.Now()
 
-	meta, err := json.Marshal(msg.GetMeta().AsMap())
+	// get values
+	timestamp := msg.GetTime().AsTime()
+	prefix := msg.GetPrefix()
+	sub := msg.GetSub()
+	level := msg.GetLevel().String()
+	body := msg.GetMsg()
+	meta, _ := json.Marshal(msg.GetMeta().AsMap())
 
-	if err != nil {
-		return err
+	// check defaults
+	if body == "" {
+		return ErrInvalidEvent
 	}
+
+	if timestamp.Unix() == 0 {
+		timestamp = now
+	}
+
+	m.Time = timestamp
+	m.Prefix = prefix
+	m.Sub = sub
+	m.Level = level
+	m.Msg = body
 
 	if metafmt := string(meta); metafmt != "{}" {
 		m.Metadata = metafmt
 	}
 
+	fmt.Println(m)
 	return nil
 }

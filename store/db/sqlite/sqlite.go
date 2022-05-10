@@ -3,7 +3,6 @@ package sqlite
 import (
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
@@ -45,12 +44,20 @@ func (o *SQLite) Create(msg ...*event.Event) error {
 	var msgs []*model.Event
 
 	for _, m := range msg {
+		if m == nil {
+			continue
+		}
+
 		var entry = &model.Event{}
 
 		if err := entry.From(m); err != nil {
 			return err
 		}
 		msgs = append(msgs, entry)
+	}
+
+	if len(msgs) == 0 {
+		return nil
 	}
 
 	o.db.Create(msgs)
@@ -96,8 +103,9 @@ func initialMigration(path string) (*gorm.DB, error) {
 	}
 
 	// Migrate the schema
-	db.AutoMigrate(&model.Event{})
-	return db, nil
+	err = db.AutoMigrate(&model.Event{})
+
+	return db, err
 }
 
 // WithSQLite function takes in a path to a .db file, and a table name; and returns a LoggerConfig
@@ -105,8 +113,7 @@ func initialMigration(path string) (*gorm.DB, error) {
 func WithSQLite(path string) log.LoggerConfig {
 	db, err := New(path)
 	if err != nil {
-		fmt.Printf("failed to open or create database with an error: %s", err)
-		os.Exit(1)
+		panic(fmt.Errorf("failed to create logger config -- database creation failed: %w", err))
 	}
 
 	return &log.LCDatabase{

@@ -15,7 +15,10 @@ import (
 )
 
 var (
-	ErrNoEnv error = errors.New("no env variable provided -- ensure that the environment variables for MYSQL_USER and MYSQL_PASSWORD are set")
+	ErrNoEnv           error = errors.New("no env variable provided -- ensure that the environment variables for MYSQL_USER and MYSQL_PASSWORD are set")
+	ErrMissingUser     error = errors.New("unset MySQL user variable: please export the MYSQL_USER variable")
+	ErrMissingPassword error = errors.New("unset MySQL password variable: please export the MYSQL_PASSWORD variable")
+	ErrMissingDatabase error = errors.New("unset MySQL database variable: please export the MYSQL_DATABASE variable")
 )
 
 type MySQL struct {
@@ -52,12 +55,20 @@ func (d *MySQL) Create(msg ...*event.Event) error {
 	var msgs []*model.Event
 
 	for _, m := range msg {
+		if m == nil {
+			continue
+		}
+
 		var entry = &model.Event{}
 
 		if err := entry.From(m); err != nil {
 			return err
 		}
 		msgs = append(msgs, entry)
+	}
+
+	if len(msgs) == 0 {
+		return nil
 	}
 
 	d.db.Create(msgs)
@@ -71,7 +82,7 @@ func (d *MySQL) Create(msg ...*event.Event) error {
 func (s *MySQL) Write(p []byte) (n int, err error) {
 	if s.db == nil && s.addr != "" {
 		if s.database == "" {
-			s.database = "logs"
+			return 0, ErrMissingDatabase
 		}
 
 		new, err := New(s.addr, s.database)
@@ -104,9 +115,23 @@ func initialMigration(address, database string) (*gorm.DB, error) {
 	// "gorm:gorm@tcp(127.0.0.1:3306)/gorm?charset=utf8&parseTime=True&loc=Local"
 	var uri = strings.Builder{}
 
-	uri.WriteString(os.Getenv("MYSQL_USER"))
+	if database == "" {
+		return nil, ErrMissingDatabase
+	}
+
+	u := os.Getenv("MYSQL_USER")
+	if u == "" {
+		return nil, ErrMissingUser
+	}
+
+	p := os.Getenv("MYSQL_PASSWORD")
+	if p == "" {
+		return nil, ErrMissingPassword
+	}
+
+	uri.WriteString(u)
 	uri.WriteString(":")
-	uri.WriteString(os.Getenv("MYSQL_PASSWORD"))
+	uri.WriteString(p)
 	uri.WriteString("@tcp(")
 	uri.WriteString(address)
 	uri.WriteString(")/")
@@ -141,8 +166,7 @@ func initialMigration(address, database string) (*gorm.DB, error) {
 func WithMySQL(addr, database string) log.LoggerConfig {
 	db, err := New(addr, database)
 	if err != nil {
-		fmt.Printf("failed to open or create database with an error: %s", err)
-		os.Exit(1)
+		panic(fmt.Errorf("failed to create logger config -- database creation failed: %s", err))
 	}
 
 	return &log.LCDatabase{

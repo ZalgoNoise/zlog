@@ -6,12 +6,10 @@ import (
 	"os"
 	"regexp"
 
-	// 	"regexp"
 	"testing"
 
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
-	// 	"github.com/zalgonoise/zlog/log"
 )
 
 func getEnv(env string) (val string, ok bool) {
@@ -164,7 +162,7 @@ func TestNew(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, test.omitDatabase)
 
 		if err != nil {
-			t.Errorf(
+			t.Logf(
 				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
 				idx,
 				module,
@@ -296,7 +294,7 @@ func TestCreate(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, false)
 
 		if err != nil {
-			t.Errorf(
+			t.Logf(
 				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
 				idx,
 				module,
@@ -456,7 +454,7 @@ func TestWrite(t *testing.T) {
 		db, err := initDB(idx, test)
 
 		if test.ok && err != nil {
-			t.Errorf(
+			t.Logf(
 				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
@@ -670,7 +668,7 @@ func TestWithMySQL(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, false)
 
 		if err != nil {
-			t.Errorf(
+			t.Logf(
 				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
 				idx,
 				module,

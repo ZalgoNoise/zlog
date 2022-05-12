@@ -15,7 +15,10 @@ import (
 )
 
 var (
-	ErrNoEnv error = errors.New("no env variable provided -- ensure that the environment variables for POSTGRES_USER and POSTGRES_PASSWORD are set")
+	ErrNoEnv           error = errors.New("no env variable provided -- ensure that the environment variables for POSTGRES_USER and POSTGRES_PASSWORD are set")
+	ErrMissingUser     error = errors.New("unset Postgres user variable: please export the PSOTGRES_USER variable")
+	ErrMissingPassword error = errors.New("unset Postgres password variable: please export the PSOTGRES_PASSWORD variable")
+	ErrMissingDatabase error = errors.New("unset Postgres database variable: please export the PSOTGRES_DATABASE variable")
 )
 
 type Postgres struct {
@@ -54,12 +57,20 @@ func (d *Postgres) Create(msg ...*event.Event) error {
 	var msgs []*model.Event
 
 	for _, m := range msg {
+		if m == nil {
+			continue
+		}
+
 		var entry = &model.Event{}
 
 		if err := entry.From(m); err != nil {
 			return err
 		}
 		msgs = append(msgs, entry)
+	}
+
+	if len(msgs) == 0 {
+		return nil
 	}
 
 	d.db.Create(msgs)
@@ -77,7 +88,7 @@ func (s *Postgres) Write(p []byte) (n int, err error) {
 		}
 
 		if s.database == "" {
-			s.database = "logs"
+			return 0, ErrMissingDatabase
 		}
 
 		new, err := New(s.addr, s.port, s.database)
@@ -110,12 +121,26 @@ func initialMigration(address, port, database string) (*gorm.DB, error) {
 	// "host=localhost user=gorm password=gorm dbname=gorm port=9920 sslmode=disable TimeZone=UTC"
 	var uri = strings.Builder{}
 
+	if database == "" {
+		return nil, ErrMissingDatabase
+	}
+
+	u := os.Getenv("POSTGRES_USER")
+	if u == "" {
+		return nil, ErrMissingUser
+	}
+
+	p := os.Getenv("POSTGRES_PASSWORD")
+	if p == "" {
+		return nil, ErrMissingPassword
+	}
+
 	uri.WriteString("host=")
 	uri.WriteString(address)
 	uri.WriteString(" user=")
-	uri.WriteString(os.Getenv("POSTGRES_USER"))
+	uri.WriteString(u)
 	uri.WriteString(" password=")
-	uri.WriteString(os.Getenv("POSTGRES_PASSWORD"))
+	uri.WriteString(p)
 	uri.WriteString(" dbname=")
 	uri.WriteString(database)
 	uri.WriteString(" port=")
@@ -146,8 +171,7 @@ func initialMigration(address, port, database string) (*gorm.DB, error) {
 func WithPostgres(addr, port, database string) log.LoggerConfig {
 	db, err := New(addr, port, database)
 	if err != nil {
-		fmt.Printf("failed to open or create database with an error: %s", err)
-		os.Exit(1)
+		panic(fmt.Errorf("failed to create logger config -- database creation failed: %s", err))
 	}
 
 	return &log.LCDatabase{

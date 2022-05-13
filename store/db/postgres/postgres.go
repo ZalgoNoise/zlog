@@ -16,9 +16,9 @@ import (
 
 var (
 	ErrNoEnv           error = errors.New("no env variable provided -- ensure that the environment variables for POSTGRES_USER and POSTGRES_PASSWORD are set")
-	ErrMissingUser     error = errors.New("unset Postgres user variable: please export the PSOTGRES_USER variable")
-	ErrMissingPassword error = errors.New("unset Postgres password variable: please export the PSOTGRES_PASSWORD variable")
-	ErrMissingDatabase error = errors.New("unset Postgres database variable: please export the PSOTGRES_DATABASE variable")
+	ErrMissingUser     error = errors.New("unset Postgres user variable: please export the POSTGRES_USER variable")
+	ErrMissingPassword error = errors.New("unset Postgres password variable: please export the POSTGRES_PASSWORD variable")
+	ErrMissingDatabase error = errors.New("unset Postgres database variable: please export the POSTGRES_DATABASE variable")
 )
 
 type Postgres struct {
@@ -118,8 +118,6 @@ func (s *Postgres) Write(p []byte) (n int, err error) {
 func (d *Postgres) Close() error { return nil }
 
 func initialMigration(address, port, database string) (*gorm.DB, error) {
-	// "host=localhost user=gorm password=gorm dbname=gorm port=9920 sslmode=disable TimeZone=UTC"
-	var uri = strings.Builder{}
 
 	if database == "" {
 		return nil, ErrMissingDatabase
@@ -134,6 +132,9 @@ func initialMigration(address, port, database string) (*gorm.DB, error) {
 	if p == "" {
 		return nil, ErrMissingPassword
 	}
+
+	// "host=localhost user=gorm password=gorm dbname=gorm port=9920 sslmode=disable TimeZone=UTC"
+	var uri = strings.Builder{}
 
 	uri.WriteString("host=")
 	uri.WriteString(address)

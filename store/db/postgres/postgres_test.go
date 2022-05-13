@@ -318,7 +318,7 @@ func TestCreate(t *testing.T) {
 			return
 		}
 
-		mysql, ok := db.(*Postgres)
+		postgres, ok := db.(*Postgres)
 
 		if !ok {
 			t.Errorf(
@@ -332,9 +332,9 @@ func TestCreate(t *testing.T) {
 		}
 
 		if test.e == nil {
-			err = mysql.Create(nil)
+			err = postgres.Create(nil)
 		} else {
-			err = mysql.Create(test.e...)
+			err = postgres.Create(test.e...)
 		}
 
 		if test.ok && err != nil {
@@ -496,7 +496,7 @@ func TestWrite(t *testing.T) {
 			return
 		}
 
-		mysql, ok := db.(*Postgres)
+		postgres, ok := db.(*Postgres)
 
 		if !ok {
 			t.Errorf(
@@ -509,16 +509,16 @@ func TestWrite(t *testing.T) {
 			return
 		}
 
-		mysql.db = nil
+		postgres.db = nil
 
 		if test.omitDatabase {
-			mysql.database = ""
+			postgres.database = ""
 		}
 
 		if test.e == nil {
-			_, err = mysql.Write(nil)
+			_, err = postgres.Write(nil)
 		} else {
-			_, err = mysql.Write(test.e)
+			_, err = postgres.Write(test.e)
 		}
 
 		if test.ok && err != nil {

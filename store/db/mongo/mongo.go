@@ -16,7 +16,10 @@ import (
 )
 
 var (
-	ErrNoURI error = errors.New("no URI provided -- supply an environment variable containing the mongodb URI, or set it in the MONGODB_URI environment variable")
+	ErrNoURI           error = errors.New("no URI provided -- supply an environment variable containing the mongodb URI, or set it in the MONGODB_URI environment variable")
+	ErrMissingUser     error = errors.New("unset Mongo user variable: please export the MONGO_USER variable")
+	ErrMissingPassword error = errors.New("unset Mongo password variable: please export the MONGO_PASSWORD variable")
+	ErrMissingDatabase error = errors.New("unset Mongo database variable: please export the MONGO_DATABASE variable")
 )
 
 // Mongo struct is a wrapper for a MongoDB database to be used as a Log Writer
@@ -31,17 +34,33 @@ type Mongo struct {
 // New function will take in a MongoDB address, database and collection names; and
 // create a new instance of a Mongo object; returning an io.WriteCloser and an error.
 func New(address, database, collection string) (io.WriteCloser, error) {
+	if database == "" {
+		return nil, ErrMissingDatabase
+	}
+
+	u := os.Getenv("MONGO_USER")
+	if u == "" {
+		return nil, ErrMissingUser
+	}
+
+	p := os.Getenv("MONGO_PASSWORD")
+	if p == "" {
+		return nil, ErrMissingPassword
+	}
+
 	// getting the target URI
 	//   mongodb://user:password@127.0.0.1:27017/?maxPoolSize=20&w=majority
 	var uri = strings.Builder{}
 
 	uri.WriteString("mongodb://")
-	uri.WriteString(os.Getenv("MONGO_USER"))
+	uri.WriteString(u)
 	uri.WriteString(":")
-	uri.WriteString(os.Getenv("MONGO_PASSWORD"))
+	uri.WriteString(p)
 	uri.WriteString("@")
 	uri.WriteString(address)
 	uri.WriteString("/?maxPoolSize=20&w=majority")
+
+	fmt.Println(uri.String())
 
 	ctx := context.Background()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri.String()))
@@ -60,10 +79,7 @@ func New(address, database, collection string) (io.WriteCloser, error) {
 
 // Close method is used to terminate the live connection to the MongoDB instance.
 func (d *Mongo) Close() error {
-	if err := d.db.Disconnect(context.Background()); err != nil {
-		return err
-	}
-	return nil
+	return d.db.Disconnect(context.Background())
 }
 
 // Create method will register any number of event.Event in the Postgres database, returning
@@ -77,6 +93,10 @@ func (d *Mongo) Create(msg ...*event.Event) error {
 	var msgs []interface{}
 
 	for _, m := range msg {
+		if m == nil {
+			continue
+		}
+
 		var entry = bson.D{
 			{Key: "timestamp", Value: m.GetTime().AsTime()},
 			{Key: "service", Value: m.GetPrefix()},
@@ -86,6 +106,10 @@ func (d *Mongo) Create(msg ...*event.Event) error {
 			{Key: "metadata", Value: m.Meta.AsMap()},
 		}
 		msgs = append(msgs, entry)
+	}
+
+	if len(msgs) == 0 {
+		return nil
 	}
 
 	if len(msgs) == 1 {
@@ -110,7 +134,7 @@ func (d *Mongo) Create(msg ...*event.Event) error {
 func (d *Mongo) Write(p []byte) (n int, err error) {
 	if d.db == nil && d.addr != "" {
 		if d.database == "" {
-			d.database = "logging"
+			return 0, ErrMissingDatabase
 		}
 		if d.collection == "" {
 			d.collection = "logs"
@@ -141,8 +165,7 @@ func (d *Mongo) Write(p []byte) (n int, err error) {
 func WithMongo(addr, database, collection string) log.LoggerConfig {
 	db, err := New(addr, database, collection)
 	if err != nil {
-		fmt.Printf("failed to open or create database with an error: %s", err)
-		os.Exit(1)
+		panic(fmt.Errorf("failed to create logger config -- database creation failed: %s", err))
 	}
 
 	return &log.LCDatabase{

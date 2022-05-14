@@ -7,9 +7,59 @@ import "google.golang.org/grpc"
 // This map is used to build dynamic connections for gRPC Loggers.
 type ConnAddr map[string]*grpc.ClientConn
 
+// New function will take in any number of addr and initialize a ConnAddr object with
+// those addresses. Then, returns a pointer to this ConnAddr object.
+func New(addr ...string) *ConnAddr {
+	if addr == nil || len(addr) == 0 {
+		return nil
+	}
+
+	var input []string
+
+	for _, a := range addr {
+		if a == "" {
+			continue
+		}
+
+		input = append(input, a)
+	}
+
+	if len(input) == 0 {
+		return nil
+	}
+
+	var a = &ConnAddr{}
+	a.Add(input...)
+
+	return a
+
+}
+
 // Map method will return a ConnAddr object in a map[string]*grpc.ClientConn format
 func (a *ConnAddr) AsMap() map[string]*grpc.ClientConn {
 	return *a
+}
+
+// Add method will allocate the input strings as entries in the map, with initialized
+// pointers to grpc.ClientConn
+func (a *ConnAddr) Add(addr ...string) {
+	if addr == nil || len(addr) == 0 {
+		return
+	}
+
+	v := *a
+
+	for _, address := range addr {
+		if address == "" {
+			continue
+		}
+		if v[address] != nil {
+			continue
+		} else {
+			v[address] = &grpc.ClientConn{}
+		}
+	}
+	a = &v
 }
 
 // Keys method will return a ConnAddr object's keys (its addresses) in a slice of strings
@@ -43,25 +93,6 @@ func (a *ConnAddr) Set(k string, conn *grpc.ClientConn) {
 // Len method will return the size of the ConnAddr map
 func (a *ConnAddr) Len() int {
 	return len(*a)
-}
-
-// Add method will allocate the input strings as entries in the map, with initialized
-// pointers to grpc.ClientConn
-func (a *ConnAddr) Add(addr ...string) {
-	if len(addr) == 0 || addr == nil {
-		return
-	}
-
-	v := *a
-
-	for _, address := range addr {
-		if v[address] != nil {
-			continue
-		} else {
-			v[address] = &grpc.ClientConn{}
-		}
-	}
-	a = &v
 }
 
 // Reset method will overwrite the existing ConnAddr map with a new, empty one.
@@ -98,18 +129,4 @@ func (a *ConnAddr) Unset(addr ...string) {
 func (a *ConnAddr) Write(p []byte) (n int, err error) {
 	a.Add(string(p))
 	return a.Len(), nil
-}
-
-// New function will take in any number of addr and initialize a ConnAddr object with
-// those addresses. Then, returns a pointer to this ConnAddr object.
-func New(addr ...string) *ConnAddr {
-	if len(addr) == 0 {
-		return nil
-	}
-
-	var a = &ConnAddr{}
-	a.Add(addr...)
-
-	return a
-
 }

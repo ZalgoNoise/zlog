@@ -97,13 +97,18 @@ func (a *ConnAddr) Len() int {
 
 // Reset method will overwrite the existing ConnAddr map with a new, empty one.
 func (a *ConnAddr) Reset() {
+	if a.Len() == 0 {
+		return
+	}
+
 	new := ConnAddr(map[string]*grpc.ClientConn{})
-	a = &new
+
+	*a = new
 }
 
 // Unset method will remove the input addr strings from the ConnAddr map, if existing
 func (a *ConnAddr) Unset(addr ...string) {
-	if len(addr) == 0 || addr == nil {
+	if len(addr) == 0 {
 		return
 	}
 
@@ -113,7 +118,7 @@ func (a *ConnAddr) Unset(addr ...string) {
 		delete(v, address)
 	}
 
-	a = &v
+	*a = v
 }
 
 // Write method is an implementation of io.Writer, so that the ConnAddr map can be used
@@ -127,6 +132,10 @@ func (a *ConnAddr) Unset(addr ...string) {
 //
 // ...That being said -- this is not any io.Writer.
 func (a *ConnAddr) Write(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return a.Len(), nil
+	}
+
 	a.Add(string(p))
 	return a.Len(), nil
 }

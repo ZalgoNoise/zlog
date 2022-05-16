@@ -68,7 +68,12 @@ func MultiConf(conf ...LogServerConfig) LogServerConfig {
 	}
 
 	allConf := make([]LogServerConfig, 0, len(conf))
-	allConf = append(allConf, conf...)
+	for _, c := range conf {
+		if c == nil {
+			continue
+		}
+		allConf = append(allConf, c)
+	}
 
 	return &multiconf{allConf}
 }

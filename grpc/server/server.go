@@ -111,7 +111,9 @@ func New(confs ...LogServerConfig) *GRPCLogServer {
 	defaultConfig.Apply(builder)
 
 	// apply input configs
-	MultiConf(confs...).Apply(builder)
+	if len(confs) > 0 {
+		MultiConf(confs...).Apply(builder)
+	}
 
 	// merge configurations / server options & interceptors
 	server := builder.build()
@@ -125,11 +127,12 @@ func New(confs ...LogServerConfig) *GRPCLogServer {
 // them in the service logger accordingly.
 func (s GRPCLogServer) registerComms() {
 	for {
-		msg, ok := <-s.LogSv.Comm
-		if !ok {
-			s.SvcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(event.Field{"error": ErrMessageParse.Error()}).Build())
-			continue
-		}
+		msg := <-s.LogSv.Comm
+		// msg, ok := <-s.LogSv.Comm
+		// if !ok {
+		// 	s.SvcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(event.Field{"error": ErrMessageParse.Error()}).Build())
+		// 	continue
+		// }
 
 		s.SvcLogger.Log(msg)
 	}
@@ -211,7 +214,7 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 func (s GRPCLogServer) handleMessages() {
 	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
 
-	// avoid caLevel_ing Done() method repeatedly
+	// avoid calling Done() method repeatedly
 	done := s.LogSv.Done()
 
 	for {

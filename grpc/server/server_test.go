@@ -2,12 +2,23 @@ package server
 
 import (
 	"bytes"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
 )
+
+type failingWriter struct{}
+
+func (failingWriter) Write(p []byte) (n int, err error) {
+	if len(p) > 100 {
+		return 100, errors.New("generic overflow error")
+	}
+	return 0, nil
+}
 
 func TestNew(t *testing.T) {
 	module := "GRPCLogServer"
@@ -202,8 +213,187 @@ func TestServe(t *testing.T) {
 				}
 			}
 		}()
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Millisecond * 200)
 
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestHandleResponses(t *testing.T) {
+	module := "GRPCLogServer"
+	funcname := "handleResponses()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		s    *GRPCLogServer
+		e    *event.Event
+		ok   bool
+	}
+
+	var bufs = []*bytes.Buffer{{}, {}}
+	var failingL = log.New(log.WithOut(&failingWriter{}))
+
+	var writers = []log.Logger{
+		log.New(log.WithOut(bufs[0]), log.SkipExit, log.CfgFormatJSON),
+		log.New(log.WithOut(bufs[1]), log.SkipExit, log.CfgFormatJSON),
+	}
+
+	var tests = []test{
+		{
+			name: "working config",
+			s: New(
+				WithLogger(writers[0]),
+				WithServiceLoggerV(writers[1]),
+				WithAddr("127.0.0.1:9099"),
+				WithGRPCOpts(),
+			),
+			e:  event.New().Message("null").Build(),
+			ok: true,
+		},
+		{
+			name: "zero bytes writen error",
+			s: New(
+				WithLogger(failingL),
+				WithServiceLoggerV(writers[1]),
+				WithAddr("127.0.0.1:9099"),
+				WithGRPCOpts(),
+			),
+			e: event.New().Message("null").Build(),
+		},
+		{
+			name: "zero bytes writen error",
+			s: New(
+				WithLogger(failingL),
+				WithServiceLoggerV(writers[1]),
+				WithAddr("127.0.0.1:9099"),
+				WithGRPCOpts(),
+			),
+			e: event.New().Message("very long message that will overflow the 100 byte threshold for the test failing writer").Build(),
+		},
+	}
+
+	var handleErrors = func(idx int, test test) {
+		for {
+			select {
+			case err := <-test.s.ErrCh:
+				if test.ok {
+					t.Errorf(
+						"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+						idx,
+						module,
+						funcname,
+						err,
+						test.name,
+					)
+					return
+				}
+			case <-test.s.LogSv.Done():
+				return
+			}
+		}
+	}
+
+	var verify = func(idx int, test test) {
+		defer test.s.Stop()
+		go test.s.handleResponses(test.e)
+		go handleErrors(idx, test)
+		time.Sleep(time.Millisecond * 200)
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestHandleMesages(t *testing.T) {
+	module := "GRPCLogServer"
+	funcname := "handleMessages()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		s    *GRPCLogServer
+		e    *event.Event
+		ok   bool
+	}
+
+	var bufs = []*bytes.Buffer{{}, {}}
+	var failingL = log.New(log.WithOut(&failingWriter{}))
+
+	var writers = []log.Logger{
+		log.New(log.WithOut(bufs[0]), log.SkipExit, log.CfgFormatJSON),
+		log.New(log.WithOut(bufs[1]), log.SkipExit, log.CfgFormatJSON),
+	}
+
+	var tests = []test{
+		{
+			name: "working config",
+			s: New(
+				WithLogger(writers[0]),
+				WithServiceLoggerV(writers[1]),
+				WithAddr("127.0.0.1:9099"),
+				WithGRPCOpts(),
+			),
+			e:  event.New().Message("null").Build(),
+			ok: true,
+		},
+		{
+			name: "zero bytes writen error",
+			s: New(
+				WithLogger(failingL),
+				WithServiceLoggerV(writers[1]),
+				WithAddr("127.0.0.1:9099"),
+				WithGRPCOpts(),
+			),
+			e: event.New().Message("null").Build(),
+		},
+		{
+			name: "zero bytes writen error",
+			s: New(
+				WithLogger(failingL),
+				WithServiceLoggerV(writers[1]),
+				WithAddr("127.0.0.1:9099"),
+				WithGRPCOpts(),
+			),
+			e: event.New().Message("very long message that will overflow the 100 byte threshold for the test failing writer").Build(),
+		},
+	}
+
+	var handleErrors = func(idx int, test test) {
+		for {
+			select {
+			case err := <-test.s.ErrCh:
+				if test.ok {
+					t.Errorf(
+						"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+						idx,
+						module,
+						funcname,
+						err,
+						test.name,
+					)
+					return
+				}
+			case <-test.s.LogSv.Done():
+				return
+			}
+		}
+	}
+
+	var verify = func(idx int, test test) {
+		defer test.s.Stop()
+		go test.s.handleMessages()
+		go handleErrors(idx, test)
+		test.s.LogSv.MsgCh <- test.e
+		time.Sleep(time.Millisecond * 200)
 	}
 
 	for idx, test := range tests {

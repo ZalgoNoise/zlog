@@ -63,16 +63,20 @@ type multiconf struct {
 // Similar to io.MultiWriter, it will iterate through all set LogServerConfig and run the same method
 // on each of them.
 func MultiConf(conf ...LogServerConfig) LogServerConfig {
-	if len(conf) == 0 {
-		return defaultConfig
-	}
-
 	allConf := make([]LogServerConfig, 0, len(conf))
 	for _, c := range conf {
 		if c == nil {
 			continue
 		}
 		allConf = append(allConf, c)
+	}
+
+	if len(allConf) == 0 {
+		return defaultConfig
+	}
+
+	if len(allConf) == 1 {
+		return allConf[0]
 	}
 
 	return &multiconf{allConf}
@@ -174,20 +178,18 @@ func WithAddr(addr string) LogServerConfig {
 // any number of loggers. If no input is provided, then it will default to
 // setting this logger as a default logger (with its output set to os.Stderr)
 func WithLogger(loggers ...log.Logger) LogServerConfig {
-	if len(loggers) == 1 {
-		return &LSLogger{
-			logger: loggers[0],
-		}
-	}
+	var l log.Logger
 
-	if len(loggers) > 1 {
-		return &LSLogger{
-			logger: log.MultiLogger(loggers...),
-		}
+	if len(loggers) == 1 {
+		l = loggers[0]
+	} else if len(loggers) > 1 {
+		l = log.MultiLogger(loggers...)
+	} else {
+		l = log.New()
 	}
 
 	return &LSLogger{
-		logger: log.New(),
+		logger: l,
 	}
 }
 
@@ -259,13 +261,17 @@ func WithTiming() LogServerConfig {
 // Running this function with zero parameters will generate a LogServerConfig with
 // the default gRPC Server Options.
 func WithGRPCOpts(opts ...grpc.ServerOption) LogServerConfig {
-	if opts != nil {
-		return &LSOpts{
-			opts: opts,
+	var o []grpc.ServerOption
+
+	for _, opt := range opts {
+		if opt == nil {
+			continue
 		}
+		o = append(o, opt)
 	}
+
 	return &LSOpts{
-		opts: []grpc.ServerOption{},
+		opts: o,
 	}
 
 }

@@ -257,6 +257,8 @@ func (s GRPCLogServer) Serve() {
 		"addr": s.Addr,
 	}).Build())
 
+	// tests for grpcServer.Serve() are out-of-scope as it is part of the
+	// gRPC framework logic
 	if err := grpcServer.Serve(lis); err != nil {
 		s.ErrCh <- err
 

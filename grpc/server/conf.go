@@ -294,10 +294,8 @@ func WithTLS(certPath, keyPath string, caPath ...string) LogServerConfig {
 
 		// despite the variatic parameter, only the first element is read
 		// this is so it can be fully omitted if it's for server-TLS only
-	} else if len(caPath) > 0 {
-		cred, err = loadCredsMutual(caPath[0], certPath, keyPath)
 	} else {
-		return nil
+		cred, err = loadCredsMutual(caPath[0], certPath, keyPath)
 	}
 
 	if err != nil {

@@ -2,7 +2,9 @@ package server
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -10,6 +12,22 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
 )
+
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
+type testTLS struct {
+	serverCert string
+	serverKey  string
+	caCert     string
+}
 
 func TestMultiConf(t *testing.T) {
 	module := "LogServerConfig"
@@ -589,6 +607,111 @@ func TestWithGRPCOpts(t *testing.T) {
 				)
 				return
 			}
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+// TODO: generate temporary certificates to run tests on, instead of relying on files read
+// from the OS' environment variables
+func TestWithTLS(t *testing.T) {
+	module := "LogServerConfig"
+	funcname := "WithTLS()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name     string
+		certPath string
+		keyPath  string
+		caPath   string
+		ok       bool
+	}
+
+	var tests = []test{
+		{
+			name:     "working TLS",
+			certPath: "TLS_SERVER_CERT",
+			keyPath:  "TLS_SERVER_KEY",
+			ok:       true,
+		},
+		{
+			name:     "working mTLS",
+			certPath: "TLS_SERVER_CERT",
+			keyPath:  "TLS_SERVER_KEY",
+			caPath:   "TLS_CA_CERT",
+			ok:       true,
+		},
+	}
+
+	var catchPanics = func(idx int, test test) {
+		r := recover()
+
+		if r != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] execution error (panic): %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				r,
+				test.name,
+			)
+		}
+	}
+
+	var init = func(test test) (*testTLS, error) {
+
+		out := new(testTLS)
+
+		serverCert, ok := getEnv(test.certPath)
+		if !ok {
+			return nil, errors.New("missing server certificate env variable")
+		}
+		out.serverCert = serverCert
+
+		serverKey, ok := getEnv(test.keyPath)
+		if !ok {
+			return nil, errors.New("missing server key env variable")
+		}
+		out.serverKey = serverKey
+
+		if len(test.caPath) > 0 {
+			caCert, ok := getEnv(test.caPath)
+			if !ok {
+				return nil, errors.New("missing CA certificate env variable")
+			}
+			out.caCert = caCert
+		}
+
+		return out, nil
+
+	}
+
+	var verify = func(idx int, test test) {
+		defer catchPanics(idx, test)
+
+		cfg, err := init(test)
+		if err != nil {
+			t.Logf(
+				"#%v -- SKIPPED -- [%s] [%s] error when loading environment variables: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		// execution must pass without errors (panics)
+		if len(test.caPath) == 0 {
+			_ = WithTLS(cfg.serverCert, cfg.serverKey)
+		} else {
+			_ = WithTLS(cfg.serverCert, cfg.serverKey, cfg.caCert)
 		}
 	}
 

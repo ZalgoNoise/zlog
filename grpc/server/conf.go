@@ -298,9 +298,9 @@ func WithTLS(certPath, keyPath string, caPath ...string) LogServerConfig {
 		cred, err = loadCredsMutual(caPath[0], certPath, keyPath)
 	}
 
+	// panic since the gRPC server shouldn't start
+	// if TLS is requested but invalid / errored
 	if err != nil {
-		// panic since the gRPC server shouldn't start
-		// if TLS is requested but invalid / errored
 		panic(err)
 	}
 

@@ -467,8 +467,6 @@ func TestWithTiming(t *testing.T) {
 			},
 		}
 
-		fmt.Println(test.entrypoint)
-
 		if test.entrypoint != nil {
 			test.entrypoint.Apply(builder)
 

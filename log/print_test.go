@@ -192,21 +192,21 @@ func TestLoggerOutput(t *testing.T) {
 	var tests = []test{
 		{
 			name: "default working Output() call",
-			l:    New(WithOut(buf), CfgFormatJSON),
+			l:    New(WithOut(buf), CfgFormatJSONSkipNewline),
 			e:    event.New().Message("null").Build(),
 			n:    94,
 			err:  nil,
 		},
 		{
 			name: "logger filtering a message due to its level",
-			l:    New(WithOut(buf), CfgFormatJSON, WithFilter(event.Level_error)),
+			l:    New(WithOut(buf), CfgFormatJSONSkipNewline, WithFilter(event.Level_error)),
 			e:    event.New().Message("null").Build(),
 			n:    0,
 			err:  nil,
 		},
 		{
 			name: "logger gets a formatter error",
-			l:    New(WithOut(buf), CfgFormatJSON, testFormat),
+			l:    New(WithOut(buf), CfgFormatJSONSkipNewline, testFormat),
 			e:    event.New().Message("null").Build(),
 			n:    -1,
 			err:  testErrFormat,
@@ -1256,21 +1256,21 @@ func TestMultiLoggerOutput(t *testing.T) {
 	var tests = []test{
 		{
 			name: "default working Output() call",
-			l:    MultiLogger(New(WithOut(buf[0]), CfgFormatJSON), New(WithOut(buf[1]), CfgFormatJSON)),
+			l:    MultiLogger(New(WithOut(buf[0]), CfgFormatJSONSkipNewline), New(WithOut(buf[1]), CfgFormatJSONSkipNewline)),
 			e:    event.New().Message("null").Build(),
 			n:    94,
 			err:  nil,
 		},
 		{
 			name: "logger filtering a message due to its level",
-			l:    MultiLogger(New(WithOut(buf[0]), CfgFormatJSON, WithFilter(event.Level_error)), New(WithOut(buf[1]), CfgFormatJSON, WithFilter(event.Level_error))),
+			l:    MultiLogger(New(WithOut(buf[0]), CfgFormatJSONSkipNewline, WithFilter(event.Level_error)), New(WithOut(buf[1]), CfgFormatJSONSkipNewline, WithFilter(event.Level_error))),
 			e:    event.New().Message("null").Build(),
 			n:    0,
 			err:  nil,
 		},
 		{
 			name: "logger gets a formatter error",
-			l:    MultiLogger(New(WithOut(buf[0]), CfgFormatJSON, testFormat), New(WithOut(buf[1]), CfgFormatJSON, testFormat)),
+			l:    MultiLogger(New(WithOut(buf[0]), CfgFormatJSONSkipNewline, testFormat), New(WithOut(buf[1]), CfgFormatJSONSkipNewline, testFormat)),
 			e:    event.New().Message("null").Build(),
 			n:    -1,
 			err:  testErrFormat,

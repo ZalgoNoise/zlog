@@ -59,6 +59,9 @@ var LogFormatters = map[int]LogFormatter{
 	19: text.New().NoTimestamp().Build(),
 	20: text.New().NoTimestamp().Color().Build(),
 	21: text.New().NoTimestamp().Color().Upper().Build(),
+	22: &json.FmtJSON{SkipNewline: true},
+	23: &json.FmtJSON{SkipNewline: true, Indent: true},
+	24: &json.FmtJSON{Indent: true},
 }
 
 // LogFormatConfigs is a map of LoggerConfigs indexed by an int value. This is done in a map
@@ -86,54 +89,64 @@ var LogFormatConfigs = map[int]LoggerConfig{
 	19: WithFormat(LogFormatters[19]),
 	20: WithFormat(LogFormatters[20]),
 	21: WithFormat(LogFormatters[21]),
+	22: WithFormat(LogFormatters[22]),
+	23: WithFormat(LogFormatters[23]),
+	24: WithFormat(LogFormatters[24]),
 }
 
 var (
-	FormatText                LogFormatter = LogFormatters[0]  // placeholder for an initialized Text LogFormatter
-	FormatProtobuf            LogFormatter = LogFormatters[1]  // placeholder for an initialized Protobuf LogFormatter
-	FormatJSON                LogFormatter = LogFormatters[2]  // placeholder for an initialized JSON LogFormatter
-	FormatCSV                 LogFormatter = LogFormatters[3]  // placeholder for an initialized CSV LogFormatter
-	FormatXML                 LogFormatter = LogFormatters[4]  // placeholder for an initialized XML LogFormatter
-	FormatGob                 LogFormatter = LogFormatters[5]  // placeholder for an initialized Gob LogFormatter
-	FormatBSON                LogFormatter = LogFormatters[6]  // placeholder for an initialized JSON LogFormatter
-	TextLongDate              LogFormatter = LogFormatters[7]  // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
-	TextShortDate             LogFormatter = LogFormatters[8]  // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
-	TextRubyDate              LogFormatter = LogFormatters[9]  // placeholder for an initialized Text LogFormatter, with a RubyDate date format
-	TextDoubleSpace           LogFormatter = LogFormatters[10] // placeholder for an initialized Text LogFormatter, with double spaces
-	TextLevelFirstSpaced      LogFormatter = LogFormatters[11] // placeholder for an initialized  LogFormatter, with level-first and double spaces
-	TextLevelFirst            LogFormatter = LogFormatters[12] // placeholder for an initialized  LogFormatter, with level-first
-	TextColorDoubleSpace      LogFormatter = LogFormatters[13] // placeholder for an initialized  LogFormatter, with color and double spaces
-	TextColorLevelFirstSpaced LogFormatter = LogFormatters[14] // placeholder for an initialized  LogFormatter, with color, level-first and double spaces
-	TextColorLevelFirst       LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, with color and level-first
-	TextColor                 LogFormatter = LogFormatters[16] // placeholder for an initialized  LogFormatter, with color
-	TextOnly                  LogFormatter = LogFormatters[17] // placeholder for an initialized  LogFormatter, with only the text content
-	TextNoHeaders             LogFormatter = LogFormatters[18] // placeholder for an initialized  LogFormatter, without headers
-	TextNoTimestamp           LogFormatter = LogFormatters[19] // placeholder for an initialized  LogFormatter, without timestamp
-	TextColorNoTimestamp      LogFormatter = LogFormatters[20] // placeholder for an initialized  LogFormatter, without timestamp
-	TextColorUpperNoTimestamp LogFormatter = LogFormatters[21] // placeholder for an initialized  LogFormatter, without timestamp and uppercase headers
+	FormatText                  LogFormatter = LogFormatters[0]  // placeholder for an initialized Text LogFormatter
+	FormatProtobuf              LogFormatter = LogFormatters[1]  // placeholder for an initialized Protobuf LogFormatter
+	FormatJSON                  LogFormatter = LogFormatters[2]  // placeholder for an initialized JSON LogFormatter
+	FormatCSV                   LogFormatter = LogFormatters[3]  // placeholder for an initialized CSV LogFormatter
+	FormatXML                   LogFormatter = LogFormatters[4]  // placeholder for an initialized XML LogFormatter
+	FormatGob                   LogFormatter = LogFormatters[5]  // placeholder for an initialized Gob LogFormatter
+	FormatBSON                  LogFormatter = LogFormatters[6]  // placeholder for an initialized JSON LogFormatter
+	TextLongDate                LogFormatter = LogFormatters[7]  // placeholder for an initialized Text LogFormatter, with a RFC3339 date format
+	TextShortDate               LogFormatter = LogFormatters[8]  // placeholder for an initialized Text LogFormatter, with a RFC822Z date format
+	TextRubyDate                LogFormatter = LogFormatters[9]  // placeholder for an initialized Text LogFormatter, with a RubyDate date format
+	TextDoubleSpace             LogFormatter = LogFormatters[10] // placeholder for an initialized Text LogFormatter, with double spaces
+	TextLevelFirstSpaced        LogFormatter = LogFormatters[11] // placeholder for an initialized  LogFormatter, with level-first and double spaces
+	TextLevelFirst              LogFormatter = LogFormatters[12] // placeholder for an initialized  LogFormatter, with level-first
+	TextColorDoubleSpace        LogFormatter = LogFormatters[13] // placeholder for an initialized  LogFormatter, with color and double spaces
+	TextColorLevelFirstSpaced   LogFormatter = LogFormatters[14] // placeholder for an initialized  LogFormatter, with color, level-first and double spaces
+	TextColorLevelFirst         LogFormatter = LogFormatters[15] // placeholder for an initialized  LogFormatter, with color and level-first
+	TextColor                   LogFormatter = LogFormatters[16] // placeholder for an initialized  LogFormatter, with color
+	TextOnly                    LogFormatter = LogFormatters[17] // placeholder for an initialized  LogFormatter, with only the text content
+	TextNoHeaders               LogFormatter = LogFormatters[18] // placeholder for an initialized  LogFormatter, without headers
+	TextNoTimestamp             LogFormatter = LogFormatters[19] // placeholder for an initialized  LogFormatter, without timestamp
+	TextColorNoTimestamp        LogFormatter = LogFormatters[20] // placeholder for an initialized  LogFormatter, without timestamp
+	TextColorUpperNoTimestamp   LogFormatter = LogFormatters[21] // placeholder for an initialized  LogFormatter, without timestamp and uppercase headers
+	FormatJSONSkipNewline       LogFormatter = LogFormatters[22] // placeholder for an initialized JSON LogFormatter, with a skip-newline config
+	FormatJSONIndentSkipNewline LogFormatter = LogFormatters[23] // placeholder for an initialized JSON LogFormatter, with a skip-newline and indentation config
+	FormatJSONIndent            LogFormatter = LogFormatters[24] // placeholder for an initialized JSON LogFormatter, with an indentation config
 )
 
 var (
-	CfgFormatText                LoggerConfig = LogFormatConfigs[0]  // placeholder for an initialized Text LoggerConfig
-	CfgFormatProtobuf            LoggerConfig = LogFormatConfigs[1]  // placeholder for an initialized Protobuf LoggerConfig
-	CfgFormatJSON                LoggerConfig = LogFormatConfigs[2]  // placeholder for an initialized JSON LoggerConfig
-	CfgFormatCSV                 LoggerConfig = LogFormatConfigs[3]  // placeholder for an initialized CSV LoggerConfig
-	CfgFormatXML                 LoggerConfig = LogFormatConfigs[4]  // placeholder for an initialized XML LoggerConfig
-	CfgFormatGob                 LoggerConfig = LogFormatConfigs[5]  // placeholder for an initialized Gob LoggerConfig
-	CfgFormatBSON                LoggerConfig = LogFormatConfigs[6]  // placeholder for an initialized JSON LoggerConfig
-	CfgTextLongDate              LoggerConfig = LogFormatConfigs[7]  // placeholder for an initialized Text LoggerConfig, with a RFC3339 date format
-	CfgTextShortDate             LoggerConfig = LogFormatConfigs[8]  // placeholder for an initialized Text LoggerConfig, with a RFC822Z date format
-	CfgTextRubyDate              LoggerConfig = LogFormatConfigs[9]  // placeholder for an initialized Text LoggerConfig, with a RubyDate date format
-	CfgTextDoubleSpace           LoggerConfig = LogFormatConfigs[10] // placeholder for an initialized Text LoggerConfig, with double spaces
-	CfgTextLevelFirstSpaced      LoggerConfig = LogFormatConfigs[11] // placeholder for an initialized  LoggerConfig, with level-first and double spaces
-	CfgTextLevelFirst            LoggerConfig = LogFormatConfigs[12] // placeholder for an initialized  LoggerConfig, with level-first
-	CfgTextColorDoubleSpace      LoggerConfig = LogFormatConfigs[13] // placeholder for an initialized  LoggerConfig, with color and double spaces
-	CfgTextColorLevelFirstSpaced LoggerConfig = LogFormatConfigs[14] // placeholder for an initialized  LoggerConfig, with color, level-first and double spaces
-	CfgTextColorLevelFirst       LoggerConfig = LogFormatConfigs[15] // placeholder for an initialized  LoggerConfig, with color and level-first
-	CfgTextColor                 LoggerConfig = LogFormatConfigs[16] // placeholder for an initialized  LoggerConfig, with color
-	CfgTextOnly                  LoggerConfig = LogFormatConfigs[17] // placeholder for an initialized  LoggerConfig, with only the text content
-	CfgTextNoHeaders             LoggerConfig = LogFormatConfigs[18] // placeholder for an initialized  LoggerConfig, without headers
-	CfgTextNoTimestamp           LoggerConfig = LogFormatConfigs[19] // placeholder for an initialized  LoggerConfig, without timestamp
-	CfgTextColorNoTimestamp      LoggerConfig = LogFormatConfigs[20] // placeholder for an initialized  LoggerConfig, without timestamp
-	CfgTextColorUpperNoTimestamp LoggerConfig = LogFormatConfigs[21] // placeholder for an initialized  LoggerConfig, without timestamp and uppercase headers
+	CfgFormatText                  LoggerConfig = LogFormatConfigs[0]  // placeholder for an initialized Text LoggerConfig
+	CfgFormatProtobuf              LoggerConfig = LogFormatConfigs[1]  // placeholder for an initialized Protobuf LoggerConfig
+	CfgFormatJSON                  LoggerConfig = LogFormatConfigs[2]  // placeholder for an initialized JSON LoggerConfig
+	CfgFormatCSV                   LoggerConfig = LogFormatConfigs[3]  // placeholder for an initialized CSV LoggerConfig
+	CfgFormatXML                   LoggerConfig = LogFormatConfigs[4]  // placeholder for an initialized XML LoggerConfig
+	CfgFormatGob                   LoggerConfig = LogFormatConfigs[5]  // placeholder for an initialized Gob LoggerConfig
+	CfgFormatBSON                  LoggerConfig = LogFormatConfigs[6]  // placeholder for an initialized JSON LoggerConfig
+	CfgTextLongDate                LoggerConfig = LogFormatConfigs[7]  // placeholder for an initialized Text LoggerConfig, with a RFC3339 date format
+	CfgTextShortDate               LoggerConfig = LogFormatConfigs[8]  // placeholder for an initialized Text LoggerConfig, with a RFC822Z date format
+	CfgTextRubyDate                LoggerConfig = LogFormatConfigs[9]  // placeholder for an initialized Text LoggerConfig, with a RubyDate date format
+	CfgTextDoubleSpace             LoggerConfig = LogFormatConfigs[10] // placeholder for an initialized Text LoggerConfig, with double spaces
+	CfgTextLevelFirstSpaced        LoggerConfig = LogFormatConfigs[11] // placeholder for an initialized  LoggerConfig, with level-first and double spaces
+	CfgTextLevelFirst              LoggerConfig = LogFormatConfigs[12] // placeholder for an initialized  LoggerConfig, with level-first
+	CfgTextColorDoubleSpace        LoggerConfig = LogFormatConfigs[13] // placeholder for an initialized  LoggerConfig, with color and double spaces
+	CfgTextColorLevelFirstSpaced   LoggerConfig = LogFormatConfigs[14] // placeholder for an initialized  LoggerConfig, with color, level-first and double spaces
+	CfgTextColorLevelFirst         LoggerConfig = LogFormatConfigs[15] // placeholder for an initialized  LoggerConfig, with color and level-first
+	CfgTextColor                   LoggerConfig = LogFormatConfigs[16] // placeholder for an initialized  LoggerConfig, with color
+	CfgTextOnly                    LoggerConfig = LogFormatConfigs[17] // placeholder for an initialized  LoggerConfig, with only the text content
+	CfgTextNoHeaders               LoggerConfig = LogFormatConfigs[18] // placeholder for an initialized  LoggerConfig, without headers
+	CfgTextNoTimestamp             LoggerConfig = LogFormatConfigs[19] // placeholder for an initialized  LoggerConfig, without timestamp
+	CfgTextColorNoTimestamp        LoggerConfig = LogFormatConfigs[20] // placeholder for an initialized  LoggerConfig, without timestamp
+	CfgTextColorUpperNoTimestamp   LoggerConfig = LogFormatConfigs[21] // placeholder for an initialized  LoggerConfig, without timestamp and uppercase headers
+	CfgFormatJSONSkipNewline       LoggerConfig = LogFormatConfigs[22] // placeholder for an initialized JSON LoggerConfig, with a skip-newline config
+	CfgFormatJSONIndentSkipNewline LoggerConfig = LogFormatConfigs[23] // placeholder for an initialized JSON LoggerConfig, with a skip-newline and indentation config
+	CfgFormatJSONIndent            LoggerConfig = LogFormatConfigs[24] // placeholder for an initialized JSON LoggerConfig, with an indentation config
+
 )

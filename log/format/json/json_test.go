@@ -16,24 +16,35 @@ func TestFormat(t *testing.T) {
 
 	type test struct {
 		name string
+		f    *FmtJSON
 		e    *event.Event
 	}
 
 	var tests = []test{
 		{
 			name: "simple event",
+			f:    new(FmtJSON),
 			e:    event.New().Message("null\n").Build(),
 		},
 		{
 			name: "complete event",
+			f:    new(FmtJSON),
 			e:    event.New().Prefix("test").Sub("testing").Level(event.Level_warn).Message("null").Metadata(event.Field{"a": true}).CallStack(true).Build(),
+		},
+		{
+			name: "simple event with indent",
+			f:    &FmtJSON{Indent: true},
+			e:    event.New().Message("null\n").Build(),
+		},
+		{
+			name: "simple event with skip-newline",
+			f:    &FmtJSON{SkipNewline: true},
+			e:    event.New().Message("null\n").Build(),
 		},
 	}
 
 	var verify = func(idx int, test test) {
-		f := new(FmtJSON)
-
-		b, err := f.Format(test.e)
+		b, err := test.f.Format(test.e)
 
 		if err != nil {
 			t.Errorf(

@@ -10,7 +10,10 @@ import (
 
 // FmtJSON struct describes the different manipulations and processing that a JSON LogFormatter
 // can apply to an event.Event
-type FmtJSON struct{}
+type FmtJSON struct {
+	SkipNewline bool
+	Indent      bool
+}
 
 type entry struct {
 	Time   time.Time              `json:"timestamp,omitempty"`
@@ -52,12 +55,29 @@ func (f *FmtJSON) Format(log *event.Event) (buf []byte, err error) {
 		*log.Msg = log.GetMsg()[:len(log.GetMsg())-1]
 	}
 
-	return json.Marshal(entry{
-		Time:   log.GetTime().AsTime(),
-		Prefix: log.GetPrefix(),
-		Sub:    log.GetSub(),
-		Level:  log.GetLevel().String(),
-		Msg:    log.GetMsg(),
-		Meta:   log.Meta.AsMap(),
-	})
+	if !f.Indent {
+		buf, err = json.Marshal(entry{
+			Time:   log.GetTime().AsTime(),
+			Prefix: log.GetPrefix(),
+			Sub:    log.GetSub(),
+			Level:  log.GetLevel().String(),
+			Msg:    log.GetMsg(),
+			Meta:   log.Meta.AsMap(),
+		})
+	} else {
+		buf, err = json.MarshalIndent(entry{
+			Time:   log.GetTime().AsTime(),
+			Prefix: log.GetPrefix(),
+			Sub:    log.GetSub(),
+			Level:  log.GetLevel().String(),
+			Msg:    log.GetMsg(),
+			Meta:   log.Meta.AsMap(),
+		}, "", "  ")
+	}
+
+	if !f.SkipNewline && len(buf) > 0 {
+		buf = append(buf, 10)
+	}
+
+	return buf, err
 }

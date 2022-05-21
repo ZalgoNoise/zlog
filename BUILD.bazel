@@ -28,6 +28,7 @@ go_library(
         "//log",
         "//log/event",
         "//log/format/text",
+        "//log/logch",
         "//store/fs",
     ],
 )

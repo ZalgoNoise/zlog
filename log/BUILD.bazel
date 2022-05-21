@@ -38,7 +38,9 @@ go_test(
     deps = [
         "//grpc/address",
         "//log/event",
+        "//log/format/protobuf",
         "//log/format/text",
         "//store",
+        "//store/db",
     ],
 )

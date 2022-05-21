@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "mongo",
@@ -11,5 +11,15 @@ go_library(
         "@org_mongodb_go_mongo_driver//bson",
         "@org_mongodb_go_mongo_driver//mongo",
         "@org_mongodb_go_mongo_driver//mongo/options",
+    ],
+)
+
+go_test(
+    name = "mongo_test",
+    srcs = ["mongo_test.go"],
+    embed = [":mongo"],
+    deps = [
+        "//log",
+        "//log/event",
     ],
 )

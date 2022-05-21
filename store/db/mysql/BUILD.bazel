@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "mysql",
@@ -11,5 +11,15 @@ go_library(
         "//store/db/message",
         "@io_gorm_driver_mysql//:mysql",
         "@io_gorm_gorm//:gorm",
+    ],
+)
+
+go_test(
+    name = "mysql_test",
+    srcs = ["mysql_test.go"],
+    embed = [":mysql"],
+    deps = [
+        "//log",
+        "//log/event",
     ],
 )

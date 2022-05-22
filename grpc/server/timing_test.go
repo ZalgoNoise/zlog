@@ -2,6 +2,8 @@ package server
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -10,7 +12,53 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
 	jsonfmt "github.com/zalgonoise/zlog/log/format/json"
+	pb "github.com/zalgonoise/zlog/proto/service"
+	"google.golang.org/grpc/metadata"
 )
+
+var testErrUnexpected = errors.New("unexpected error")
+
+type testServerStream struct{}
+
+func (testServerStream) SetHeader(metadata.MD) error {
+	return nil
+}
+
+func (testServerStream) SendHeader(metadata.MD) error {
+	return nil
+}
+
+func (testServerStream) SetTrailer(metadata.MD) {}
+
+func (testServerStream) Context() context.Context {
+	return context.Background()
+}
+
+func (testServerStream) SendMsg(m interface{}) error {
+	msg, ok := m.(*pb.LogResponse)
+
+	if !ok {
+		return testErrUnexpected
+	}
+
+	if !msg.GetOk() {
+		return testErrUnexpected
+	}
+	return nil
+}
+
+func (testServerStream) RecvMsg(m interface{}) error {
+	msg, ok := m.(*event.Event)
+
+	if !ok {
+		return testErrUnexpected
+	}
+
+	if msg.GetLevel().String() == "error" {
+		return testErrUnexpected
+	}
+	return nil
+}
 
 func TestUnaryServerTiming(t *testing.T) {
 	module := "LogServer Interceptors"
@@ -374,6 +422,325 @@ func TestStreamServerTiming(t *testing.T) {
 			case <-done:
 				return
 			}
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestSendMsg(t *testing.T) {
+	module := "LogServer Interceptors"
+	funcname := "timingStream.SendMsg()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		t    *timingStream
+		m    *pb.LogResponse
+		ok   bool
+	}
+
+	var buf = new(bytes.Buffer)
+	var bytesResponse = []int32{
+		203,
+		1008,
+	}
+	var errResponse = []string{
+		"",
+		testErrUnexpected.Error(),
+	}
+
+	var tests = []test{
+		{
+			name: "working test",
+			t: &timingStream{
+				stream: testServerStream{},
+				logger: log.New(log.WithOut(buf), log.SkipExit),
+				method: "testLog",
+			},
+			m: &pb.LogResponse{
+				Ok:    true,
+				ReqID: "123",
+				Bytes: &bytesResponse[0],
+				Err:   &errResponse[0],
+			},
+			ok: true,
+		},
+		{
+			name: "errored test",
+			t: &timingStream{
+				stream: testServerStream{},
+				logger: log.New(log.WithOut(buf), log.SkipExit),
+				method: "testLog",
+			},
+			m: &pb.LogResponse{
+				Ok:    false,
+				ReqID: "123",
+				Bytes: &bytesResponse[1],
+				Err:   &errResponse[1],
+			},
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		err := test.t.SendMsg(test.m)
+
+		if err != nil && test.ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestRecvMsg(t *testing.T) {
+	module := "LogServer Interceptors"
+	funcname := "timingStream.RecvMsg()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		t    *timingStream
+		m    *event.Event
+		ok   bool
+	}
+
+	var buf = new(bytes.Buffer)
+
+	var tests = []test{
+		{
+			name: "working test",
+			t: &timingStream{
+				stream: testServerStream{},
+				logger: log.New(log.WithOut(buf), log.SkipExit),
+				method: "testLog",
+			},
+			m:  event.New().Message("null").Build(),
+			ok: true,
+		},
+		{
+			name: "errored test",
+			t: &timingStream{
+				stream: testServerStream{},
+				logger: log.New(log.WithOut(buf), log.SkipExit),
+				method: "testLog",
+			},
+			m: event.New().Level(event.Level_error).Message("null").Build(),
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		err := test.t.RecvMsg(test.m)
+
+		if err != nil && test.ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestSetHeader(t *testing.T) {
+	module := "LogServer Interceptors"
+	funcname := "timingStream.SetHeader()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		t    *timingStream
+		m    metadata.MD
+	}
+
+	var buf = new(bytes.Buffer)
+
+	var tests = []test{
+		{
+			name: "working test",
+			t: &timingStream{
+				stream: testServerStream{},
+				logger: log.New(log.WithOut(buf), log.SkipExit),
+				method: "testLog",
+			},
+			m: metadata.New(map[string]string{
+				"test": "header",
+			}),
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		err := test.t.SetHeader(test.m)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestSendHeader(t *testing.T) {
+	module := "LogServer Interceptors"
+	funcname := "timingStream.SendHeader()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		t    *timingStream
+		m    metadata.MD
+	}
+
+	var buf = new(bytes.Buffer)
+
+	var tests = []test{
+		{
+			name: "working test",
+			t: &timingStream{
+				stream: testServerStream{},
+				logger: log.New(log.WithOut(buf), log.SkipExit),
+				method: "testLog",
+			},
+			m: metadata.New(map[string]string{
+				"test": "header",
+			}),
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		err := test.t.SendHeader(test.m)
+
+		if err != nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestSetTrailer(t *testing.T) {
+	module := "LogServer Interceptors"
+	funcname := "timingStream.SendHeader()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		t    *timingStream
+		m    metadata.MD
+	}
+
+	var buf = new(bytes.Buffer)
+
+	var tests = []test{
+		{
+			name: "working test",
+			t: &timingStream{
+				stream: testServerStream{},
+				logger: log.New(log.WithOut(buf), log.SkipExit),
+				method: "testLog",
+			},
+			m: metadata.New(map[string]string{
+				"test": "trailer",
+			}),
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		test.t.SetTrailer(test.m)
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestContext(t *testing.T) {
+	module := "LogServer Interceptors"
+	funcname := "timingStream.Context()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		t    *timingStream
+	}
+
+	var buf = new(bytes.Buffer)
+
+	var tests = []test{
+		{
+			name: "working test",
+			t: &timingStream{
+				stream: testServerStream{},
+				logger: log.New(log.WithOut(buf), log.SkipExit),
+				method: "testLog",
+			},
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		ctx := test.t.Context()
+
+		if ctx == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected nil context -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"testing"
 	"time"
 
@@ -13,7 +14,9 @@ import (
 	"github.com/zalgonoise/zlog/log/event"
 	jsonfmt "github.com/zalgonoise/zlog/log/format/json"
 	pb "github.com/zalgonoise/zlog/proto/service"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 var testErrUnexpected = errors.New("unexpected error")
@@ -41,9 +44,10 @@ func (testServerStream) SendMsg(m interface{}) error {
 		return testErrUnexpected
 	}
 
-	if !msg.GetOk() {
+	if msg.GetReqID() == "000" {
 		return testErrUnexpected
 	}
+
 	return nil
 }
 
@@ -57,6 +61,15 @@ func (testServerStream) RecvMsg(m interface{}) error {
 	if msg.GetLevel().String() == "error" {
 		return testErrUnexpected
 	}
+
+	if msg.GetMsg() == "deadline" {
+		return status.Error(codes.DeadlineExceeded, "")
+	}
+
+	if msg.GetMsg() == "EOF" {
+		return io.EOF
+	}
+
 	return nil
 }
 
@@ -430,7 +443,7 @@ func TestStreamServerTiming(t *testing.T) {
 	}
 }
 
-func TestSendMsg(t *testing.T) {
+func TestTimingSendMsg(t *testing.T) {
 	module := "LogServer Interceptors"
 	funcname := "timingStream.SendMsg()"
 
@@ -479,7 +492,7 @@ func TestSendMsg(t *testing.T) {
 			},
 			m: &pb.LogResponse{
 				Ok:    false,
-				ReqID: "123",
+				ReqID: "000",
 				Bytes: &bytesResponse[1],
 				Err:   &errResponse[1],
 			},
@@ -507,7 +520,7 @@ func TestSendMsg(t *testing.T) {
 	}
 }
 
-func TestRecvMsg(t *testing.T) {
+func TestTimingRecvMsg(t *testing.T) {
 	module := "LogServer Interceptors"
 	funcname := "timingStream.RecvMsg()"
 
@@ -566,7 +579,7 @@ func TestRecvMsg(t *testing.T) {
 	}
 }
 
-func TestSetHeader(t *testing.T) {
+func TestTimingSetHeader(t *testing.T) {
 	module := "LogServer Interceptors"
 	funcname := "timingStream.SetHeader()"
 
@@ -616,7 +629,7 @@ func TestSetHeader(t *testing.T) {
 	}
 }
 
-func TestSendHeader(t *testing.T) {
+func TestTimingSendHeader(t *testing.T) {
 	module := "LogServer Interceptors"
 	funcname := "timingStream.SendHeader()"
 
@@ -666,7 +679,7 @@ func TestSendHeader(t *testing.T) {
 	}
 }
 
-func TestSetTrailer(t *testing.T) {
+func TestTimingSetTrailer(t *testing.T) {
 	module := "LogServer Interceptors"
 	funcname := "timingStream.SendHeader()"
 
@@ -704,7 +717,7 @@ func TestSetTrailer(t *testing.T) {
 	}
 }
 
-func TestContext(t *testing.T) {
+func TestTimingContext(t *testing.T) {
 	module := "LogServer Interceptors"
 	funcname := "timingStream.Context()"
 

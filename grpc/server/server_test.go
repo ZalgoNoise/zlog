@@ -76,7 +76,7 @@ func TestNew(t *testing.T) {
 	}
 
 	var verify = func(idx int, test test) {
-		wants := test.wants
+		// wants := test.wants
 		server := New(test.cfg...)
 
 		// skip error channel deepequal
@@ -91,7 +91,7 @@ func TestNew(t *testing.T) {
 			return
 		}
 		server.ErrCh = nil
-		wants.ErrCh = nil
+		test.wants.ErrCh = nil
 
 		// skip LogSv deepequal (tested in pb package)
 		if server.LogSv == nil {
@@ -105,7 +105,7 @@ func TestNew(t *testing.T) {
 			return
 		}
 		server.LogSv = nil
-		wants.LogSv = nil
+		test.wants.LogSv = nil
 
 		// check options length first
 		if len(server.opts) != test.optsLen {

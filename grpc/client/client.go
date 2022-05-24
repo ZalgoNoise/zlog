@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
@@ -163,7 +161,16 @@ func newGRPCLogClient(confs ...LogClientConfig) *gRPCLogClientBuilder {
 // This function returns not only the logger but an error channel, which should be monitored
 // (preferrably in a goroutine) to ensure that the gRPC client is running without issues
 func New(opts ...LogClientConfig) (GRPCLogger, chan error) {
-	builder := newGRPCLogClient(opts...)
+	var cfg []LogClientConfig
+
+	for _, o := range opts {
+		if o == nil {
+			continue
+		}
+		cfg = append(cfg, o)
+	}
+
+	builder := newGRPCLogClient(cfg...)
 
 	client := builder.build()
 
@@ -684,25 +691,21 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 // Added bonus is support for gob-encoded messages, which is also natively supported in
 // the logger's Write implementation
 func (c GRPCLogClient) Write(p []byte) (n int, err error) {
-	// check if it's gob-encoded
-	m := &event.Event{}
-
-	buf := bytes.NewBuffer(p)
-	dec := gob.NewDecoder(buf)
-
-	err = dec.Decode(m)
+	// decode bytes
+	m, err := event.Decode(p)
 
 	if err != nil {
 		return c.Output(event.New().
-			Level(event.Level_info).
+			Level(event.Default_Event_Level).
 			Prefix(c.prefix).
 			Sub(c.sub).
 			Message(string(p)).
 			Metadata(c.meta).
-			Build(),
-		)
+			Build())
 
 	}
+
+	// print message
 	return c.Output(m)
 }
 

@@ -263,9 +263,13 @@ func (c GRPCLogClient) connect() error {
 // action call (in this case log()), which will be retried in case of failure
 func (c GRPCLogClient) listen() {
 	for {
-		msg := <-c.msgCh
-		c.backoff.AddMessage(msg)
-		go c.log(msg)
+		select {
+		case msg := <-c.msgCh:
+			c.backoff.AddMessage(msg)
+			go c.log(msg)
+		case <-c.done:
+			return
+		}
 	}
 }
 
@@ -318,7 +322,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 		// response is parsed by the interceptor; only the error is important
 		_, err := client.Log(ctx, msg)
 
-		// if the server returns any error, it's sent to the error channel, context canceLevel_ed,
+		// if the server returns any error, it's sent to the error channel, context cancelled,
 		// and then return
 		if err != nil {
 			c.errCh <- err
@@ -326,7 +330,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 			return
 		}
 
-		// message sent; response retrieved; context is canceLevel_ed.
+		// message sent; response retrieved; context is cancelled.
 		cancel()
 	}
 }
@@ -410,7 +414,7 @@ func (c GRPCLogClient) stream() {
 		// send them to the remote gRPC Log Server; this last function will also listen
 		// to the internal comms channel and to errors (e.g., to kick-off backoff)
 		go func() {
-			go c.handleStreamService(
+			go c.streamHandler(
 				stream,
 				localErr,
 				c.done,
@@ -422,6 +426,28 @@ func (c GRPCLogClient) stream() {
 				cancel,
 			)
 		}()
+	}
+}
+
+// streamHandler method will serve as a simple gateway for the handleStreamService method,
+// to allow monitoring on the done channel, and with it closing the connection when requested
+// (in a stream RPC)
+func (c GRPCLogClient) streamHandler(
+	stream pb.LogService_LogStreamClient,
+	localErr chan error,
+	done chan struct{},
+) {
+	errCh := make(chan error)
+
+	go c.handleStreamService(stream, errCh)
+
+	for {
+		select {
+		case e := <-errCh:
+			localErr <- e
+		case <-done:
+			return
+		}
 	}
 }
 
@@ -437,7 +463,6 @@ func (c GRPCLogClient) stream() {
 func (c GRPCLogClient) handleStreamService(
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
-	done chan struct{},
 ) {
 	for {
 		// capture each incoming message (server response to Log entries)

@@ -619,8 +619,8 @@ func (c GRPCLogClient) Output(m *event.Event) (n int, err error) {
 // SetOuts() will replace all the existing connections and addresses by resetting the
 // map beforehand.
 func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
-	// reset connections map
-	c.addr.Reset()
+
+	var o []string
 
 	for _, remote := range outs {
 		// ensure the input writer is not nil
@@ -638,19 +638,26 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 
 			// writer is valid -- add it to connections map; register this event
 		} else {
-			c.addr.Add(r.Keys()...)
-
-			c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("SetOuts()").Metadata(event.Field{
-				"addrs": r.Keys(),
-			}).Message("added address to connection address map").Build())
+			o = append(o, r.Keys()...)
 		}
 	}
 
-	// test connectivity to remotes -- if this returns an error, the function
-	// will return nil instead of the GRPCLogClient
-	err := c.connect()
-	if err != nil {
-		return nil
+	if len(o) > 0 {
+		// reset connections map
+		c.addr.Reset()
+
+		c.addr.Add(o...)
+
+		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("SetOuts()").Metadata(event.Field{
+			"addrs": o,
+		}).Message("added address to connection address map").Build())
+
+		// test connectivity to remotes -- if this returns an error, the function
+		// will return nil instead of the GRPCLogClient
+		err := c.connect()
+		if err != nil {
+			return nil
+		}
 	}
 
 	return c
@@ -672,6 +679,11 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 //
 // AddOuts() will add the new input io.Writers to the existing connections and addresses
 func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
+	// don't repeat addresses
+	current := c.addr.Keys()
+
+	var o []string
+
 	for _, remote := range outs {
 		// ensure the input writer is not nil
 		if remote == nil {
@@ -688,19 +700,43 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 
 			// writer is valid -- add it to connections map; register this event
 		} else {
-			c.addr.Add(r.Keys()...)
+			addresses := r.Keys()
+			var toAppend []string
 
-			c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("AddOuts()").Metadata(event.Field{
-				"addrs": r.Keys(),
-			}).Message("added address to connection address map").Build())
+			for a := 0; a < len(addresses); a++ {
+				var isNew bool = true
+
+				for b := 0; b < len(current); b++ {
+					if current[b] == addresses[a] {
+						isNew = false
+						break
+					}
+				}
+
+				if isNew {
+					toAppend = append(toAppend, addresses[a])
+				}
+			}
+
+			if len(toAppend) > 0 {
+				o = append(o, toAppend...)
+			}
 		}
 	}
 
-	// test connectivity to remotes -- if this returns an error, the function
-	// will return nil instead of the GRPCLogClient
-	err := c.connect()
-	if err != nil {
-		return nil
+	if len(o) > 0 {
+		c.addr.Add(o...)
+
+		c.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("SetOuts()").Metadata(event.Field{
+			"addrs": o,
+		}).Message("added address to connection address map").Build())
+
+		// test connectivity to remotes -- if this returns an error, the function
+		// will return nil instead of the GRPCLogClient
+		err := c.connect()
+		if err != nil {
+			return nil
+		}
 	}
 
 	return c

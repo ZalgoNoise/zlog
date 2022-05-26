@@ -3,14 +3,17 @@ package client
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/zalgonoise/zlog/grpc/address"
 	"github.com/zalgonoise/zlog/grpc/server"
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
 	jsonpb "github.com/zalgonoise/zlog/log/format/json"
+	"github.com/zalgonoise/zlog/store/fs"
 )
 
 func TestNew(t *testing.T) {
@@ -362,4 +365,459 @@ func TestGRPCClientAction(t *testing.T) {
 	for idx, test := range tests {
 		verify(idx, test)
 	}
+}
+
+func TestSetOuts(t *testing.T) {
+	module := "GRPCLogClient"
+	funcname := "SetOuts()"
+
+	_ = module
+	_ = funcname
+
+	var mockServerA = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(log.New(log.NilConfig)),
+	)
+
+	go mockServerA.Serve()
+	defer mockServerA.Stop()
+
+	var mockServerB = server.New(
+		server.WithAddr("127.0.0.1:9098"),
+		server.WithLogger(log.New(log.NilConfig)),
+	)
+
+	go mockServerB.Serve()
+	defer mockServerB.Stop()
+
+	type test struct {
+		name   string
+		cfg    []LogClientConfig
+		setter []io.Writer
+		wants  []string
+		fails  bool
+	}
+
+	var tests = []test{
+		{
+			name: "setting one valid address",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			setter: []io.Writer{
+				address.New("127.0.0.1:9098"),
+			},
+			wants: []string{
+				"127.0.0.1:9098",
+			},
+		},
+		{
+			name: "setting multiple valid addresses",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			setter: []io.Writer{
+				address.New("127.0.0.1:9099"),
+				address.New("127.0.0.1:9098"),
+			},
+			wants: []string{
+				"127.0.0.1:9099",
+				"127.0.0.1:9098",
+			},
+		},
+		{
+			name: "setting nil values",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			setter: []io.Writer{
+				nil,
+			},
+			wants: []string{
+				"127.0.0.1:9099",
+			},
+		},
+		{
+			name: "setting multiple nil values",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			setter: []io.Writer{
+				nil,
+				nil,
+				nil,
+			},
+			wants: []string{
+				"127.0.0.1:9099",
+			},
+		},
+		{
+			name: "setting multiple addresses values mixed with nils",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			setter: []io.Writer{
+				nil,
+				address.New("127.0.0.1:9099"),
+				nil,
+				address.New("127.0.0.1:9098"),
+				nil,
+			},
+			wants: []string{
+				"127.0.0.1:9099",
+				"127.0.0.1:9098",
+			},
+		},
+		{
+			name: "nil input",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			setter: nil,
+			wants: []string{
+				"127.0.0.1:9099",
+			},
+		},
+		{
+			name: "setting one invalid writer",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			setter: []io.Writer{
+				&fs.Logfile{},
+			},
+			wants: []string{
+				"127.0.0.1:9099",
+			},
+			fails: true,
+		},
+	}
+
+	var verifyLoggers = func(idx int, test test, logger GRPCLogger, errCh chan error, done chan struct{}) {
+		var res log.Logger
+
+		if test.setter == nil {
+			res = logger.SetOuts()
+		} else {
+			res = logger.SetOuts(test.setter...)
+		}
+
+		if res == nil && !test.fails {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error setting writers -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
+
+		out := logger.(*GRPCLogClient)
+		keys := out.addr.Keys()
+
+		if len(keys) != len(test.wants) {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output length mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				len(test.wants),
+				len(keys),
+				test.name,
+			)
+			return
+		}
+
+		for _, k := range keys {
+			var pass bool
+			for _, a := range test.wants {
+				if k == a {
+					pass = true
+					break
+				}
+			}
+
+			if !pass {
+				errCh <- fmt.Errorf(
+					"#%v -- FAILED -- [%s] [%s] output mismatch error: no matches for addr %s -- action: %s",
+					idx,
+					module,
+					funcname,
+					k,
+					test.name,
+				)
+				return
+			}
+		}
+
+		done <- struct{}{}
+	}
+
+	var verify = func(idx int, test test) {
+		logger, errCh := New(test.cfg...)
+
+		done := make(chan struct{})
+
+		go verifyLoggers(idx, test, logger, errCh, done)
+
+		for {
+			select {
+			case err := <-errCh:
+				if !test.fails {
+					t.Error(err.Error())
+					return
+				}
+			case <-done:
+				return
+			}
+
+		}
+	}
+
+	// sleep to allow server to start up
+	time.Sleep(time.Millisecond * 400)
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+
+}
+
+func TestAddOuts(t *testing.T) {
+	module := "GRPCLogClient"
+	funcname := "AddOuts()"
+
+	_ = module
+	_ = funcname
+
+	var mockServerA = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(log.New(log.NilConfig)),
+	)
+
+	go mockServerA.Serve()
+	defer mockServerA.Stop()
+
+	var mockServerB = server.New(
+		server.WithAddr("127.0.0.1:9098"),
+		server.WithLogger(log.New(log.NilConfig)),
+	)
+
+	go mockServerB.Serve()
+	defer mockServerB.Stop()
+
+	var mockServerC = server.New(
+		server.WithAddr("127.0.0.1:9097"),
+		server.WithLogger(log.New(log.NilConfig)),
+	)
+
+	go mockServerC.Serve()
+	defer mockServerC.Stop()
+
+	type test struct {
+		name   string
+		cfg    []LogClientConfig
+		setter []io.Writer
+		wants  []string
+		fails  bool
+	}
+
+	var tests = []test{
+		{
+			name: "setting one valid address",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9097"),
+			},
+			setter: []io.Writer{
+				address.New("127.0.0.1:9098"),
+			},
+			wants: []string{
+				"127.0.0.1:9097",
+				"127.0.0.1:9098",
+			},
+		},
+		{
+			name: "setting the same address already configured",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9097"),
+			},
+			setter: []io.Writer{
+				address.New("127.0.0.1:9097"),
+			},
+			wants: []string{
+				"127.0.0.1:9097",
+			},
+		},
+		{
+			name: "setting multiple valid addresses",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9097"),
+			},
+			setter: []io.Writer{
+				address.New("127.0.0.1:9099"),
+				address.New("127.0.0.1:9098"),
+			},
+			wants: []string{
+				"127.0.0.1:9097",
+				"127.0.0.1:9098",
+				"127.0.0.1:9099",
+			},
+		},
+		{
+			name: "setting nil values",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9097"),
+			},
+			setter: []io.Writer{
+				nil,
+			},
+			wants: []string{
+				"127.0.0.1:9097",
+			},
+		},
+		{
+			name: "setting multiple nil values",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9097"),
+			},
+			setter: []io.Writer{
+				nil,
+				nil,
+				nil,
+			},
+			wants: []string{
+				"127.0.0.1:9097",
+			},
+		},
+		{
+			name: "setting multiple addresses values mixed with nils",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9097"),
+			},
+			setter: []io.Writer{
+				nil,
+				address.New("127.0.0.1:9099"),
+				nil,
+				address.New("127.0.0.1:9098"),
+				nil,
+			},
+			wants: []string{
+				"127.0.0.1:9097",
+				"127.0.0.1:9098",
+				"127.0.0.1:9099",
+			},
+		},
+		{
+			name: "nil input",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9097"),
+			},
+			setter: nil,
+			wants: []string{
+				"127.0.0.1:9097",
+			},
+		},
+		{
+			name: "setting one invalid writer",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9097"),
+			},
+			setter: []io.Writer{
+				&fs.Logfile{},
+			},
+			wants: []string{
+				"127.0.0.1:9097",
+			},
+			fails: true,
+		},
+	}
+
+	var verifyLoggers = func(idx int, test test, logger GRPCLogger, errCh chan error, done chan struct{}) {
+		var res log.Logger
+
+		if test.setter == nil {
+			res = logger.AddOuts()
+		} else {
+			res = logger.AddOuts(test.setter...)
+		}
+
+		if res == nil && !test.fails {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error setting writers -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
+
+		out := logger.(*GRPCLogClient)
+		keys := out.addr.Keys()
+
+		if len(keys) != len(test.wants) {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output length mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				len(test.wants),
+				len(keys),
+				test.name,
+			)
+			return
+		}
+
+		for _, k := range keys {
+			var pass bool
+			for _, a := range test.wants {
+				if k == a {
+					pass = true
+					break
+				}
+			}
+
+			if !pass {
+				errCh <- fmt.Errorf(
+					"#%v -- FAILED -- [%s] [%s] output mismatch error: no matches for addr %s -- action: %s",
+					idx,
+					module,
+					funcname,
+					k,
+					test.name,
+				)
+				return
+			}
+		}
+
+		done <- struct{}{}
+	}
+
+	var verify = func(idx int, test test) {
+		logger, errCh := New(test.cfg...)
+
+		done := make(chan struct{})
+
+		go verifyLoggers(idx, test, logger, errCh, done)
+
+		for {
+			select {
+			case err := <-errCh:
+				t.Error(err.Error())
+				return
+			case <-done:
+				return
+			}
+
+		}
+	}
+
+	// sleep to allow server to start up
+	time.Sleep(time.Millisecond * 400)
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+
 }

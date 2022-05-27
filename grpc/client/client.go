@@ -618,7 +618,7 @@ func (c GRPCLogClient) Output(m *event.Event) (n int, err error) {
 //
 // SetOuts() will replace all the existing connections and addresses by resetting the
 // map beforehand.
-func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
+func (c *GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 
 	var o []string
 
@@ -678,7 +678,7 @@ func (c GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 // of the same logger.
 //
 // AddOuts() will add the new input io.Writers to the existing connections and addresses
-func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
+func (c *GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 	// don't repeat addresses
 	current := c.addr.Keys()
 
@@ -752,6 +752,10 @@ func (c GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 // Added bonus is support for gob-encoded messages, which is also natively supported in
 // the logger's Write implementation
 func (c GRPCLogClient) Write(p []byte) (n int, err error) {
+	if p == nil || len(p) == 0 {
+		return 0, nil
+	}
+
 	// decode bytes
 	m, err := event.Decode(p)
 
@@ -779,7 +783,7 @@ func (c GRPCLogClient) Write(p []byte) (n int, err error) {
 //
 // A logger-scoped prefix is not cleared with new Log messages, but `MessageBuilder.Prefix()` calls will
 // replace it.
-func (c GRPCLogClient) Prefix(prefix string) log.Logger {
+func (c *GRPCLogClient) Prefix(prefix string) log.Logger {
 	if prefix == "" {
 		c.prefix = "log"
 		return c
@@ -795,7 +799,7 @@ func (c GRPCLogClient) Prefix(prefix string) log.Logger {
 //
 // A logger-scoped sub-prefix is not cleared with new Log messages, but `MessageBuilder.Sub()` calls will
 // replace it.
-func (c GRPCLogClient) Sub(sub string) log.Logger {
+func (c *GRPCLogClient) Sub(sub string) log.Logger {
 	c.sub = sub
 	return c
 }
@@ -809,8 +813,14 @@ func (c GRPCLogClient) Sub(sub string) log.Logger {
 //
 // Logger-scoped metadata fields are not cleared with new log messages, but only added to the existing
 // metadata map. These can be cleared with a call to `Logger.Fields(nil)`
-func (c GRPCLogClient) Fields(fields map[string]interface{}) log.Logger {
+func (c *GRPCLogClient) Fields(fields map[string]interface{}) log.Logger {
+	if fields == nil || len(fields) == 0 {
+		c.meta = map[string]interface{}{}
+		return c
+	}
+
 	c.meta = fields
+
 	return c
 }
 
@@ -837,7 +847,16 @@ func (c GRPCLogClient) IsSkipExit() bool {
 // as a blind-write for this Logger. Since these methods are simply sinking LogMessages to a channel,
 // this operation is considered safe (the errors will be handled at a gRPC Log Client level, not as a Logger)
 func (c GRPCLogClient) Log(m ...*event.Event) {
+	var queue []*event.Event
+
 	for _, msg := range m {
+		if msg == nil {
+			continue
+		}
+		queue = append(queue, msg)
+	}
+
+	for _, msg := range queue {
 		c.Output(msg)
 	}
 }

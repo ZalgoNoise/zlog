@@ -276,7 +276,7 @@ func (l *logger) Fields(fields map[string]interface{}) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if fields == nil {
+	if fields == nil || len(fields) == 0 {
 		l.meta = map[string]interface{}{}
 		return l
 	}

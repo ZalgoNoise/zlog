@@ -821,3 +821,287 @@ func TestAddOuts(t *testing.T) {
 	}
 
 }
+
+func TestWrite(t *testing.T) {
+	module := "GRPCLogClient"
+	funcname := "Write()"
+
+	_ = module
+	_ = funcname
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(log.New(log.NilConfig)),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	type test struct {
+		name string
+		cfg  []LogClientConfig
+		msg  []byte
+		ok   bool
+	}
+
+	var tests = []test{
+		{
+			name: "encoded event test",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			msg: event.New().Message("null").Build().Encode(),
+			ok:  true,
+		},
+		{
+			name: "byte string test",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			msg: []byte("test"),
+			ok:  true,
+		},
+		{
+			name: "zero byte input",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			msg: []byte{},
+		},
+		{
+			name: "nil input",
+			cfg: []LogClientConfig{
+				WithAddr("127.0.0.1:9099"),
+			},
+			msg: nil,
+		},
+	}
+
+	var verifyLoggers = func(idx int, test test, logger GRPCLogger, errCh chan error, done chan struct{}) {
+		n, err := logger.Write(test.msg)
+
+		if err != nil && test.ok {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		if n == 0 && test.ok {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] zero bytes written error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		done <- struct{}{}
+	}
+
+	var verify = func(idx int, test test) {
+		logger, errCh := New(test.cfg...)
+
+		done := make(chan struct{})
+
+		go verifyLoggers(idx, test, logger, errCh, done)
+
+		for {
+			select {
+			case err := <-errCh:
+				t.Error(err.Error())
+				return
+			case <-done:
+				return
+			}
+
+		}
+	}
+
+	// sleep to allow server to start up
+	time.Sleep(time.Millisecond * 400)
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func FuzzLoggerPrefix(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Prefix()"
+
+	l := &GRPCLogClient{}
+
+	f.Add("")
+	f.Add("test-prefix")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Prefix(a)
+
+		if l.prefix != a && a != "" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed prefix mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				l.prefix,
+			)
+			return
+		}
+	})
+}
+
+func FuzzLoggerSub(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Sub()"
+
+	l := &GRPCLogClient{}
+
+	f.Add("")
+	f.Add("test-subprefix")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Sub(a)
+
+		if l.sub != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed prefix mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				l.sub,
+			)
+			return
+		}
+	})
+}
+
+func TestFields(t *testing.T) {
+	module := "GRPCLogClient"
+	funcname := "Fields()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name  string
+		init  map[string]interface{}
+		meta  map[string]interface{}
+		wants map[string]interface{}
+	}
+
+	var tests = []test{
+		{
+			name:  "setting new metadata from empty",
+			init:  nil,
+			meta:  map[string]interface{}{"a": true},
+			wants: map[string]interface{}{"a": true},
+		},
+		{
+			name:  "setting new metadata from existing",
+			init:  map[string]interface{}{"b": false},
+			meta:  map[string]interface{}{"a": true},
+			wants: map[string]interface{}{"a": true},
+		},
+		{
+			name:  "resetting meta with empty obj",
+			init:  map[string]interface{}{"b": false},
+			meta:  map[string]interface{}{},
+			wants: map[string]interface{}{},
+		},
+		{
+			name:  "resetting meta with nil",
+			init:  map[string]interface{}{"b": false},
+			meta:  nil,
+			wants: map[string]interface{}{},
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		l := &GRPCLogClient{
+			meta: test.init,
+		}
+
+		l.Fields(test.meta)
+
+		if !reflect.DeepEqual(l.meta, test.wants) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				l.meta,
+				test.name,
+			)
+			return
+
+		}
+
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+
+}
+
+func TestIsSkipExit(t *testing.T) {
+	module := "GRPCLogClient"
+	funcname := "IsSkipExit()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name      string
+		svcLogger log.Logger
+		wants     bool
+	}
+
+	var buf = &bytes.Buffer{}
+
+	var tests = []test{
+		{
+			name:      "with skip exit logger",
+			svcLogger: log.New(log.WithOut(buf), log.SkipExit),
+			wants:     true,
+		},
+		{
+			name:      "without skip exit logger",
+			svcLogger: log.New(log.WithOut(buf)),
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		l := &GRPCLogClient{
+			svcLogger: test.svcLogger,
+		}
+
+		if l.IsSkipExit() != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				l.meta,
+				test.name,
+			)
+			return
+
+		}
+
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+
+}

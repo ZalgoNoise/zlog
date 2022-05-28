@@ -127,6 +127,9 @@ func (b *gRPCLogClientBuilder) build() *GRPCLogClient {
 		errCh:     make(chan error),
 		svcLogger: b.svcLogger,
 		backoff:   b.backoff,
+		prefix:    "log",
+		sub:       "",
+		meta:      map[string]interface{}{},
 	}
 
 	client.backoff.init(b, client)
@@ -203,7 +206,7 @@ func newStreamLogger(c *GRPCLogClient) (GRPCLogger, chan error) {
 // connect method will iterate the connections map and dial each remote
 //
 // It stores the connection in the map or it removes the entry in case it is unhealthy
-func (c GRPCLogClient) connect() error {
+func (c *GRPCLogClient) connect() error {
 
 	// exit if no addresses are set
 	if c.addr.Len() == 0 {
@@ -261,7 +264,7 @@ func (c GRPCLogClient) connect() error {
 
 // listen method is middleware to allow the backoff module to register an
 // action call (in this case log()), which will be retried in case of failure
-func (c GRPCLogClient) listen() {
+func (c *GRPCLogClient) listen() {
 	for {
 		select {
 		case msg := <-c.msgCh:
@@ -275,7 +278,7 @@ func (c GRPCLogClient) listen() {
 
 // log method is a go-routine function which will send all configured connections
 // a Log() request.
-func (c GRPCLogClient) log(msg *event.Event) {
+func (c *GRPCLogClient) log(msg *event.Event) {
 
 	// establish connections
 	err := c.connect()
@@ -337,7 +340,7 @@ func (c GRPCLogClient) log(msg *event.Event) {
 
 // stream method is a go-routine function which will establish a connection with
 // all configured addresses to create a Stream().
-func (c GRPCLogClient) stream() {
+func (c *GRPCLogClient) stream() {
 
 	localErr := make(chan error)
 
@@ -432,7 +435,7 @@ func (c GRPCLogClient) stream() {
 // streamHandler method will serve as a simple gateway for the handleStreamService method,
 // to allow monitoring on the done channel, and with it closing the connection when requested
 // (in a stream RPC)
-func (c GRPCLogClient) streamHandler(
+func (c *GRPCLogClient) streamHandler(
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
 	done chan struct{},
@@ -460,7 +463,7 @@ func (c GRPCLogClient) streamHandler(
 // the response is registered.
 //
 // This method is ran in paraLevel_el with handleStreamMessages()
-func (c GRPCLogClient) handleStreamService(
+func (c *GRPCLogClient) handleStreamService(
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
 ) {
@@ -501,7 +504,7 @@ func (c GRPCLogClient) handleStreamService(
 // - error messages (sinked into the local error channel)
 //
 // This method is ran in paraLevel_el with handleStreamService()
-func (c GRPCLogClient) handleStreamMessages(
+func (c *GRPCLogClient) handleStreamMessages(
 	stream pb.LogService_LogStreamClient,
 	localErr chan error,
 	cancel context.CancelFunc,
@@ -576,7 +579,7 @@ func (c GRPCLogClient) handleStreamMessages(
 // connections in the ConnAddr map, and close them. After doing so, it
 // sends the done signal to its channel, which causes all open streams to
 // cancel their context and exit gracefully
-func (c GRPCLogClient) Close() {
+func (c *GRPCLogClient) Close() {
 	for _, conn := range c.addr.AsMap() {
 		conn.Close()
 	}
@@ -589,7 +592,7 @@ func (c GRPCLogClient) Close() {
 // gRPC Log Client over a background / separate goroutine. Considering that
 // creating a gRPC Log Client returns an error channel, this method will give
 // the developer the three needed channels to work with the logger asynchronously
-func (c GRPCLogClient) Channels() (logCh chan *event.Event, done chan struct{}) {
+func (c *GRPCLogClient) Channels() (logCh chan *event.Event, done chan struct{}) {
 	return c.msgCh, c.done
 }
 
@@ -597,7 +600,7 @@ func (c GRPCLogClient) Channels() (logCh chan *event.Event, done chan struct{}) 
 //
 // This method will simply push the incoming Log Message to the message channel,
 // which is sent to a gRPC Log Server, either via a Unary or Stream RPC
-func (c GRPCLogClient) Output(m *event.Event) (n int, err error) {
+func (c *GRPCLogClient) Output(m *event.Event) (n int, err error) {
 	c.msgCh <- m
 	return 1, nil
 }
@@ -751,7 +754,7 @@ func (c *GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 //
 // Added bonus is support for gob-encoded messages, which is also natively supported in
 // the logger's Write implementation
-func (c GRPCLogClient) Write(p []byte) (n int, err error) {
+func (c *GRPCLogClient) Write(p []byte) (n int, err error) {
 	if p == nil || len(p) == 0 {
 		return 0, nil
 	}
@@ -834,7 +837,7 @@ func (c *GRPCLogClient) Fields(fields map[string]interface{}) log.Logger {
 //
 // Considering this method is unused by the gRPC Log Client, it's merely here to
 // implement the interface
-func (c GRPCLogClient) IsSkipExit() bool {
+func (c *GRPCLogClient) IsSkipExit() bool {
 	return c.svcLogger.IsSkipExit()
 }
 
@@ -846,7 +849,7 @@ func (c GRPCLogClient) IsSkipExit() bool {
 // While the resulting error message of running `GRPCLogClient.Output()` is simply ignored, this is done
 // as a blind-write for this Logger. Since these methods are simply sinking LogMessages to a channel,
 // this operation is considered safe (the errors will be handled at a gRPC Log Client level, not as a Logger)
-func (c GRPCLogClient) Log(m ...*event.Event) {
+func (c *GRPCLogClient) Log(m ...*event.Event) {
 	var queue []*event.Event
 
 	for _, msg := range m {
@@ -866,7 +869,7 @@ func (c GRPCLogClient) Log(m ...*event.Event) {
 // It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern
 //
 // It applies LogLevel Info
-func (c GRPCLogClient) Print(v ...interface{}) {
+func (c *GRPCLogClient) Print(v ...interface{}) {
 	c.Log(
 		event.New().
 			Level(event.Level_info).
@@ -884,7 +887,7 @@ func (c GRPCLogClient) Print(v ...interface{}) {
 // It is similar to fmt.Println; and will print a message using an fmt.Sprintln(v...) pattern
 //
 // It applies LogLevel Info
-func (c GRPCLogClient) Println(v ...interface{}) {
+func (c *GRPCLogClient) Println(v ...interface{}) {
 	c.Log(
 		event.New().
 			Level(event.Level_info).
@@ -902,7 +905,7 @@ func (c GRPCLogClient) Println(v ...interface{}) {
 // It is similar to fmt.Printf; and will print a message using an fmt.Sprintf(format, v...) pattern
 //
 // It applies LogLevel Info
-func (c GRPCLogClient) Printf(format string, v ...interface{}) {
+func (c *GRPCLogClient) Printf(format string, v ...interface{}) {
 	c.Log(
 		event.New().
 			Level(event.Level_info).
@@ -918,7 +921,7 @@ func (c GRPCLogClient) Printf(format string, v ...interface{}) {
 //
 // It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Panic.
-func (c GRPCLogClient) Panic(v ...interface{}) {
+func (c *GRPCLogClient) Panic(v ...interface{}) {
 	body := fmt.Sprint(v...)
 
 	c.Log(
@@ -936,7 +939,7 @@ func (c GRPCLogClient) Panic(v ...interface{}) {
 //
 // It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Panic.
-func (c GRPCLogClient) Panicln(v ...interface{}) {
+func (c *GRPCLogClient) Panicln(v ...interface{}) {
 	body := fmt.Sprintln(v...)
 
 	c.Log(
@@ -954,7 +957,7 @@ func (c GRPCLogClient) Panicln(v ...interface{}) {
 //
 // It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Panic.
-func (c GRPCLogClient) Panicf(format string, v ...interface{}) {
+func (c *GRPCLogClient) Panicf(format string, v ...interface{}) {
 	body := fmt.Sprintf(format, v...)
 
 	c.Log(
@@ -972,7 +975,7 @@ func (c GRPCLogClient) Panicf(format string, v ...interface{}) {
 //
 // It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Fatal.
-func (c GRPCLogClient) Fatal(v ...interface{}) {
+func (c *GRPCLogClient) Fatal(v ...interface{}) {
 	c.Log(
 		event.New().
 			Level(event.Level_fatal).
@@ -988,7 +991,7 @@ func (c GRPCLogClient) Fatal(v ...interface{}) {
 //
 // It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Fatal.
-func (c GRPCLogClient) Fatalln(v ...interface{}) {
+func (c *GRPCLogClient) Fatalln(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1005,7 +1008,7 @@ func (c GRPCLogClient) Fatalln(v ...interface{}) {
 //
 // It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Fatal.
-func (c GRPCLogClient) Fatalf(format string, v ...interface{}) {
+func (c *GRPCLogClient) Fatalf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1022,7 +1025,7 @@ func (c GRPCLogClient) Fatalf(format string, v ...interface{}) {
 //
 // It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Error.
-func (c GRPCLogClient) Error(v ...interface{}) {
+func (c *GRPCLogClient) Error(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1039,7 +1042,7 @@ func (c GRPCLogClient) Error(v ...interface{}) {
 //
 // It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Error.
-func (c GRPCLogClient) Errorln(v ...interface{}) {
+func (c *GRPCLogClient) Errorln(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1056,7 +1059,7 @@ func (c GRPCLogClient) Errorln(v ...interface{}) {
 //
 // It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Error.
-func (c GRPCLogClient) Errorf(format string, v ...interface{}) {
+func (c *GRPCLogClient) Errorf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1073,7 +1076,7 @@ func (c GRPCLogClient) Errorf(format string, v ...interface{}) {
 //
 // It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Warn.
-func (c GRPCLogClient) Warn(v ...interface{}) {
+func (c *GRPCLogClient) Warn(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1090,7 +1093,7 @@ func (c GRPCLogClient) Warn(v ...interface{}) {
 //
 // It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Warn.
-func (c GRPCLogClient) Warnln(v ...interface{}) {
+func (c *GRPCLogClient) Warnln(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1107,7 +1110,7 @@ func (c GRPCLogClient) Warnln(v ...interface{}) {
 //
 // It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Warn.
-func (c GRPCLogClient) Warnf(format string, v ...interface{}) {
+func (c *GRPCLogClient) Warnf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1124,7 +1127,7 @@ func (c GRPCLogClient) Warnf(format string, v ...interface{}) {
 //
 // It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Info.
-func (c GRPCLogClient) Info(v ...interface{}) {
+func (c *GRPCLogClient) Info(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1141,7 +1144,7 @@ func (c GRPCLogClient) Info(v ...interface{}) {
 //
 // It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Info.
-func (c GRPCLogClient) Infoln(v ...interface{}) {
+func (c *GRPCLogClient) Infoln(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1158,7 +1161,7 @@ func (c GRPCLogClient) Infoln(v ...interface{}) {
 //
 // It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Info.
-func (c GRPCLogClient) Infof(format string, v ...interface{}) {
+func (c *GRPCLogClient) Infof(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1175,7 +1178,7 @@ func (c GRPCLogClient) Infof(format string, v ...interface{}) {
 //
 // It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Debug.
-func (c GRPCLogClient) Debug(v ...interface{}) {
+func (c *GRPCLogClient) Debug(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1192,7 +1195,7 @@ func (c GRPCLogClient) Debug(v ...interface{}) {
 //
 // It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Debug.
-func (c GRPCLogClient) Debugln(v ...interface{}) {
+func (c *GRPCLogClient) Debugln(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1209,7 +1212,7 @@ func (c GRPCLogClient) Debugln(v ...interface{}) {
 //
 // It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Debug.
-func (c GRPCLogClient) Debugf(format string, v ...interface{}) {
+func (c *GRPCLogClient) Debugf(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1226,7 +1229,7 @@ func (c GRPCLogClient) Debugf(format string, v ...interface{}) {
 //
 // It is similar to fmt.Print; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Trace.
-func (c GRPCLogClient) Trace(v ...interface{}) {
+func (c *GRPCLogClient) Trace(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1243,7 +1246,7 @@ func (c GRPCLogClient) Trace(v ...interface{}) {
 //
 // It is similar to fmt.Println; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Trace.
-func (c GRPCLogClient) Traceln(v ...interface{}) {
+func (c *GRPCLogClient) Traceln(v ...interface{}) {
 
 	c.Log(
 		event.New().
@@ -1260,7 +1263,7 @@ func (c GRPCLogClient) Traceln(v ...interface{}) {
 //
 // It is similar to fmt.Printf; and will print a message using an fmt.Sprint(v...) pattern, while
 // automatically applying LogLevel Trace.
-func (c GRPCLogClient) Tracef(format string, v ...interface{}) {
+func (c *GRPCLogClient) Tracef(format string, v ...interface{}) {
 
 	c.Log(
 		event.New().

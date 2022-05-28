@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -15,6 +16,29 @@ import (
 	jsonpb "github.com/zalgonoise/zlog/log/format/json"
 	"github.com/zalgonoise/zlog/store/fs"
 )
+
+const decodeLimit = 300
+const decodeWait = time.Millisecond * 150
+
+var errDecodeDeadlineExceeded = errors.New("deadline exceeded")
+
+func decode(buf *bytes.Buffer, n int) (*event.Event, error) {
+	if n == decodeLimit {
+		return nil, errDecodeDeadlineExceeded
+	}
+
+	n++
+
+	e := buf.Bytes()
+
+	if len(e) == 0 {
+		time.Sleep(decodeWait)
+		return decode(buf, n)
+	}
+
+	buf.Reset()
+	return jsonpb.Decode(e)
+}
 
 func TestNew(t *testing.T) {
 	module := "GRPCLogClient"
@@ -1104,4 +1128,1666 @@ func TestIsSkipExit(t *testing.T) {
 		verify(idx, test)
 	}
 
+}
+
+func TestLog(t *testing.T) {
+	module := "GRPCLogClient"
+	funcname := "Log()"
+
+	_ = module
+	_ = funcname
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(log.New(log.NilConfig)),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	type test struct {
+		name string
+		e    []*event.Event
+	}
+
+	var tests = []test{
+		{
+			name: "single event test",
+			e: []*event.Event{
+				event.New().Message("null").Build(),
+			},
+		},
+		{
+			name: "multiple event test",
+			e: []*event.Event{
+				event.New().Message("null_1").Build(),
+				event.New().Message("null_2").Build(),
+				event.New().Message("null_3").Build(),
+			},
+		},
+		{
+			name: "empty event test",
+			e:    []*event.Event{},
+		},
+		{
+			name: "nil event test",
+			e:    nil,
+		},
+		{
+			name: "multiple events mixed in with nils test",
+			e: []*event.Event{
+				nil,
+				event.New().Message("null_1").Build(),
+				nil,
+				event.New().Message("null_2").Build(),
+				nil,
+				event.New().Message("null_3").Build(),
+				nil,
+			},
+		},
+	}
+
+	var verifyLoggers = func(idx int, test test, logger GRPCLogger, errCh chan error, done chan struct{}) {
+		if test.e == nil {
+			logger.Log(nil)
+		} else {
+			logger.Log(test.e...)
+		}
+
+		done <- struct{}{}
+	}
+
+	var verify = func(idx int, test test) {
+		logger, errCh := New(WithAddr("127.0.0.1:9099"))
+
+		done := make(chan struct{})
+
+		go verifyLoggers(idx, test, logger, errCh, done)
+
+		for {
+			select {
+			case err := <-errCh:
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+					idx,
+					module,
+					funcname,
+					err,
+					test.name,
+				)
+				return
+			case <-done:
+				return
+			}
+
+		}
+	}
+
+	// sleep to allow server to start up
+	time.Sleep(time.Millisecond * 400)
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+
+}
+
+func FuzzLoggerPrint(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Print()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Print(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "info" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"info",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerPrintln(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Println()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Println(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "info" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"info",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerPrintf(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Printf()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Printf(":%s", a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "info" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"info",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != ":"+a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerPanic(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Panic()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Panic(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "panic" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"panic",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerPanicln(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Panicln()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Panicln(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "panic" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"panic",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerPanicf(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Panicf()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Panicf(":%s", a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "panic" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"panic",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != ":"+a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerFatal(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Fatal()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Fatal(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "fatal" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"fatal",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerFatalln(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Fatalln()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Fatalln(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "fatal" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"fatal",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerFatalf(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Fatalf()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Fatalf(":%s", a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "fatal" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"fatal",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != ":"+a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerError(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Error()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Error(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "error" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"error",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerErrorln(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Errorln()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Errorln(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "error" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"error",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerErrorf(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Errorf()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Errorf(":%s", a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "error" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"error",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != ":"+a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerWarn(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Warn()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Warn(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "warn" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"warn",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerWarnln(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Warnln()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Warnln(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "warn" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"warn",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerWarnf(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Warnf()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Warnf(":%s", a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "warn" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"warn",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != ":"+a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerInfo(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Info()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Info(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "info" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"info",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerInfoln(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Infoln()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Infoln(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "info" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"info",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerInfof(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Infof()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Infof(":%s", a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "info" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"info",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != ":"+a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerDebug(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Debug()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Debug(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "debug" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"debug",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerDebugln(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Debugln()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Debugln(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "debug" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"debug",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerDebugf(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Debugf()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Debugf(":%s", a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "debug" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"debug",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != ":"+a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerTrace(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Trace()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Trace(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "trace" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"trace",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerTraceln(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Traceln()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Traceln(a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "trace" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"trace",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
+}
+
+func FuzzLoggerTracef(f *testing.F) {
+	module := "GRPCLogClient"
+	funcname := "Tracef()"
+
+	var buf = &bytes.Buffer{}
+
+	var mockServer = server.New(
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithLogger(
+			log.New(
+				log.WithOut(buf),
+				log.SkipExit,
+				log.CfgFormatJSONSkipNewline,
+			),
+		),
+	)
+
+	go mockServer.Serve()
+	defer mockServer.Stop()
+
+	time.Sleep(time.Millisecond * 100)
+
+	l, _ := New(WithAddr("127.0.0.1:9099"))
+
+	f.Add("test-message")
+	f.Fuzz(func(t *testing.T, a string) {
+		l.Tracef(":%s", a)
+
+		logE, err := decode(buf, 0)
+
+		if err != nil {
+			t.Errorf(
+				"FAILED -- [%s] [%s] unexpected unmarshalling error: %v",
+				module,
+				funcname,
+				err,
+			)
+			return
+		}
+
+		if logE.GetLevel().String() != "trace" {
+			t.Errorf(
+				"FAILED -- [%s] [%s] log level mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				"trace",
+				logE.GetLevel().String(),
+			)
+			return
+		}
+
+		if logE.GetMsg() != ":"+a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message mismatch: wanted %s ; got %s",
+				module,
+				funcname,
+				a,
+				logE.GetMsg(),
+			)
+			return
+		}
+
+	})
 }

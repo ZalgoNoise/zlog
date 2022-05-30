@@ -65,12 +65,21 @@ type multiconf struct {
 // Similar to io.MultiWriter, it will iterate through all set LogClientConfig and run the same method
 // on each of them.
 func MultiConf(conf ...LogClientConfig) LogClientConfig {
-	if len(conf) == 0 {
+	allConf := make([]LogClientConfig, 0, len(conf))
+	for _, c := range conf {
+		if c == nil {
+			continue
+		}
+		allConf = append(allConf, c)
+	}
+
+	if len(allConf) == 0 {
 		return defaultConfig
 	}
 
-	allConf := make([]LogClientConfig, 0, len(conf))
-	allConf = append(allConf, conf...)
+	if len(allConf) == 1 {
+		return allConf[0]
+	}
 
 	return &multiconf{allConf}
 }
@@ -167,12 +176,20 @@ func WithAddr(addr ...string) LogClientConfig {
 		addr: map[string]*grpc.ClientConn{},
 	}
 
-	if len(addr) == 0 || addr == nil {
+	var input = make([]string, len(addr))
+
+	for _, a := range addr {
+		if a != "" {
+			input = append(input, a)
+		}
+	}
+
+	if len(input) == 0 {
 		a.addr.Add(":9099")
 		return a
 	}
 
-	a.addr.Add(addr...)
+	a.addr.Add(input...)
 
 	return a
 }
@@ -202,13 +219,22 @@ func UnaryRPC() LogClientConfig {
 //
 // This function configures the gRPC client's logger interceptors
 func WithLogger(loggers ...log.Logger) LogClientConfig {
+	var ls = make([]log.Logger, len(loggers))
+
+	for _, l := range loggers {
+		if l != nil {
+			ls = append(ls, l)
+		}
+	}
+
 	var l log.Logger
 
-	if len(loggers) == 1 {
-		l = loggers[0]
-	} else if len(loggers) > 1 {
-		l = log.MultiLogger(loggers...)
-	} else {
+	switch {
+	case len(ls) == 1:
+		l = ls[0]
+	case len(ls) > 1:
+		l = log.MultiLogger(ls...)
+	default:
 		l = log.New(log.NilConfig)
 	}
 
@@ -228,13 +254,22 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 //
 // This function configures the gRPC client's logger interceptors
 func WithLoggerV(loggers ...log.Logger) LogClientConfig {
+	var ls = make([]log.Logger, len(loggers))
+
+	for _, l := range loggers {
+		if l != nil {
+			ls = append(ls, l)
+		}
+	}
+
 	var l log.Logger
 
-	if len(loggers) == 1 {
-		l = loggers[0]
-	} else if len(loggers) > 1 {
-		l = log.MultiLogger(loggers...)
-	} else {
+	switch {
+	case len(ls) == 1:
+		l = ls[0]
+	case len(ls) > 1:
+		l = log.MultiLogger(ls...)
+	default:
 		l = log.New(log.NilConfig)
 	}
 
@@ -295,17 +330,23 @@ func WithTiming() LogClientConfig {
 // Running this function with zero parameters will generate a LogClientConfig with
 // the default gRPC Dial Options.
 func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
-	if opts != nil {
-		// enforce defaults
-		if len(opts) == 0 {
-			return &LSOpts{opts: defaultDialOptions}
-		}
-		return &LSOpts{
-			opts: opts,
+	var opt = make([]grpc.DialOption, len(opts))
+
+	for _, o := range opts {
+		if o != nil {
+			opt = append(opt, o)
 		}
 	}
-	return &LSOpts{opts: defaultDialOptions}
 
+	if len(opt) == 0 {
+		return &LSOpts{
+			opts: defaultDialOptions,
+		}
+	}
+
+	return &LSOpts{
+		opts: opt,
+	}
 }
 
 // Insecure function will allow creating an insecure gRPC connection (maybe for testing
@@ -330,6 +371,10 @@ func Insecure() LogClientConfig {
 func WithTLS(caPath string, certKeyPair ...string) LogClientConfig {
 	var cred credentials.TransportCredentials
 	var err error
+
+	if caPath == "" {
+		return nil
+	}
 
 	if len(certKeyPair) == 0 {
 		cred, err = loadCreds(caPath)

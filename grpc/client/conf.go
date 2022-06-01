@@ -219,23 +219,30 @@ func UnaryRPC() LogClientConfig {
 //
 // This function configures the gRPC client's logger interceptors
 func WithLogger(loggers ...log.Logger) LogClientConfig {
-	var ls = make([]log.Logger, len(loggers))
+	if len(loggers) == 0 {
+		return &LSLogger{
+			logger: log.New(log.NilConfig),
+		}
+	}
+
+	var ls = make([]log.Logger, 0, len(loggers))
 
 	for _, l := range loggers {
-		if l != nil {
-			ls = append(ls, l)
+		if l == nil {
+			continue
 		}
+		ls = append(ls, l)
 	}
 
 	var l log.Logger
 
-	switch {
-	case len(ls) == 1:
-		l = ls[0]
-	case len(ls) > 1:
-		l = log.MultiLogger(ls...)
-	default:
+	switch len(ls) {
+	case 0:
 		l = log.New(log.NilConfig)
+	case 1:
+		l = ls[0]
+	default:
+		l = log.MultiLogger(ls...)
 	}
 
 	return &LSLogger{
@@ -254,23 +261,31 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 //
 // This function configures the gRPC client's logger interceptors
 func WithLoggerV(loggers ...log.Logger) LogClientConfig {
-	var ls = make([]log.Logger, len(loggers))
+	if len(loggers) == 0 {
+		return &LSLogger{
+			logger:  log.New(log.NilConfig),
+			verbose: true,
+		}
+	}
+
+	var ls = make([]log.Logger, 0, len(loggers))
 
 	for _, l := range loggers {
-		if l != nil {
-			ls = append(ls, l)
+		if l == nil {
+			continue
 		}
+		ls = append(ls, l)
 	}
 
 	var l log.Logger
 
-	switch {
-	case len(ls) == 1:
-		l = ls[0]
-	case len(ls) > 1:
-		l = log.MultiLogger(ls...)
-	default:
+	switch len(ls) {
+	case 0:
 		l = log.New(log.NilConfig)
+	case 1:
+		l = ls[0]
+	default:
+		l = log.MultiLogger(ls...)
 	}
 
 	return &LSLogger{

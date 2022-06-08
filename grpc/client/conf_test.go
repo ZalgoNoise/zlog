@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/zalgonoise/zlog/log"
+	"google.golang.org/grpc"
 )
 
 func TestMultiConf(t *testing.T) {
@@ -454,6 +455,103 @@ func TestWithLoggerV(t *testing.T) {
 				idx,
 				module,
 				funcname,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestWithGRPCOpts(t *testing.T) {
+	module := "LogClientConfig"
+	funcname := "WithGRPCOpts()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name  string
+		input []grpc.DialOption
+		wants []grpc.DialOption
+	}
+
+	opt := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.FailOnNonTempDialError(true),
+	}
+
+	opts := [][]grpc.DialOption{
+		{
+			opt[0],
+		},
+		{
+			opt[0],
+			opt[1],
+		},
+		{
+			nil,
+			opt[0],
+			nil,
+			opt[1],
+			nil,
+		},
+		{
+			nil,
+			nil,
+			nil,
+		},
+	}
+
+	var tests = []test{
+		{
+			name:  "one valid option",
+			input: opts[0],
+			wants: opts[0],
+		},
+		{
+			name:  "multiple valid options",
+			input: opts[1],
+			wants: opts[1],
+		},
+		{
+			name:  "multiple valid options mixed with nil values",
+			input: opts[2],
+			wants: opts[1],
+		},
+		{
+			name:  "multiple nil options",
+			input: opts[3],
+			wants: defaultDialOptions,
+		},
+		{
+			name:  "zero options",
+			input: []grpc.DialOption{},
+			wants: defaultDialOptions,
+		},
+		{
+			name:  "nil options",
+			input: nil,
+			wants: defaultDialOptions,
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		var cfg = WithGRPCOpts(test.input...)
+
+		config := cfg.(*LSOpts)
+
+		if !reflect.DeepEqual(config.opts, test.wants) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				config.opts,
 				test.name,
 			)
 			return

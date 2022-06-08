@@ -345,12 +345,13 @@ func WithTiming() LogClientConfig {
 // Running this function with zero parameters will generate a LogClientConfig with
 // the default gRPC Dial Options.
 func WithGRPCOpts(opts ...grpc.DialOption) LogClientConfig {
-	var opt = make([]grpc.DialOption, len(opts))
+	opt := []grpc.DialOption{}
 
 	for _, o := range opts {
-		if o != nil {
-			opt = append(opt, o)
+		if o == nil {
+			continue
 		}
+		opt = append(opt, o)
 	}
 
 	if len(opt) == 0 {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
@@ -201,6 +202,15 @@ func TestWithAddr(t *testing.T) {
 				return
 			}
 		}
+
+		// test Apply()
+		builder := &gRPCLogClientBuilder{
+			interceptors: clientInterceptors{
+				streamItcp: make(map[string]grpc.StreamClientInterceptor),
+				unaryItcp:  make(map[string]grpc.UnaryClientInterceptor),
+			},
+		}
+		cfg.Apply(builder)
 	}
 
 	for idx, test := range tests {
@@ -251,6 +261,15 @@ func TestStreamOrUnaryRPC(t *testing.T) {
 			)
 			return
 		}
+
+		// test Apply()
+		builder := &gRPCLogClientBuilder{
+			interceptors: clientInterceptors{
+				streamItcp: make(map[string]grpc.StreamClientInterceptor),
+				unaryItcp:  make(map[string]grpc.UnaryClientInterceptor),
+			},
+		}
+		cfg.Apply(builder)
 	}
 
 	for idx, test := range tests {
@@ -355,6 +374,16 @@ func TestWithLogger(t *testing.T) {
 			)
 			return
 		}
+
+		// test Apply()
+		builder := &gRPCLogClientBuilder{
+			interceptors: clientInterceptors{
+				streamItcp: make(map[string]grpc.StreamClientInterceptor),
+				unaryItcp:  make(map[string]grpc.UnaryClientInterceptor),
+			},
+		}
+
+		cfg.Apply(builder)
 	}
 
 	for idx, test := range tests {
@@ -459,6 +488,15 @@ func TestWithLoggerV(t *testing.T) {
 			)
 			return
 		}
+
+		// test Apply()
+		builder := &gRPCLogClientBuilder{
+			interceptors: clientInterceptors{
+				streamItcp: make(map[string]grpc.StreamClientInterceptor),
+				unaryItcp:  make(map[string]grpc.UnaryClientInterceptor),
+			},
+		}
+		cfg.Apply(builder)
 	}
 
 	for idx, test := range tests {
@@ -555,6 +593,210 @@ func TestWithGRPCOpts(t *testing.T) {
 				test.name,
 			)
 			return
+		}
+
+		// test Apply()
+		builder := &gRPCLogClientBuilder{
+			interceptors: clientInterceptors{
+				streamItcp: make(map[string]grpc.StreamClientInterceptor),
+				unaryItcp:  make(map[string]grpc.UnaryClientInterceptor),
+			},
+		}
+		cfg.Apply(builder)
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestWithBackoff(t *testing.T) {
+	module := "LogClientConfig"
+	funcname := "WithBackoff()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name     string
+		deadline time.Duration
+		fn       BackoffFunc
+		wants    *Backoff
+	}
+
+	b := []*Backoff{
+		NewBackoff(), NewBackoff(), NewBackoff(),
+	}
+
+	b[0].BackoffFunc(NoBackoff())
+
+	b[1].Time(defaultRetryTime)
+	b[1].BackoffFunc(BackoffLinear(time.Second))
+
+	b[2].Time(time.Minute)
+	b[2].BackoffFunc(BackoffExponential())
+
+	var tests = []test{
+		{
+			name:     "no deadline and no backoff function",
+			deadline: 0,
+			fn:       nil,
+			wants:    b[0],
+		},
+		{
+			name:     "no deadline and linear backoff function",
+			deadline: 0,
+			fn:       BackoffLinear(time.Second),
+			wants:    b[1],
+		},
+		{
+			name:     "with deadline but no backoff function",
+			deadline: time.Minute,
+			fn:       nil,
+			wants:    b[2],
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		var cfg = WithBackoff(test.deadline, test.fn)
+
+		config := cfg.(*LSExpBackoff)
+
+		// check if backoffFunc is not nil; then make it nil
+		// for a quick DeepEqual
+		//
+		// BackoffFunc tests will be found in backoff_test.go
+		if config.backoff.backoffFunc == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] backoff func cannot be nil -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
+
+		config.backoff.backoffFunc = nil
+		test.wants.backoffFunc = nil
+
+		if !reflect.DeepEqual(config.backoff, test.wants) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				config.backoff,
+				test.name,
+			)
+			return
+		}
+
+		// test Apply()
+		builder := &gRPCLogClientBuilder{
+			interceptors: clientInterceptors{
+				streamItcp: make(map[string]grpc.StreamClientInterceptor),
+				unaryItcp:  make(map[string]grpc.UnaryClientInterceptor),
+			},
+		}
+		cfg.Apply(builder)
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestWithTiming(t *testing.T) {
+	module := "LogClientConfig"
+	funcname := "WithTiming()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name      string
+		base      *gRPCLogClientBuilder
+		hasLogger bool
+	}
+
+	var logger = log.New(log.NilConfig)
+
+	var tests = []test{
+		{
+			name: "without logger",
+			base: &gRPCLogClientBuilder{
+				interceptors: clientInterceptors{
+					streamItcp: make(map[string]grpc.StreamClientInterceptor),
+					unaryItcp:  make(map[string]grpc.UnaryClientInterceptor),
+				},
+			},
+		},
+		{
+			name: "with logger",
+			base: &gRPCLogClientBuilder{
+				interceptors: clientInterceptors{
+					streamItcp: map[string]grpc.StreamClientInterceptor{
+						"logging": StreamClientLogging(logger, false),
+					},
+					unaryItcp: map[string]grpc.UnaryClientInterceptor{
+						"logging": UnaryClientLogging(logger, false),
+					},
+				},
+				svcLogger: logger,
+			},
+			hasLogger: true,
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		var cfg = WithTiming()
+
+		cfg.Apply(test.base)
+
+		if test.hasLogger {
+			if _, ok := test.base.interceptors.streamItcp["logging"]; !ok {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] stream interceptor map does not contain a logging entry -- action: %s",
+					idx,
+					module,
+					funcname,
+					test.name,
+				)
+				return
+			}
+			if _, ok := test.base.interceptors.unaryItcp["logging"]; !ok {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] unary interceptor map does not contain a logging entry -- action: %s",
+					idx,
+					module,
+					funcname,
+					test.name,
+				)
+				return
+			}
+		} else {
+			if _, ok := test.base.interceptors.streamItcp["timing"]; !ok {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] stream interceptor map does not contain a timing entry -- action: %s",
+					idx,
+					module,
+					funcname,
+					test.name,
+				)
+				return
+			}
+			if _, ok := test.base.interceptors.unaryItcp["timing"]; !ok {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] unary interceptor map does not contain a timing entry -- action: %s",
+					idx,
+					module,
+					funcname,
+					test.name,
+				)
+				return
+			}
 		}
 	}
 

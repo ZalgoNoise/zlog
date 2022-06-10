@@ -41,5 +41,6 @@ go_test(
         "//log/event",
         "//log/format/json",
         "//store/fs",
+        "@org_golang_google_grpc//:go_default_library",
     ],
 )

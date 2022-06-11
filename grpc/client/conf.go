@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 var (
 	ErrCACertAddFailed error = errors.New("failed to add server CA's certificate")
+	ErrEmptyPath       error = errors.New("a required path was found to be empty")
 
 	defaultDialOptions = []grpc.DialOption{
 		grpc.FailOnNonTempDialError(true),
@@ -394,14 +396,18 @@ func WithTLS(caPath string, certKeyPair ...string) LogClientConfig {
 
 	if len(certKeyPair) == 0 {
 		cred, err = loadCreds(caPath)
-	} else if len(certKeyPair) > 1 {
-
-		// despite the variatic parameter, only the first two elements are read
-		// this is so it can be fully omitted if it's for server-TLS only
-		cred, err = loadCredsMutual(caPath, certKeyPair[0], certKeyPair[1])
-
 	} else {
-		return nil
+		var certKey = [2]string{"", ""}
+		var idx int = 0
+
+		for _, v := range certKeyPair {
+			if v != "" && certKey[idx] == "" {
+				certKey[idx] = v
+				idx++
+			}
+		}
+
+		cred, err = loadCredsMutual(caPath, certKey[0], certKey[1])
 	}
 
 	if err != nil {
@@ -418,6 +424,10 @@ func WithTLS(caPath string, certKeyPair ...string) LogClientConfig {
 }
 
 func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials, error) {
+	if caCert == "" || cert == "" || key == "" {
+		return nil, ErrEmptyPath
+	}
+
 	ca, err := ioutil.ReadFile(caCert)
 
 	if err != nil {
@@ -430,6 +440,7 @@ func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials
 		return nil, ErrCACertAddFailed
 	}
 
+	fmt.Println(cert, key)
 	c, err := tls.LoadX509KeyPair(cert, key)
 
 	if err != nil {
@@ -447,6 +458,10 @@ func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials
 }
 
 func loadCreds(caCert string) (credentials.TransportCredentials, error) {
+	if caCert == "" {
+		return nil, ErrEmptyPath
+	}
+
 	ca, err := ioutil.ReadFile(caCert)
 	if err != nil {
 		return nil, err

@@ -2,6 +2,8 @@ package client
 
 import (
 	"bytes"
+	"errors"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -9,6 +11,21 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
 )
+
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
+type testTLS struct {
+	keyCert []string
+	caCert  string
+}
 
 func TestMultiConf(t *testing.T) {
 	module := "LogClientConfig"
@@ -797,6 +814,126 @@ func TestWithTiming(t *testing.T) {
 				)
 				return
 			}
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestWithTLS(t *testing.T) {
+	module := "LogClientConfig"
+	funcname := "WithTLS()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name       string
+		caPathEnv  string
+		keyCertEnv []string
+		isMutual   bool
+		ok         bool
+	}
+
+	var tests = []test{
+		{
+			name:      "simple TLS",
+			caPathEnv: "TLS_CA_CERT",
+			ok:        true,
+		},
+		{
+			name:      "mutual TLS",
+			caPathEnv: "TLS_CA_CERT",
+			keyCertEnv: []string{
+				"TLS_CLIENT_CERT",
+				"TLS_CLIENT_KEY",
+			},
+			isMutual: true,
+			ok:       true,
+		},
+		{
+			name:      "no arguments provided",
+			caPathEnv: "",
+		},
+		{
+			name:      "mTLS, but not enough arguments",
+			caPathEnv: "TLS_CA_CERT",
+			keyCertEnv: []string{
+				"TLS_CLIENT_CERT",
+				"",
+			},
+			isMutual: true,
+		},
+	}
+
+	var catchPanics = func(idx int, test test) {
+		r := recover()
+
+		if r != nil && test.ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] execution error (panic): %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				r,
+				test.name,
+			)
+		}
+	}
+
+	var init = func(test test) (*testTLS, error) {
+
+		out := new(testTLS)
+
+		caCert, ok := getEnv(test.caPathEnv)
+		if !ok && test.ok {
+			return nil, errors.New("missing server certificate env variable")
+		}
+		out.caCert = caCert
+
+		if test.isMutual {
+			out.keyCert = []string{"", ""}
+
+			clientCert, ok := getEnv(test.keyCertEnv[0])
+			if !ok && test.ok {
+				return nil, errors.New("missing server certificate env variable")
+			}
+			out.keyCert[0] = clientCert
+
+			clientKey, ok := getEnv(test.keyCertEnv[1])
+			if !ok && test.ok {
+				return nil, errors.New("missing server key env variable")
+			}
+			out.keyCert[1] = clientKey
+		}
+
+		return out, nil
+
+	}
+
+	var verify = func(idx int, test test) {
+
+		defer catchPanics(idx, test)
+
+		cfg, err := init(test)
+		if err != nil {
+			t.Logf(
+				"#%v -- SKIPPED -- [%s] [%s] error when loading environment variables: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		if test.isMutual {
+			_ = WithTLS(cfg.caCert, cfg.keyCert...)
+		} else {
+			_ = WithTLS(cfg.caCert)
 		}
 	}
 

@@ -709,3 +709,101 @@ func TestWaitContext(t *testing.T) {
 		verify(idx, test)
 	}
 }
+
+func TestRegister(t *testing.T) {
+	module := "Backoff"
+	funcname := "Register()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name    string
+		call    interface{}
+		isUnary bool
+		ok      bool
+	}
+
+	backoff := &Backoff{
+		counter:     0,
+		max:         time.Minute,
+		wait:        time.Second,
+		call:        nil,
+		msg:         []*event.Event{},
+		backoffFunc: BackoffLinear(time.Second),
+		locked:      false,
+		mu:          sync.Mutex{},
+	}
+
+	var streamFn streamFunc = func() {}
+	var unaryFn logFunc = func(*event.Event) {}
+
+	var tests = []test{
+		{
+			name:    "unary function",
+			call:    unaryFn,
+			isUnary: true,
+			ok:      true,
+		},
+		{
+			name: "stream function",
+			call: streamFn,
+			ok:   true,
+		},
+		{
+			name: "invalid function",
+			call: func() {},
+		},
+	}
+
+	var verify = func(idx int, test test) {
+
+		new := backoff
+		new.call = nil
+
+		if test.isUnary && test.ok {
+			new.Register(test.call.(logFunc))
+
+			if new.call == nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] unary call wasn't set as expected -- action: %s",
+					idx,
+					module,
+					funcname,
+					test.name,
+				)
+				return
+			}
+
+		} else if !test.isUnary && test.ok {
+			new.Register(test.call.(streamFunc))
+
+			if new.call == nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] stream call wasn't set as expected -- action: %s",
+					idx,
+					module,
+					funcname,
+					test.name,
+				)
+				return
+			}
+		} else {
+			// no valid input function, call element should remain nil
+			if new.call != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] backoff function call should be nil -- action: %s",
+					idx,
+					module,
+					funcname,
+					test.name,
+				)
+				return
+			}
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}

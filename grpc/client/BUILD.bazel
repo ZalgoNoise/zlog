@@ -30,6 +30,7 @@ go_library(
 go_test(
     name = "client_test",
     srcs = [
+        "backoff_test.go",
         "client_test.go",
         "conf_test.go",
     ],

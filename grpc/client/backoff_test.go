@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
 )
 
@@ -798,6 +799,214 @@ func TestRegister(t *testing.T) {
 					funcname,
 					test.name,
 				)
+				return
+			}
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestUnaryBackoffHandler(t *testing.T) {
+	module := "Backoff"
+	funcname := "UnaryBackoffHandler()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name   string
+		b      *Backoff
+		err    error
+		logger log.Logger
+		wants  error
+	}
+
+	var unaryFn logFunc = func(*event.Event) {}
+	var nilL log.Logger = log.New(log.NilConfig)
+	var err error = errors.New("test error")
+
+	var tests = []test{
+		{
+			name: "valid flow w/ error",
+			b: &Backoff{
+				counter: 0,
+				max:     time.Minute,
+				wait:    time.Second,
+				call:    unaryFn,
+				msg: []*event.Event{
+					event.New().Message("null").Build(), // added message for added coverage on L165
+				},
+				backoffFunc: BackoffLinear(time.Millisecond),
+				locked:      false,
+				mu:          sync.Mutex{},
+			},
+			err:    err,
+			logger: nilL,
+			wants:  ErrFailedConn,
+		},
+		{
+			name: "valid flow w/ locked backoff",
+			b: &Backoff{
+				counter:     0,
+				max:         time.Minute,
+				wait:        time.Second,
+				call:        nil,
+				msg:         []*event.Event{},
+				backoffFunc: NoBackoff(),
+				locked:      true,
+				mu:          sync.Mutex{},
+			},
+			err:    err,
+			logger: nilL,
+			wants:  ErrBackoffLocked,
+		},
+		{
+			name: "invalid flow w/ error",
+			b: &Backoff{
+				counter:     0,
+				max:         time.Minute,
+				wait:        time.Second,
+				call:        nil,
+				msg:         []*event.Event{},
+				backoffFunc: NoBackoff(),
+				locked:      false,
+				mu:          sync.Mutex{},
+			},
+			err:    err,
+			logger: nilL,
+			wants:  ErrFailedConn,
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		err := test.b.UnaryBackoffHandler(test.err, test.logger)
+
+		if !errors.Is(err, test.wants) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted error %v ; got error %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				err,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestStreamBackoffHandler(t *testing.T) {
+	module := "Backoff"
+	funcname := "UnaryBackoffHandler()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name   string
+		b      *Backoff
+		logger log.Logger
+		wants  error
+	}
+
+	type testRequest struct {
+		ctx    context.Context
+		cancel context.CancelFunc
+		errCh  chan error
+		done   chan struct{}
+	}
+
+	var streamFn streamFunc = func() {}
+	var nilL log.Logger = log.New(log.NilConfig)
+
+	var tests = []test{
+		{
+			name: "valid flow w/o error",
+			b: &Backoff{
+				counter:     0,
+				max:         time.Minute,
+				wait:        time.Second,
+				call:        streamFn,
+				msg:         []*event.Event{},
+				backoffFunc: BackoffLinear(time.Millisecond),
+				locked:      false,
+				mu:          sync.Mutex{},
+			},
+			logger: nilL,
+		},
+		{
+			name: "valid flow w/o error",
+			b: &Backoff{
+				counter:     0,
+				max:         time.Minute,
+				wait:        time.Second,
+				call:        streamFn,
+				msg:         []*event.Event{},
+				backoffFunc: NoBackoff(),
+				locked:      true,
+				mu:          sync.Mutex{},
+			},
+			logger: nilL,
+			wants:  ErrBackoffLocked,
+		},
+	}
+
+	var init = func() *testRequest {
+		ctx := context.Background()
+		ctx, cancel := context.WithCancel(ctx)
+
+		var errCh chan error
+		var done chan struct{}
+
+		return &testRequest{
+			ctx:    ctx,
+			cancel: cancel,
+			errCh:  errCh,
+			done:   done,
+		}
+	}
+
+	var verify = func(idx int, test test) {
+		var err error
+
+		req := init()
+
+		go test.b.StreamBackoffHandler(
+			req.errCh,
+			req.cancel,
+			test.logger,
+			req.done,
+		)
+
+		for {
+			select {
+			case <-time.After(time.Millisecond * 100):
+				// call executed, no signals received
+				return
+			case <-req.done:
+				// ignore done signal, focus on error channel
+				continue
+			case err = <-req.errCh:
+				if !errors.Is(err, test.wants) {
+					t.Errorf(
+						"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted error %v ; got error %v -- action: %s",
+						idx,
+						module,
+						funcname,
+						test.wants,
+						err,
+						test.name,
+					)
+					return
+				}
 				return
 			}
 		}

@@ -1016,3 +1016,430 @@ func TestStreamBackoffHandler(t *testing.T) {
 		verify(idx, test)
 	}
 }
+
+func FuzzBackoffTime(f *testing.F) {
+	module := "Backoff"
+	funcname := "Time()"
+	action := "fuzz testing *Backoff.Time(t time.Duration)"
+
+	var fuzzInput = []int{0, 1, 5, 30}
+
+	for _, i := range fuzzInput {
+		f.Add(i)
+	}
+
+	f.Fuzz(func(t *testing.T, a int) {
+
+		b := &Backoff{
+			counter:     0,
+			max:         0,
+			wait:        time.Second,
+			call:        nil,
+			msg:         []*event.Event{},
+			backoffFunc: NoBackoff(),
+			locked:      false,
+			mu:          sync.Mutex{},
+		}
+
+		var duration = time.Duration(int64(a))
+
+		b.Time(duration)
+
+		if !reflect.DeepEqual(duration, b.max) {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed time mismatch: wanted %v ; got %v -- action: %s",
+				module,
+				funcname,
+				a,
+				duration,
+				action,
+			)
+			return
+		}
+	})
+}
+
+func FuzzBackoffAddMessage(f *testing.F) {
+	module := "Backoff"
+	funcname := "AddMessage()"
+	action := "fuzz testing *Backoff.AddMessage(msg *event.Event); checking a fuzzed message body"
+
+	var fuzzInput = []string{"null", "test", "fuzz"}
+
+	for _, i := range fuzzInput {
+		f.Add(i)
+	}
+
+	f.Fuzz(func(t *testing.T, a string) {
+
+		b := &Backoff{
+			counter:     0,
+			max:         0,
+			wait:        time.Second,
+			call:        nil,
+			msg:         []*event.Event{},
+			backoffFunc: NoBackoff(),
+			locked:      false,
+			mu:          sync.Mutex{},
+		}
+
+		var msg = event.New().Message(a).Build()
+
+		b.AddMessage(msg)
+
+		if b.msg[0].GetMsg() != a {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed message content mismatch: wanted %s ; got %s -- action: %s",
+				module,
+				funcname,
+				a,
+				b.msg[0].GetMsg(),
+				action,
+			)
+			return
+		}
+	})
+}
+
+func FuzzBackoffCounter(f *testing.F) {
+	module := "Backoff"
+	funcname := "Counter()"
+	action := "fuzz testing *Backoff.Counter() uint"
+
+	var fuzzInput = []uint{0, 1, 5, 30}
+
+	for _, i := range fuzzInput {
+		f.Add(i)
+	}
+
+	f.Fuzz(func(t *testing.T, a uint) {
+
+		b := &Backoff{
+			counter:     a,
+			max:         0,
+			wait:        time.Second,
+			call:        nil,
+			msg:         []*event.Event{},
+			backoffFunc: NoBackoff(),
+			locked:      false,
+			mu:          sync.Mutex{},
+		}
+
+		if !reflect.DeepEqual(b.Counter(), a) {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed counter mismatch: wanted %v ; got %v -- action: %s",
+				module,
+				funcname,
+				a,
+				b.Counter(),
+				action,
+			)
+			return
+		}
+	})
+}
+
+func FuzzBackoffMax(f *testing.F) {
+	module := "Backoff"
+	funcname := "Max()"
+	action := "fuzz testing *Backoff.Max() string"
+
+	var fuzzInput = []int{0, 1, 5, 30}
+
+	for _, i := range fuzzInput {
+		f.Add(i)
+	}
+
+	f.Fuzz(func(t *testing.T, a int) {
+		var max = time.Duration(int64(a))
+
+		b := &Backoff{
+			counter:     0,
+			max:         max,
+			wait:        time.Second,
+			call:        nil,
+			msg:         []*event.Event{},
+			backoffFunc: NoBackoff(),
+			locked:      false,
+			mu:          sync.Mutex{},
+		}
+
+		if b.Max() != max.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed max time mismatch: wanted %v ; got %v -- action: %s",
+				module,
+				funcname,
+				max.String(),
+				b.Max(),
+				action,
+			)
+			return
+		}
+	})
+}
+
+func FuzzBackoffCurrent(f *testing.F) {
+	module := "Backoff"
+	funcname := "Current()"
+	action := "fuzz testing *Backoff.Current() string"
+
+	var fuzzInput = []int{0, 1, 5, 30}
+
+	for _, i := range fuzzInput {
+		f.Add(i)
+	}
+
+	f.Fuzz(func(t *testing.T, a int) {
+		var cur = time.Duration(int64(a))
+
+		b := &Backoff{
+			counter:     0,
+			max:         0,
+			wait:        cur,
+			call:        nil,
+			msg:         []*event.Event{},
+			backoffFunc: NoBackoff(),
+			locked:      false,
+			mu:          sync.Mutex{},
+		}
+
+		if b.Current() != cur.String() {
+			t.Errorf(
+				"FAILED -- [%s] [%s] fuzzed max time mismatch: wanted %v ; got %v -- action: %s",
+				module,
+				funcname,
+				cur.String(),
+				b.Current(),
+				action,
+			)
+			return
+		}
+	})
+}
+
+func TestBackoffLock(t *testing.T) {
+	module := "Backoff"
+	funcname := "Lock()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name  string
+		b     *Backoff
+		init  bool
+		wants bool
+	}
+
+	mu := new(sync.Mutex)
+	mu.Lock()
+
+	var tests = []test{
+		{
+			name: "from unlocked backoff",
+			b: &Backoff{
+				locked: false,
+				mu:     sync.Mutex{},
+			},
+			wants: true,
+		},
+		{
+			name: "from locked backoff",
+			b: &Backoff{
+				locked: true,
+				mu:     *mu,
+			},
+			wants: true,
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		test.b.Lock()
+
+		if test.b.locked != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				test.b.locked,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestBackoffUnlock(t *testing.T) {
+	module := "Backoff"
+	funcname := "Unlock()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name  string
+		b     *Backoff
+		wants bool
+	}
+
+	mu := new(sync.Mutex)
+	mu.Lock()
+
+	var tests = []test{
+		{
+			name: "from unlocked backoff",
+			b: &Backoff{
+				locked: false,
+				mu:     sync.Mutex{},
+			},
+			wants: false,
+		},
+		{
+			name: "from locked backoff",
+			b: &Backoff{
+				locked: true,
+				mu:     *mu,
+			},
+			wants: false,
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		test.b.Unlock()
+
+		if test.b.locked != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				test.b.locked,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestBackoffTryLock(t *testing.T) {
+	module := "Backoff"
+	funcname := "TryLock()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name  string
+		b     *Backoff
+		wants bool
+	}
+
+	mu := new(sync.Mutex)
+	mu.Lock()
+
+	var tests = []test{
+		{
+			name: "from unlocked backoff",
+			b: &Backoff{
+				locked: false,
+				mu:     sync.Mutex{},
+			},
+			wants: true,
+		},
+		{
+			name: "from locked backoff",
+			b: &Backoff{
+				locked: true,
+				mu:     *mu,
+			},
+			wants: true,
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		res := test.b.TryLock()
+
+		if res != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				res,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+func TestBackoffIsLocked(t *testing.T) {
+	module := "Backoff"
+	funcname := "IsLocked()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name  string
+		b     *Backoff
+		wants bool
+	}
+
+	mu := new(sync.Mutex)
+	mu.Lock()
+
+	var tests = []test{
+		{
+			name: "from unlocked backoff",
+			b: &Backoff{
+				locked: false,
+			},
+			wants: false,
+		},
+		{
+			name: "from locked backoff",
+			b: &Backoff{
+				locked: true,
+			},
+			wants: true,
+		},
+	}
+
+	var verify = func(idx int, test test) {
+		res := test.b.IsLocked()
+
+		if res != test.wants {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.wants,
+				res,
+				test.name,
+			)
+			return
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}

@@ -323,7 +323,6 @@ func (b *Backoff) Time(t time.Duration) {
 // AddMessage method will append a new message to the exponential backoff's
 // message queue
 func (b *Backoff) AddMessage(msg *event.Event) {
-
 	b.msg = append(b.msg, msg)
 	return
 }
@@ -347,6 +346,10 @@ func (b *Backoff) Current() string {
 // Lock method will set the ExpBackoff's locked element to true, preventing future calls
 // from proceeding.
 func (b *Backoff) Lock() {
+	if b.locked {
+		return
+	}
+
 	b.mu.Lock()
 	b.locked = true
 }
@@ -354,6 +357,10 @@ func (b *Backoff) Lock() {
 // Unlock method will set the ExpBackoff's locked element to false, allowing future calls
 // to proceed.
 func (b *Backoff) Unlock() {
+	if !b.locked {
+		return
+	}
+
 	b.mu.Unlock()
 	b.locked = false
 }
@@ -363,6 +370,10 @@ func (b *Backoff) Unlock() {
 //
 // It is used to get a status from the mutex as the call is made.
 func (b *Backoff) TryLock() bool {
+	if b.locked {
+		return true
+	}
+
 	b.locked = b.mu.TryLock()
 	return b.locked
 }

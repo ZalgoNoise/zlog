@@ -33,6 +33,7 @@ go_test(
         "backoff_test.go",
         "client_test.go",
         "conf_test.go",
+        "logging_test.go",
     ],
     embed = [":client"],
     deps = [

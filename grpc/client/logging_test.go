@@ -13,6 +13,20 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+type testClientStream struct {
+	hMD metadata.MD
+	tMD metadata.MD
+	err error
+	ctx context.Context // for DeepEqual tests
+}
+
+func (s *testClientStream) Header() (metadata.MD, error) { return s.hMD, s.err }
+func (s *testClientStream) Trailer() metadata.MD         { return s.tMD }
+func (s *testClientStream) CloseSend() error             { return s.err }
+func (s *testClientStream) Context() context.Context     { return s.ctx }
+func (s *testClientStream) SendMsg(m interface{}) error  { return s.err }
+func (s *testClientStream) RecvMsg(m interface{}) error  { return s.err }
+
 func TestUnaryClientLogging(t *testing.T) {
 	module := "LogClient Interceptors"
 	funcname := "UnaryClientLogging()"
@@ -121,20 +135,6 @@ func TestUnaryClientLogging(t *testing.T) {
 		verify(idx, test)
 	}
 }
-
-type testClientStream struct {
-	hMD metadata.MD
-	tMD metadata.MD
-	err error
-	ctx context.Context // for DeepEqual tests
-}
-
-func (s *testClientStream) Header() (metadata.MD, error) { return s.hMD, s.err }
-func (s *testClientStream) Trailer() metadata.MD         { return s.tMD }
-func (s *testClientStream) CloseSend() error             { return s.err }
-func (s *testClientStream) Context() context.Context     { return s.ctx }
-func (s *testClientStream) SendMsg(m interface{}) error  { return s.err }
-func (s *testClientStream) RecvMsg(m interface{}) error  { return s.err }
 
 func TestStreamClientLogging(t *testing.T) {
 	module := "LogClient Interceptors"

@@ -18,7 +18,9 @@ import (
 )
 
 const decodeLimit = 300
-const decodeWait = time.Millisecond * 150
+
+// const decodeWait = time.Millisecond * 150
+const maxWaitTime time.Duration = time.Millisecond * 50
 
 var errDecodeDeadlineExceeded = errors.New("deadline exceeded")
 
@@ -32,7 +34,7 @@ func decode(buf *bytes.Buffer, n int) (*event.Event, error) {
 	e := buf.Bytes()
 
 	if len(e) == 0 {
-		time.Sleep(decodeWait)
+		time.Sleep(maxWaitTime * 2)
 		return decode(buf, n)
 	}
 
@@ -47,189 +49,130 @@ func TestNew(t *testing.T) {
 	_ = module
 	_ = funcname
 
-	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(log.New(log.NilConfig)),
-	)
-
-	go mockServer.Serve()
-	defer mockServer.Stop()
-
-	type testGRPCLogger struct {
-		l GRPCLogger
-		e chan error
-	}
-
 	type test struct {
-		name  string
-		cfg   []LogClientConfig
-		wants testGRPCLogger
+		name      string
+		cfg       []LogClientConfig
+		addr      string
+		hasLogger bool
 	}
 
-	var writers = []log.Logger{
-		log.New(log.NilConfig),
-		log.New(),
-		log.New(log.SkipExit),
-	}
-
-	var expectedLoggers = func() []testGRPCLogger {
-		var s []testGRPCLogger
-
-		defaultL, defaultE := New()
-		defaultS := testGRPCLogger{
-			l: defaultL,
-			e: defaultE,
-		}
-		s = append(s, defaultS)
-
-		writerL, writerE := New(WithAddr("127.0.0.1:9099"))
-		writerS := testGRPCLogger{
-			l: writerL,
-			e: writerE,
-		}
-		s = append(s, writerS)
-
-		writerTwoL, writerTwoE := New(
-			WithAddr("127.0.0.1:9099"),
-			WithLogger(writers[0]),
-			UnaryRPC(),
-		)
-		writerTwoS := testGRPCLogger{
-			l: writerTwoL,
-			e: writerTwoE,
-		}
-		s = append(s, writerTwoS)
-
-		defaultTwoL, defaultTwoE := New(nil)
-		defaultTwoS := testGRPCLogger{
-			l: defaultTwoL,
-			e: defaultTwoE,
-		}
-		s = append(s, defaultTwoS)
-
-		return s
-	}()
+	var testAddr string = "127.0.0.1:9099"
 
 	var tests = []test{
 		{
-			name:  "default config, no input",
-			cfg:   []LogClientConfig{},
-			wants: expectedLoggers[0],
+			name: "default config, no input",
+			cfg:  []LogClientConfig{},
 		},
 		{
 			name: "with custom config (one entry)",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(testAddr),
 			},
-			wants: expectedLoggers[1],
+			addr: testAddr,
 		},
 		{
 			name: "with custom config (three entries)",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-				WithLogger(writers[0]),
+				WithAddr(testAddr),
+				WithLogger(log.New(log.NilConfig)),
 				UnaryRPC(),
 			},
-			wants: expectedLoggers[2],
+			addr:      testAddr,
+			hasLogger: true,
 		},
 		{
-			name:  "with nil input",
-			cfg:   nil,
-			wants: expectedLoggers[3],
+			name: "with custom config (three entries) containing nil values",
+			cfg: []LogClientConfig{
+				WithAddr(testAddr),
+				nil,
+				WithLogger(log.New(log.NilConfig)),
+				nil,
+				UnaryRPC(),
+			},
+			addr:      testAddr,
+			hasLogger: true,
 		},
-	}
-
-	var verifyLoggers = func(idx int, test test, client GRPCLogger, errCh chan error, done chan struct{}) {
-		if client.(*GRPCLogClient).addr.Len() != test.wants.l.(*GRPCLogClient).addr.Len() {
-			errCh <- fmt.Errorf(
-				"#%v -- FAILED -- [%s] [%s] connections-addresses length mismatch error: wanted %v ; got %v -- action: %s",
-				idx,
-				module,
-				funcname,
-				test.wants.l.(*GRPCLogClient).addr.Len(),
-				client.(*GRPCLogClient).addr.Len(),
-				test.name,
-			)
-			return
-		}
-
-		if len(client.(*GRPCLogClient).opts) != len(test.wants.l.(*GRPCLogClient).opts) {
-			errCh <- fmt.Errorf(
-				"#%v -- FAILED -- [%s] [%s] gRPC options length mismatch error: wanted %v ; got %v -- action: %s",
-				idx,
-				module,
-				funcname,
-				test.wants.l.(*GRPCLogClient).opts,
-				client.(*GRPCLogClient).opts,
-				test.name,
-			)
-			return
-		}
-
-		if !reflect.DeepEqual(client.(*GRPCLogClient).svcLogger, test.wants.l.(*GRPCLogClient).svcLogger) {
-			errCh <- fmt.Errorf(
-				"#%v -- FAILED -- [%s] [%s] logger mismatch error: wanted %v ; got %v -- action: %s",
-				idx,
-				module,
-				funcname,
-				test.wants.l.(*GRPCLogClient).svcLogger,
-				client.(*GRPCLogClient).svcLogger,
-				test.name,
-			)
-			return
-		}
-
-		if !reflect.DeepEqual(client.(*GRPCLogClient).backoff, test.wants.l.(*GRPCLogClient).backoff) {
-			errCh <- fmt.Errorf(
-				"#%v -- FAILED -- [%s] [%s] backoff module mismatch error: wanted %v ; got %v -- action: %s",
-				idx,
-				module,
-				funcname,
-				test.wants.l.(*GRPCLogClient).backoff,
-				client.(*GRPCLogClient).backoff,
-				test.name,
-			)
-			return
-		}
-
-		done <- struct{}{}
+		{
+			name: "with nil input",
+			cfg:  nil,
+		},
 	}
 
 	var verify = func(idx int, test test) {
-		var done = make(chan struct{})
+		logger, _ := New(test.cfg...)
+		l := logger.(*GRPCLogClient)
 
-		client, errCh := New(test.cfg...)
+		// check address
+		if test.addr != "" {
+			if l.addr.Len() > 0 {
+				addr := l.addr.Keys()
 
-		// test Channels() execution
-		client.Channels()
+				if addr[0] != test.addr {
+					t.Errorf(
+						"#%v -- FAILED -- [%s] [%s] address mismatch error: wanted %s ; got %s -- action: %s",
+						idx,
+						module,
+						funcname,
+						test.addr,
+						addr[0],
+						test.name,
+					)
+					return
+				}
 
-		if client == nil || errCh == nil {
-			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] client or error channel are unexpectedly nil values -- action: %s",
-				idx,
-				module,
-				funcname,
-				test.name,
-			)
-			return
-		}
-
-		go verifyLoggers(idx, test, client, errCh, done)
-
-		for {
-			select {
-			case err := <-errCh:
-				t.Error(err.Error())
-				return
-			case <-done:
+			} else {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] expected a configured address but address map was empty -- action: %s",
+					idx,
+					module,
+					funcname,
+					test.name,
+				)
 				return
 			}
 		}
 
-	}
+		// check initialized elements
+		if l.msgCh == nil || l.done == nil || l.errCh == nil || l.backoff == nil || l.meta == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected uninitialized elements error -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
 
-	// sleep to allow server to start up
-	time.Sleep(time.Millisecond * 400)
+		// check if logger is set
+		if test.hasLogger && l.svcLogger == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] expected a configured logger but it is nil -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
+
+		// check default prefix and sub
+		if l.prefix != "log" || l.sub != "" {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] prefix / sub-prefix mismatch error -- prefix: wanted \"%s\" ; got \"%s\" -- sub: wanted \"%s\" ; got \"%s\" -- action: %s",
+				idx,
+				module,
+				funcname,
+				"log",
+				l.prefix,
+				"",
+				l.sub,
+				test.name,
+			)
+			return
+		}
+
+	}
 
 	for idx, test := range tests {
 		verify(idx, test)
@@ -237,6 +180,204 @@ func TestNew(t *testing.T) {
 
 }
 
+// func TestNew(t *testing.T) {
+// 	module := "GRPCLogClient"
+// 	funcname := "New()"
+
+// 	_ = module
+// 	_ = funcname
+
+// 	var mockServer = server.New(
+// 		server.WithAddr("127.0.0.1:9099"),
+// 		server.WithLogger(log.New(log.NilConfig)),
+// 	)
+
+// 	go mockServer.Serve()
+// 	defer mockServer.Stop()
+
+// 	type testGRPCLogger struct {
+// 		l GRPCLogger
+// 		e chan error
+// 	}
+
+// 	type test struct {
+// 		name  string
+// 		cfg   []LogClientConfig
+// 		wants testGRPCLogger
+// 	}
+
+// 	var writers = []log.Logger{
+// 		log.New(log.NilConfig),
+// 		log.New(),
+// 		log.New(log.SkipExit),
+// 	}
+
+// 	var expectedLoggers = func() []testGRPCLogger {
+// 		var s []testGRPCLogger
+
+// 		defaultL, defaultE := New()
+// 		defaultS := testGRPCLogger{
+// 			l: defaultL,
+// 			e: defaultE,
+// 		}
+// 		s = append(s, defaultS)
+
+// 		writerL, writerE := New(WithAddr("127.0.0.1:9099"))
+// 		writerS := testGRPCLogger{
+// 			l: writerL,
+// 			e: writerE,
+// 		}
+// 		s = append(s, writerS)
+
+// 		writerTwoL, writerTwoE := New(
+// 			WithAddr("127.0.0.1:9099"),
+// 			WithLogger(writers[0]),
+// 			UnaryRPC(),
+// 		)
+// 		writerTwoS := testGRPCLogger{
+// 			l: writerTwoL,
+// 			e: writerTwoE,
+// 		}
+// 		s = append(s, writerTwoS)
+
+// 		defaultTwoL, defaultTwoE := New(nil)
+// 		defaultTwoS := testGRPCLogger{
+// 			l: defaultTwoL,
+// 			e: defaultTwoE,
+// 		}
+// 		s = append(s, defaultTwoS)
+
+// 		return s
+// 	}()
+
+// 	var tests = []test{
+// 		{
+// 			name:  "default config, no input",
+// 			cfg:   []LogClientConfig{},
+// 			wants: expectedLoggers[0],
+// 		},
+// 		{
+// 			name: "with custom config (one entry)",
+// 			cfg: []LogClientConfig{
+// 				WithAddr("127.0.0.1:9099"),
+// 			},
+// 			wants: expectedLoggers[1],
+// 		},
+// 		{
+// 			name: "with custom config (three entries)",
+// 			cfg: []LogClientConfig{
+// 				WithAddr("127.0.0.1:9099"),
+// 				WithLogger(writers[0]),
+// 				UnaryRPC(),
+// 			},
+// 			wants: expectedLoggers[2],
+// 		},
+// 		{
+// 			name:  "with nil input",
+// 			cfg:   nil,
+// 			wants: expectedLoggers[3],
+// 		},
+// 	}
+
+// 	var verifyLoggers = func(idx int, test test, client GRPCLogger, errCh chan error, done chan struct{}) {
+// 		if client.(*GRPCLogClient).addr.Len() != test.wants.l.(*GRPCLogClient).addr.Len() {
+// 			errCh <- fmt.Errorf(
+// 				"#%v -- FAILED -- [%s] [%s] connections-addresses length mismatch error: wanted %v ; got %v -- action: %s",
+// 				idx,
+// 				module,
+// 				funcname,
+// 				test.wants.l.(*GRPCLogClient).addr.Len(),
+// 				client.(*GRPCLogClient).addr.Len(),
+// 				test.name,
+// 			)
+// 			return
+// 		}
+
+// 		if len(client.(*GRPCLogClient).opts) != len(test.wants.l.(*GRPCLogClient).opts) {
+// 			errCh <- fmt.Errorf(
+// 				"#%v -- FAILED -- [%s] [%s] gRPC options length mismatch error: wanted %v ; got %v -- action: %s",
+// 				idx,
+// 				module,
+// 				funcname,
+// 				test.wants.l.(*GRPCLogClient).opts,
+// 				client.(*GRPCLogClient).opts,
+// 				test.name,
+// 			)
+// 			return
+// 		}
+
+// 		if !reflect.DeepEqual(client.(*GRPCLogClient).svcLogger, test.wants.l.(*GRPCLogClient).svcLogger) {
+// 			errCh <- fmt.Errorf(
+// 				"#%v -- FAILED -- [%s] [%s] logger mismatch error: wanted %v ; got %v -- action: %s",
+// 				idx,
+// 				module,
+// 				funcname,
+// 				test.wants.l.(*GRPCLogClient).svcLogger,
+// 				client.(*GRPCLogClient).svcLogger,
+// 				test.name,
+// 			)
+// 			return
+// 		}
+
+// 		if !reflect.DeepEqual(client.(*GRPCLogClient).backoff, test.wants.l.(*GRPCLogClient).backoff) {
+// 			errCh <- fmt.Errorf(
+// 				"#%v -- FAILED -- [%s] [%s] backoff module mismatch error: wanted %v ; got %v -- action: %s",
+// 				idx,
+// 				module,
+// 				funcname,
+// 				test.wants.l.(*GRPCLogClient).backoff,
+// 				client.(*GRPCLogClient).backoff,
+// 				test.name,
+// 			)
+// 			return
+// 		}
+
+// 		done <- struct{}{}
+// 	}
+
+// 	var verify = func(idx int, test test) {
+// 		var done = make(chan struct{})
+
+// 		client, errCh := New(test.cfg...)
+
+// 		// test Channels() execution
+// 		client.Channels()
+
+// 		if client == nil || errCh == nil {
+// 			t.Errorf(
+// 				"#%v -- FAILED -- [%s] [%s] client or error channel are unexpectedly nil values -- action: %s",
+// 				idx,
+// 				module,
+// 				funcname,
+// 				test.name,
+// 			)
+// 			return
+// 		}
+
+// 		go verifyLoggers(idx, test, client, errCh, done)
+
+// 		for {
+// 			select {
+// 			case err := <-errCh:
+// 				t.Error(err.Error())
+// 				return
+// 			case <-done:
+// 				return
+// 			}
+// 		}
+
+// 	}
+
+// 	// sleep to allow server to start up
+// 	time.Sleep(time.Millisecond * 400)
+
+// 	for idx, test := range tests {
+// 		verify(idx, test)
+// 	}
+
+// }
+
+// E2E
 func TestGRPCClientAction(t *testing.T) {
 	module := "GRPCLogClient"
 	funcname := "log() / stream()"
@@ -252,6 +393,12 @@ func TestGRPCClientAction(t *testing.T) {
 	type test struct {
 		name string
 		cfg  []LogClientConfig
+		addr string
+	}
+
+	var mockAddr = []string{
+		"127.0.0.1:45060",
+		"127.0.0.1:45061",
 	}
 
 	var bufs = []*bytes.Buffer{{}, {}, {}}
@@ -262,34 +409,29 @@ func TestGRPCClientAction(t *testing.T) {
 		log.New(log.WithOut(bufs[2]), log.SkipExit, log.CfgFormatJSONSkipNewline),
 	}
 
-	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(writers[0]),
-	)
-
-	go mockServer.Serve()
-	defer mockServer.Stop()
-
 	var tests = []test{
 		{
 			name: "Unary RPC logger",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[0]),
 				WithLogger(writers[1]),
 				UnaryRPC(),
 			},
+			addr: mockAddr[0],
 		},
 		{
 			name: "Stream RPC logger",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[1]),
 				WithLogger(writers[2]),
 				StreamRPC(),
 			},
+			addr: mockAddr[1],
 		},
 	}
 
 	var verifyLoggers = func(idx int, test test, client GRPCLogger, errCh chan error, done chan struct{}) {
+		bufs[0].Reset()
 		defer bufs[0].Reset()
 
 		f := jsonpb.FmtJSON{SkipNewline: true}
@@ -309,7 +451,7 @@ func TestGRPCClientAction(t *testing.T) {
 		}
 
 		n, err := client.Output(in)
-		time.Sleep(time.Millisecond * 50)
+		time.Sleep(maxWaitTime)
 
 		if err != nil {
 			errCh <- fmt.Errorf(
@@ -354,6 +496,18 @@ func TestGRPCClientAction(t *testing.T) {
 	}
 
 	var verify = func(idx int, test test) {
+		// prepare local server
+		var mockServer = server.New(
+			server.WithAddr(test.addr),
+			server.WithLogger(writers[0]),
+		)
+
+		go mockServer.Serve()
+		defer mockServer.Stop()
+
+		// sleep to allow server to start up
+		time.Sleep(maxWaitTime)
+
 		var done = make(chan struct{})
 
 		client, errCh := New(test.cfg...)
@@ -383,14 +537,12 @@ func TestGRPCClientAction(t *testing.T) {
 		}
 	}
 
-	// sleep to allow server to start up
-	time.Sleep(time.Millisecond * 400)
-
 	for idx, test := range tests {
 		verify(idx, test)
 	}
 }
 
+// E2E
 func TestSetOuts(t *testing.T) {
 	module := "GRPCLogClient"
 	funcname := "SetOuts()"
@@ -398,120 +550,85 @@ func TestSetOuts(t *testing.T) {
 	_ = module
 	_ = funcname
 
-	var mockServerA = server.New(
-		server.WithAddr("127.0.0.1:9099"),
+	var mockAddr = []string{
+		"127.0.0.1:45062",
+	}
+
+	// prepare local server
+	var mockServer = server.New(
+		server.WithAddr(mockAddr[0]),
 		server.WithLogger(log.New(log.NilConfig)),
 	)
 
-	go mockServerA.Serve()
-	defer mockServerA.Stop()
+	go mockServer.Serve()
+	defer mockServer.Stop()
 
-	var mockServerB = server.New(
-		server.WithAddr("127.0.0.1:9098"),
-		server.WithLogger(log.New(log.NilConfig)),
-	)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	go mockServerB.Serve()
-	defer mockServerB.Stop()
+	var testConnAddr = &address.ConnAddr{}
+	testConnAddr.Add(mockAddr[0])
 
 	type test struct {
 		name   string
-		cfg    []LogClientConfig
+		cfg    *address.ConnAddr
 		setter []io.Writer
-		wants  []string
 		fails  bool
 	}
 
 	var tests = []test{
 		{
 			name: "setting one valid address",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
+			cfg:  testConnAddr,
 			setter: []io.Writer{
-				address.New("127.0.0.1:9098"),
-			},
-			wants: []string{
-				"127.0.0.1:9098",
+				address.New(mockAddr[0]),
 			},
 		},
 		{
 			name: "setting multiple valid addresses",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
+			cfg:  testConnAddr,
 			setter: []io.Writer{
-				address.New("127.0.0.1:9099"),
-				address.New("127.0.0.1:9098"),
-			},
-			wants: []string{
-				"127.0.0.1:9099",
-				"127.0.0.1:9098",
+				address.New(mockAddr[0]),
+				address.New(mockAddr[0]),
 			},
 		},
 		{
 			name: "setting nil values",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
+			cfg:  testConnAddr,
 			setter: []io.Writer{
 				nil,
-			},
-			wants: []string{
-				"127.0.0.1:9099",
 			},
 		},
 		{
 			name: "setting multiple nil values",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
+			cfg:  testConnAddr,
 			setter: []io.Writer{
 				nil,
 				nil,
 				nil,
-			},
-			wants: []string{
-				"127.0.0.1:9099",
 			},
 		},
 		{
 			name: "setting multiple addresses values mixed with nils",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
+			cfg:  testConnAddr,
 			setter: []io.Writer{
 				nil,
-				address.New("127.0.0.1:9099"),
+				address.New(mockAddr[0]),
 				nil,
-				address.New("127.0.0.1:9098"),
+				address.New(mockAddr[0]),
 				nil,
-			},
-			wants: []string{
-				"127.0.0.1:9099",
-				"127.0.0.1:9098",
 			},
 		},
 		{
-			name: "nil input",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
+			name:   "nil input",
+			cfg:    testConnAddr,
 			setter: nil,
-			wants: []string{
-				"127.0.0.1:9099",
-			},
 		},
 		{
 			name: "setting one invalid writer",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
+			cfg:  testConnAddr,
 			setter: []io.Writer{
 				&fs.Logfile{},
-			},
-			wants: []string{
-				"127.0.0.1:9099",
 			},
 			fails: true,
 		},
@@ -540,13 +657,13 @@ func TestSetOuts(t *testing.T) {
 		out := logger.(*GRPCLogClient)
 		keys := out.addr.Keys()
 
-		if len(keys) != len(test.wants) {
+		if len(keys) != len(mockAddr) {
 			errCh <- fmt.Errorf(
 				"#%v -- FAILED -- [%s] [%s] output length mismatch error: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
-				len(test.wants),
+				len(mockAddr),
 				len(keys),
 				test.name,
 			)
@@ -555,7 +672,7 @@ func TestSetOuts(t *testing.T) {
 
 		for _, k := range keys {
 			var pass bool
-			for _, a := range test.wants {
+			for _, a := range mockAddr {
 				if k == a {
 					pass = true
 					break
@@ -579,7 +696,10 @@ func TestSetOuts(t *testing.T) {
 	}
 
 	var verify = func(idx int, test test) {
-		logger, errCh := New(test.cfg...)
+		logger, errCh := New(UnaryRPC())
+
+		// set the input config
+		logger.(*GRPCLogClient).addr = test.cfg
 
 		done := make(chan struct{})
 
@@ -599,15 +719,13 @@ func TestSetOuts(t *testing.T) {
 		}
 	}
 
-	// sleep to allow server to start up
-	time.Sleep(time.Millisecond * 400)
-
 	for idx, test := range tests {
 		verify(idx, test)
 	}
 
 }
 
+// E2E
 func TestAddOuts(t *testing.T) {
 	module := "GRPCLogClient"
 	funcname := "AddOuts()"
@@ -615,8 +733,14 @@ func TestAddOuts(t *testing.T) {
 	_ = module
 	_ = funcname
 
+	var mockAddr = []string{
+		"127.0.0.1:45063",
+		"127.0.0.1:45064",
+		"127.0.0.1:45065",
+	}
+
 	var mockServerA = server.New(
-		server.WithAddr("127.0.0.1:9099"),
+		server.WithAddr(mockAddr[0]),
 		server.WithLogger(log.New(log.NilConfig)),
 	)
 
@@ -624,7 +748,7 @@ func TestAddOuts(t *testing.T) {
 	defer mockServerA.Stop()
 
 	var mockServerB = server.New(
-		server.WithAddr("127.0.0.1:9098"),
+		server.WithAddr(mockAddr[1]),
 		server.WithLogger(log.New(log.NilConfig)),
 	)
 
@@ -632,12 +756,15 @@ func TestAddOuts(t *testing.T) {
 	defer mockServerB.Stop()
 
 	var mockServerC = server.New(
-		server.WithAddr("127.0.0.1:9097"),
+		server.WithAddr(mockAddr[2]),
 		server.WithLogger(log.New(log.NilConfig)),
 	)
 
 	go mockServerC.Serve()
 	defer mockServerC.Stop()
+
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
 	type test struct {
 		name   string
@@ -651,59 +778,60 @@ func TestAddOuts(t *testing.T) {
 		{
 			name: "setting one valid address",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9097"),
+				WithAddr(mockAddr[0]),
+				UnaryRPC(),
 			},
 			setter: []io.Writer{
-				address.New("127.0.0.1:9098"),
+				address.New(mockAddr[1]),
 			},
 			wants: []string{
-				"127.0.0.1:9097",
-				"127.0.0.1:9098",
+				mockAddr[0],
+				mockAddr[1],
 			},
 		},
 		{
 			name: "setting the same address already configured",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9097"),
+				WithAddr(mockAddr[0]),
+				UnaryRPC(),
 			},
 			setter: []io.Writer{
-				address.New("127.0.0.1:9097"),
+				address.New(mockAddr[0]),
 			},
 			wants: []string{
-				"127.0.0.1:9097",
+				mockAddr[0],
 			},
 		},
 		{
 			name: "setting multiple valid addresses",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9097"),
+				WithAddr(mockAddr[0]),
+				UnaryRPC(),
 			},
 			setter: []io.Writer{
-				address.New("127.0.0.1:9099"),
-				address.New("127.0.0.1:9098"),
+				address.New(mockAddr[1]),
+				address.New(mockAddr[2]),
 			},
-			wants: []string{
-				"127.0.0.1:9097",
-				"127.0.0.1:9098",
-				"127.0.0.1:9099",
-			},
+			wants: mockAddr,
 		},
 		{
 			name: "setting nil values",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9097"),
+				WithAddr(mockAddr[0]),
+				UnaryRPC(),
 			},
 			setter: []io.Writer{
 				nil,
 			},
 			wants: []string{
-				"127.0.0.1:9097",
+				mockAddr[0],
 			},
 		},
 		{
 			name: "setting multiple nil values",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9097"),
+				WithAddr(mockAddr[0]),
+				UnaryRPC(),
 			},
 			setter: []io.Writer{
 				nil,
@@ -711,47 +839,46 @@ func TestAddOuts(t *testing.T) {
 				nil,
 			},
 			wants: []string{
-				"127.0.0.1:9097",
+				mockAddr[0],
 			},
 		},
 		{
 			name: "setting multiple addresses values mixed with nils",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9097"),
+				WithAddr(mockAddr[0]),
+				UnaryRPC(),
 			},
 			setter: []io.Writer{
 				nil,
-				address.New("127.0.0.1:9099"),
+				address.New(mockAddr[1]),
 				nil,
-				address.New("127.0.0.1:9098"),
+				address.New(mockAddr[2]),
 				nil,
 			},
-			wants: []string{
-				"127.0.0.1:9097",
-				"127.0.0.1:9098",
-				"127.0.0.1:9099",
-			},
+			wants: mockAddr,
 		},
 		{
 			name: "nil input",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9097"),
+				WithAddr(mockAddr[0]),
+				UnaryRPC(),
 			},
 			setter: nil,
 			wants: []string{
-				"127.0.0.1:9097",
+				mockAddr[0],
 			},
 		},
 		{
 			name: "setting one invalid writer",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9097"),
+				WithAddr(mockAddr[0]),
+				UnaryRPC(),
 			},
 			setter: []io.Writer{
 				&fs.Logfile{},
 			},
 			wants: []string{
-				"127.0.0.1:9097",
+				mockAddr[0],
 			},
 			fails: true,
 		},
@@ -837,15 +964,13 @@ func TestAddOuts(t *testing.T) {
 		}
 	}
 
-	// sleep to allow server to start up
-	time.Sleep(time.Millisecond * 400)
-
 	for idx, test := range tests {
 		verify(idx, test)
 	}
 
 }
 
+// E2E
 func TestWrite(t *testing.T) {
 	module := "GRPCLogClient"
 	funcname := "Write()"
@@ -853,13 +978,21 @@ func TestWrite(t *testing.T) {
 	_ = module
 	_ = funcname
 
+	var mockAddr = []string{
+		"127.0.0.1:45066",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
+		server.WithAddr(mockAddr[0]),
 		server.WithLogger(log.New(log.NilConfig)),
 	)
 
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
+
 	go mockServer.Serve()
 	defer mockServer.Stop()
+
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
 	type test struct {
 		name string
@@ -871,36 +1004,27 @@ func TestWrite(t *testing.T) {
 	var tests = []test{
 		{
 			name: "encoded event test",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
-			msg: event.New().Message("null").Build().Encode(),
-			ok:  true,
+			cfg:  connConf,
+			msg:  event.New().Message("null").Build().Encode(),
+			ok:   true,
 		},
 		{
 			name: "byte string test",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
-			msg: []byte("test"),
-			ok:  true,
+			cfg:  connConf,
+			msg:  []byte("test"),
+			ok:   true,
 		},
 		{
 			name: "zero byte input",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
-			msg: []byte{},
+			cfg:  connConf,
+			msg:  []byte{},
 		},
 		{
 			name: "nil input",
-			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
-			},
-			msg: nil,
+			cfg:  connConf,
+			msg:  nil,
 		},
 	}
-
 	var verifyLoggers = func(idx int, test test, logger GRPCLogger, errCh chan error, done chan struct{}) {
 		n, err := logger.Write(test.msg)
 
@@ -948,10 +1072,8 @@ func TestWrite(t *testing.T) {
 			}
 
 		}
-	}
 
-	// sleep to allow server to start up
-	time.Sleep(time.Millisecond * 400)
+	}
 
 	for idx, test := range tests {
 		verify(idx, test)
@@ -1137,13 +1259,21 @@ func TestLog(t *testing.T) {
 	_ = module
 	_ = funcname
 
+	var mockAddr = []string{
+		"127.0.0.1:45067",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
+		server.WithAddr(mockAddr[0]),
 		server.WithLogger(log.New(log.NilConfig)),
 	)
 
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
+
 	go mockServer.Serve()
 	defer mockServer.Stop()
+
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
 	type test struct {
 		name string
@@ -1198,7 +1328,7 @@ func TestLog(t *testing.T) {
 	}
 
 	var verify = func(idx int, test test) {
-		logger, errCh := New(WithAddr("127.0.0.1:9099"))
+		logger, errCh := New(connConf...)
 
 		done := make(chan struct{})
 
@@ -1223,9 +1353,6 @@ func TestLog(t *testing.T) {
 		}
 	}
 
-	// sleep to allow server to start up
-	time.Sleep(time.Millisecond * 400)
-
 	for idx, test := range tests {
 		verify(idx, test)
 	}
@@ -1238,23 +1365,27 @@ func FuzzLoggerPrint(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45068",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1303,23 +1434,27 @@ func FuzzLoggerPrintln(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45069",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1368,23 +1503,27 @@ func FuzzLoggerPrintf(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45070",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1433,23 +1572,27 @@ func FuzzLoggerPanic(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45071",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1498,23 +1641,27 @@ func FuzzLoggerPanicln(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45072",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1563,23 +1710,27 @@ func FuzzLoggerPanicf(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45073",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1628,23 +1779,27 @@ func FuzzLoggerFatal(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45074",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1693,23 +1848,27 @@ func FuzzLoggerFatalln(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45075",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1758,23 +1917,27 @@ func FuzzLoggerFatalf(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45076",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1823,23 +1986,27 @@ func FuzzLoggerError(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45077",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1888,23 +2055,27 @@ func FuzzLoggerErrorln(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45078",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -1953,23 +2124,27 @@ func FuzzLoggerErrorf(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45079",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2018,23 +2193,27 @@ func FuzzLoggerWarn(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45080",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2083,23 +2262,27 @@ func FuzzLoggerWarnln(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45081",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2148,23 +2331,27 @@ func FuzzLoggerWarnf(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45082",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2213,23 +2400,27 @@ func FuzzLoggerInfo(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45083",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2278,23 +2469,27 @@ func FuzzLoggerInfoln(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45084",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2343,23 +2538,27 @@ func FuzzLoggerInfof(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45085",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2408,23 +2607,27 @@ func FuzzLoggerDebug(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45086",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2473,23 +2676,27 @@ func FuzzLoggerDebugln(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45087",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2538,23 +2745,27 @@ func FuzzLoggerDebugf(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45088",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2603,23 +2814,27 @@ func FuzzLoggerTrace(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45089",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2668,23 +2883,27 @@ func FuzzLoggerTraceln(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45090",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {
@@ -2733,23 +2952,27 @@ func FuzzLoggerTracef(f *testing.F) {
 
 	var buf = &bytes.Buffer{}
 
+	var mockAddr = []string{
+		"127.0.0.1:45091",
+	}
 	var mockServer = server.New(
-		server.WithAddr("127.0.0.1:9099"),
-		server.WithLogger(
-			log.New(
-				log.WithOut(buf),
-				log.SkipExit,
-				log.CfgFormatJSONSkipNewline,
-			),
-		),
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(log.New(
+			log.WithOut(buf),
+			log.SkipExit,
+			log.CfgFormatJSONSkipNewline,
+		)),
 	)
+
+	var connConf = []LogClientConfig{WithAddr(mockAddr[0])}
 
 	go mockServer.Serve()
 	defer mockServer.Stop()
 
-	time.Sleep(time.Millisecond * 100)
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
 
-	l, _ := New(WithAddr("127.0.0.1:9099"))
+	l, _ := New(connConf...)
 
 	f.Add("test-message")
 	f.Fuzz(func(t *testing.T, a string) {

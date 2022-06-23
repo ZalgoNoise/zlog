@@ -14,6 +14,8 @@ import (
 
 var emptyLogFunc logFunc = func(*event.Event) {}
 
+const maxWait time.Duration = time.Millisecond * 50
+
 func TestNoBackoff(t *testing.T) {
 	module := "Backoff"
 	funcname := "NoBackoff()"
@@ -395,13 +397,13 @@ func TestWait(t *testing.T) {
 			name: "unlocked, normal unary flow, zero counter",
 			b: &Backoff{
 				counter: 0,
-				max:     time.Minute,
-				wait:    time.Second,
+				max:     time.Second,
+				wait:    time.Millisecond,
 				call:    unaryFn,
 				msg: []*event.Event{
 					event.New().Message("null").Build(), // added message for added coverage on L165
 				},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -411,11 +413,11 @@ func TestWait(t *testing.T) {
 			name: "unlocked, normal stream flow, zero counter",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
-				wait:        time.Second,
+				max:         time.Second,
+				wait:        time.Millisecond,
 				call:        streamFn,
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -425,11 +427,11 @@ func TestWait(t *testing.T) {
 			name: "locked error",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
-				wait:        time.Second,
+				max:         time.Second,
+				wait:        time.Millisecond,
 				call:        unaryFn,
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      true,
 				mu:          sync.Mutex{},
 			},
@@ -439,7 +441,7 @@ func TestWait(t *testing.T) {
 			name: "zero wait error",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
+				max:         time.Second,
 				wait:        0,
 				call:        unaryFn,
 				msg:         []*event.Event{},
@@ -453,11 +455,11 @@ func TestWait(t *testing.T) {
 			name: "invalid call's function type error",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
+				max:         time.Second,
 				wait:        0,
 				call:        func() {},
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -468,10 +470,10 @@ func TestWait(t *testing.T) {
 			b: &Backoff{
 				counter:     0,
 				max:         time.Second,
-				wait:        time.Minute,
+				wait:        time.Millisecond,
 				call:        unaryFn,
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Minute * 2),
+				backoffFunc: BackoffLinear(time.Second * 2),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -551,13 +553,13 @@ func TestWaitContext(t *testing.T) {
 			name: "unlocked, normal unary flow, zero counter",
 			b: &Backoff{
 				counter: 0,
-				max:     time.Minute,
-				wait:    time.Second,
+				max:     time.Second,
+				wait:    time.Millisecond,
 				call:    unaryFn,
 				msg: []*event.Event{
 					event.New().Message("null").Build(), // added message for added coverage on L165
 				},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -567,11 +569,11 @@ func TestWaitContext(t *testing.T) {
 			name: "unlocked, normal stream flow, zero counter",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
-				wait:        time.Second,
+				max:         time.Second,
+				wait:        time.Millisecond,
 				call:        streamFn,
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -581,11 +583,11 @@ func TestWaitContext(t *testing.T) {
 			name: "locked error",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
-				wait:        time.Second,
+				max:         time.Second,
+				wait:        time.Millisecond,
 				call:        unaryFn,
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      true,
 				mu:          sync.Mutex{},
 			},
@@ -595,7 +597,7 @@ func TestWaitContext(t *testing.T) {
 			name: "zero wait error",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
+				max:         time.Second,
 				wait:        0,
 				call:        unaryFn,
 				msg:         []*event.Event{},
@@ -609,11 +611,11 @@ func TestWaitContext(t *testing.T) {
 			name: "invalid call's function type error",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
+				max:         time.Second,
 				wait:        0,
 				call:        func() {},
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -624,10 +626,10 @@ func TestWaitContext(t *testing.T) {
 			b: &Backoff{
 				counter:     0,
 				max:         time.Second,
-				wait:        time.Minute,
+				wait:        time.Millisecond,
 				call:        unaryFn,
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Minute * 2),
+				backoffFunc: BackoffLinear(time.Second * 2),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -637,11 +639,11 @@ func TestWaitContext(t *testing.T) {
 			name: "cancelled context error",
 			b: &Backoff{
 				counter:     0,
-				max:         time.Minute,
-				wait:        time.Second,
+				max:         time.Second,
+				wait:        time.Millisecond,
 				call:        streamFn,
 				msg:         []*event.Event{},
-				backoffFunc: BackoffLinear(time.Second),
+				backoffFunc: BackoffLinear(time.Millisecond),
 				locked:      false,
 				mu:          sync.Mutex{},
 			},
@@ -988,7 +990,7 @@ func TestStreamBackoffHandler(t *testing.T) {
 
 		for {
 			select {
-			case <-time.After(time.Millisecond * 100):
+			case <-time.After(maxWait):
 				// call executed, no signals received
 				return
 			case <-req.done:

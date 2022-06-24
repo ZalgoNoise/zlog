@@ -34,6 +34,7 @@ go_test(
         "client_test.go",
         "conf_test.go",
         "logging_test.go",
+        "timing_test.go",
     ],
     embed = [":client"],
     deps = [
@@ -42,7 +43,9 @@ go_test(
         "//log",
         "//log/event",
         "//log/format/json",
+        "//proto/service",
         "//store/fs",
         "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//metadata",
     ],
 )

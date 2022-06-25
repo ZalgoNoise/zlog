@@ -49,18 +49,18 @@ func TestMultiConf(t *testing.T) {
 		{
 			name: "one config as input",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
+				UnaryRPC(),
 			},
-			wants: WithAddr("127.0.0.1:9099"),
+			wants: UnaryRPC(),
 		},
 		{
 			name: "multiple config as input",
 			cfg: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
+				UnaryRPC(),
 				WithLogger(log.New(log.NilConfig)),
 			},
 			wants: &multiconf{confs: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
+				UnaryRPC(),
 				WithLogger(log.New(log.NilConfig)),
 			}},
 		},
@@ -68,13 +68,13 @@ func TestMultiConf(t *testing.T) {
 			name: "multiple config as input, with nil values",
 			cfg: []LogClientConfig{
 				nil,
-				WithAddr("127.0.0.1:9099"),
+				UnaryRPC(),
 				nil,
 				nil,
 				WithLogger(log.New(log.NilConfig)),
 			},
 			wants: &multiconf{confs: []LogClientConfig{
-				WithAddr("127.0.0.1:9099"),
+				UnaryRPC(),
 				WithLogger(log.New(log.NilConfig)),
 			}},
 		},
@@ -82,11 +82,11 @@ func TestMultiConf(t *testing.T) {
 			name: "multiple config as input, with nil values, only one valid config",
 			cfg: []LogClientConfig{
 				nil,
-				WithAddr("127.0.0.1:9099"),
+				UnaryRPC(),
 				nil,
 				nil,
 			},
-			wants: WithAddr("127.0.0.1:9099"),
+			wants: UnaryRPC(),
 		},
 		{
 			name: "multiple config as input, all nil values",

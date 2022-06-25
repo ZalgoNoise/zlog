@@ -275,8 +275,10 @@ func (s GRPCLogServer) Serve() {
 // Stop method will be a wrapper for the routine involved to (gracefully) stop this gRPC
 // Log Server. It will first call the
 func (s GRPCLogServer) Stop() {
-	s.LogSv.Stop()
-	grpcServer.Stop()
+	// s.LogSv.Stop()
+	if grpcServer != nil {
+		grpcServer.Stop()
+	}
 
 	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
 }

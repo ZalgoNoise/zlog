@@ -581,7 +581,26 @@ func (c *GRPCLogClient) handleStreamMessages(
 // cancel their context and exit gracefully
 func (c *GRPCLogClient) Close() {
 	for _, conn := range c.addr.AsMap() {
-		conn.Close()
+		if conn == nil {
+			continue
+		}
+
+		err := conn.Close()
+
+		if err != nil {
+			if errStatus, ok := status.FromError(err); ok {
+				switch errStatus.Code() {
+				case codes.Canceled:
+					continue
+				default:
+					c.errCh <- err
+					return
+				}
+			}
+			c.errCh <- err
+			return
+		}
+
 	}
 	c.done <- struct{}{}
 }

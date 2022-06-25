@@ -19,7 +19,6 @@ import (
 
 const decodeLimit = 300
 
-// const decodeWait = time.Millisecond * 150
 const maxWaitTime time.Duration = time.Millisecond * 50
 
 var errDecodeDeadlineExceeded = errors.New("deadline exceeded")
@@ -56,7 +55,9 @@ func TestNew(t *testing.T) {
 		hasLogger bool
 	}
 
-	var testAddr string = "127.0.0.1:9099"
+	var mockAddr = []string{
+		"127.0.0.1:45059",
+	}
 
 	var tests = []test{
 		{
@@ -66,30 +67,30 @@ func TestNew(t *testing.T) {
 		{
 			name: "with custom config (one entry)",
 			cfg: []LogClientConfig{
-				WithAddr(testAddr),
+				WithAddr(mockAddr[0]),
 			},
-			addr: testAddr,
+			addr: mockAddr[0],
 		},
 		{
 			name: "with custom config (three entries)",
 			cfg: []LogClientConfig{
-				WithAddr(testAddr),
+				WithAddr(mockAddr[0]),
 				WithLogger(log.New(log.NilConfig)),
 				UnaryRPC(),
 			},
-			addr:      testAddr,
+			addr:      mockAddr[0],
 			hasLogger: true,
 		},
 		{
 			name: "with custom config (three entries) containing nil values",
 			cfg: []LogClientConfig{
-				WithAddr(testAddr),
+				WithAddr(mockAddr[0]),
 				nil,
 				WithLogger(log.New(log.NilConfig)),
 				nil,
 				UnaryRPC(),
 			},
-			addr:      testAddr,
+			addr:      mockAddr[0],
 			hasLogger: true,
 		},
 		{
@@ -180,225 +181,23 @@ func TestNew(t *testing.T) {
 
 }
 
-// func TestNew(t *testing.T) {
-// 	module := "GRPCLogClient"
-// 	funcname := "New()"
-
-// 	_ = module
-// 	_ = funcname
-
-// 	var mockServer = server.New(
-// 		server.WithAddr("127.0.0.1:9099"),
-// 		server.WithLogger(log.New(log.NilConfig)),
-// 	)
-
-// 	go mockServer.Serve()
-// 	defer mockServer.Stop()
-
-// 	type testGRPCLogger struct {
-// 		l GRPCLogger
-// 		e chan error
-// 	}
-
-// 	type test struct {
-// 		name  string
-// 		cfg   []LogClientConfig
-// 		wants testGRPCLogger
-// 	}
-
-// 	var writers = []log.Logger{
-// 		log.New(log.NilConfig),
-// 		log.New(),
-// 		log.New(log.SkipExit),
-// 	}
-
-// 	var expectedLoggers = func() []testGRPCLogger {
-// 		var s []testGRPCLogger
-
-// 		defaultL, defaultE := New()
-// 		defaultS := testGRPCLogger{
-// 			l: defaultL,
-// 			e: defaultE,
-// 		}
-// 		s = append(s, defaultS)
-
-// 		writerL, writerE := New(WithAddr("127.0.0.1:9099"))
-// 		writerS := testGRPCLogger{
-// 			l: writerL,
-// 			e: writerE,
-// 		}
-// 		s = append(s, writerS)
-
-// 		writerTwoL, writerTwoE := New(
-// 			WithAddr("127.0.0.1:9099"),
-// 			WithLogger(writers[0]),
-// 			UnaryRPC(),
-// 		)
-// 		writerTwoS := testGRPCLogger{
-// 			l: writerTwoL,
-// 			e: writerTwoE,
-// 		}
-// 		s = append(s, writerTwoS)
-
-// 		defaultTwoL, defaultTwoE := New(nil)
-// 		defaultTwoS := testGRPCLogger{
-// 			l: defaultTwoL,
-// 			e: defaultTwoE,
-// 		}
-// 		s = append(s, defaultTwoS)
-
-// 		return s
-// 	}()
-
-// 	var tests = []test{
-// 		{
-// 			name:  "default config, no input",
-// 			cfg:   []LogClientConfig{},
-// 			wants: expectedLoggers[0],
-// 		},
-// 		{
-// 			name: "with custom config (one entry)",
-// 			cfg: []LogClientConfig{
-// 				WithAddr("127.0.0.1:9099"),
-// 			},
-// 			wants: expectedLoggers[1],
-// 		},
-// 		{
-// 			name: "with custom config (three entries)",
-// 			cfg: []LogClientConfig{
-// 				WithAddr("127.0.0.1:9099"),
-// 				WithLogger(writers[0]),
-// 				UnaryRPC(),
-// 			},
-// 			wants: expectedLoggers[2],
-// 		},
-// 		{
-// 			name:  "with nil input",
-// 			cfg:   nil,
-// 			wants: expectedLoggers[3],
-// 		},
-// 	}
-
-// 	var verifyLoggers = func(idx int, test test, client GRPCLogger, errCh chan error, done chan struct{}) {
-// 		if client.(*GRPCLogClient).addr.Len() != test.wants.l.(*GRPCLogClient).addr.Len() {
-// 			errCh <- fmt.Errorf(
-// 				"#%v -- FAILED -- [%s] [%s] connections-addresses length mismatch error: wanted %v ; got %v -- action: %s",
-// 				idx,
-// 				module,
-// 				funcname,
-// 				test.wants.l.(*GRPCLogClient).addr.Len(),
-// 				client.(*GRPCLogClient).addr.Len(),
-// 				test.name,
-// 			)
-// 			return
-// 		}
-
-// 		if len(client.(*GRPCLogClient).opts) != len(test.wants.l.(*GRPCLogClient).opts) {
-// 			errCh <- fmt.Errorf(
-// 				"#%v -- FAILED -- [%s] [%s] gRPC options length mismatch error: wanted %v ; got %v -- action: %s",
-// 				idx,
-// 				module,
-// 				funcname,
-// 				test.wants.l.(*GRPCLogClient).opts,
-// 				client.(*GRPCLogClient).opts,
-// 				test.name,
-// 			)
-// 			return
-// 		}
-
-// 		if !reflect.DeepEqual(client.(*GRPCLogClient).svcLogger, test.wants.l.(*GRPCLogClient).svcLogger) {
-// 			errCh <- fmt.Errorf(
-// 				"#%v -- FAILED -- [%s] [%s] logger mismatch error: wanted %v ; got %v -- action: %s",
-// 				idx,
-// 				module,
-// 				funcname,
-// 				test.wants.l.(*GRPCLogClient).svcLogger,
-// 				client.(*GRPCLogClient).svcLogger,
-// 				test.name,
-// 			)
-// 			return
-// 		}
-
-// 		if !reflect.DeepEqual(client.(*GRPCLogClient).backoff, test.wants.l.(*GRPCLogClient).backoff) {
-// 			errCh <- fmt.Errorf(
-// 				"#%v -- FAILED -- [%s] [%s] backoff module mismatch error: wanted %v ; got %v -- action: %s",
-// 				idx,
-// 				module,
-// 				funcname,
-// 				test.wants.l.(*GRPCLogClient).backoff,
-// 				client.(*GRPCLogClient).backoff,
-// 				test.name,
-// 			)
-// 			return
-// 		}
-
-// 		done <- struct{}{}
-// 	}
-
-// 	var verify = func(idx int, test test) {
-// 		var done = make(chan struct{})
-
-// 		client, errCh := New(test.cfg...)
-
-// 		// test Channels() execution
-// 		client.Channels()
-
-// 		if client == nil || errCh == nil {
-// 			t.Errorf(
-// 				"#%v -- FAILED -- [%s] [%s] client or error channel are unexpectedly nil values -- action: %s",
-// 				idx,
-// 				module,
-// 				funcname,
-// 				test.name,
-// 			)
-// 			return
-// 		}
-
-// 		go verifyLoggers(idx, test, client, errCh, done)
-
-// 		for {
-// 			select {
-// 			case err := <-errCh:
-// 				t.Error(err.Error())
-// 				return
-// 			case <-done:
-// 				return
-// 			}
-// 		}
-
-// 	}
-
-// 	// sleep to allow server to start up
-// 	time.Sleep(time.Millisecond * 400)
-
-// 	for idx, test := range tests {
-// 		verify(idx, test)
-// 	}
-
-// }
-
 // E2E
-func TestGRPCClientAction(t *testing.T) {
+func TestGRPCClientLogAction(t *testing.T) {
 	module := "GRPCLogClient"
-	funcname := "log() / stream()"
+	funcname := "log()"
 
 	_ = module
 	_ = funcname
-
-	type testGRPCLogger struct {
-		l GRPCLogger
-		e chan error
-	}
 
 	type test struct {
 		name string
 		cfg  []LogClientConfig
 		addr string
+		svr  *server.GRPCLogServer
 	}
 
 	var mockAddr = []string{
 		"127.0.0.1:45060",
-		"127.0.0.1:45061",
 	}
 
 	var bufs = []*bytes.Buffer{{}, {}, {}}
@@ -409,24 +208,28 @@ func TestGRPCClientAction(t *testing.T) {
 		log.New(log.WithOut(bufs[2]), log.SkipExit, log.CfgFormatJSONSkipNewline),
 	}
 
+	// prepare local server
+	var mockUServer = server.New(
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(writers[0]),
+		server.WithServiceLoggerV(writers[1]),
+	)
+
+	go mockUServer.Serve()
+	defer mockUServer.Stop()
+
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
+
 	var tests = []test{
 		{
 			name: "Unary RPC logger",
 			cfg: []LogClientConfig{
 				WithAddr(mockAddr[0]),
-				WithLogger(writers[1]),
+				WithLogger(writers[2]),
 				UnaryRPC(),
 			},
-			addr: mockAddr[0],
-		},
-		{
-			name: "Stream RPC logger",
-			cfg: []LogClientConfig{
-				WithAddr(mockAddr[1]),
-				WithLogger(writers[2]),
-				StreamRPC(),
-			},
-			addr: mockAddr[1],
+			svr: mockUServer,
 		},
 	}
 
@@ -496,18 +299,6 @@ func TestGRPCClientAction(t *testing.T) {
 	}
 
 	var verify = func(idx int, test test) {
-		// prepare local server
-		var mockServer = server.New(
-			server.WithAddr(test.addr),
-			server.WithLogger(writers[0]),
-		)
-
-		go mockServer.Serve()
-		defer mockServer.Stop()
-
-		// sleep to allow server to start up
-		time.Sleep(maxWaitTime)
-
 		var done = make(chan struct{})
 
 		client, errCh := New(test.cfg...)
@@ -529,7 +320,162 @@ func TestGRPCClientAction(t *testing.T) {
 		for {
 			select {
 			case err := <-errCh:
-				t.Error(err.Error())
+				t.Error(err)
+				return
+			case <-done:
+				return
+			}
+		}
+	}
+
+	for idx, test := range tests {
+		verify(idx, test)
+	}
+}
+
+// E2E
+func TestGRPCClientStreamAction(t *testing.T) {
+	module := "GRPCLogClient"
+	funcname := "stream()"
+
+	_ = module
+	_ = funcname
+
+	type test struct {
+		name string
+		cfg  []LogClientConfig
+		addr string
+		svr  *server.GRPCLogServer
+	}
+
+	var mockAddr = []string{
+		"127.0.0.1:45061",
+	}
+
+	var bufs = []*bytes.Buffer{{}, {}, {}}
+
+	var writers = []log.Logger{
+		log.New(log.WithOut(bufs[0]), log.SkipExit, log.CfgFormatJSONSkipNewline),
+		log.New(log.WithOut(bufs[1]), log.SkipExit, log.CfgFormatJSONSkipNewline),
+		log.New(log.WithOut(bufs[2]), log.SkipExit, log.CfgFormatJSONSkipNewline),
+	}
+
+	// prepare local server
+	var mockSServer = server.New(
+		server.WithAddr(mockAddr[0]),
+		server.WithLogger(writers[0]),
+		server.WithServiceLoggerV(writers[1]),
+	)
+
+	go mockSServer.Serve()
+	defer mockSServer.Stop()
+
+	// sleep to allow server to start up
+	time.Sleep(maxWaitTime)
+
+	var tests = []test{
+		{
+			name: "Stream RPC logger",
+			cfg: []LogClientConfig{
+				DefaultCfg,
+				WithAddr(mockAddr[0]),
+				WithLoggerV(writers[2]),
+				StreamRPC(),
+			},
+			svr: mockSServer,
+		},
+	}
+
+	var verifyLoggers = func(idx int, test test, client GRPCLogger, errCh chan error, done chan struct{}) {
+		bufs[0].Reset()
+		defer bufs[0].Reset()
+
+		f := jsonpb.FmtJSON{SkipNewline: true}
+		in := event.New().Message("test").Build()
+		out, err := f.Format(in)
+
+		if err != nil {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected JSON formatter error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		n, err := client.Output(in)
+		time.Sleep(maxWaitTime)
+
+		if err != nil {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				err,
+				test.name,
+			)
+			return
+		}
+
+		if n == 0 {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] zero bytes written error -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
+
+		buf := bufs[0].Bytes()
+
+		if !reflect.DeepEqual(buf, out) {
+			errCh <- fmt.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				string(out),
+				string(buf),
+				test.name,
+			)
+			return
+		}
+
+		done <- struct{}{}
+
+	}
+
+	var verify = func(idx int, test test) {
+		var done = make(chan struct{})
+
+		client, errCh := New(test.cfg...)
+		defer client.Close()
+
+		if client == nil || errCh == nil {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] client or error channel are unexpectedly nil values -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
+
+		go verifyLoggers(idx, test, client, errCh, done)
+
+		for {
+			select {
+			case <-time.After(time.Second * 2):
+
+			case err := <-errCh:
+				t.Error(err)
 				return
 			case <-done:
 				return

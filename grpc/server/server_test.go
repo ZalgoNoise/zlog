@@ -11,6 +11,8 @@ import (
 	"github.com/zalgonoise/zlog/log/event"
 )
 
+const maxTestWait time.Duration = time.Millisecond * 50
+
 type failingWriter struct{}
 
 func (failingWriter) Write(p []byte) (n int, err error) {
@@ -156,6 +158,11 @@ func TestServe(t *testing.T) {
 		ok   bool
 	}
 
+	var mockAddr = []string{
+		"127.0.0.1:45051",
+		"127.0.0.1:45052",
+	}
+
 	var bufs = []*bytes.Buffer{{}, {}}
 
 	var writers = []log.Logger{
@@ -169,7 +176,7 @@ func TestServe(t *testing.T) {
 			s: New(
 				WithLogger(writers[0]),
 				WithServiceLoggerV(writers[1]),
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[0]),
 				WithGRPCOpts(),
 			),
 			ok: true,
@@ -179,7 +186,7 @@ func TestServe(t *testing.T) {
 			s: New(
 				WithLogger(writers[0]),
 				WithServiceLoggerV(writers[1]),
-				WithAddr("127.0.0.1:999099"),
+				WithAddr(mockAddr[1]),
 				WithGRPCOpts(),
 			),
 		},
@@ -198,6 +205,8 @@ func TestServe(t *testing.T) {
 		go func() {
 			for {
 				select {
+				case <-time.After(maxTestWait):
+					return
 				case err := <-test.s.ErrCh:
 					if test.ok {
 						t.Errorf(
@@ -213,8 +222,6 @@ func TestServe(t *testing.T) {
 				}
 			}
 		}()
-		time.Sleep(time.Millisecond * 200)
-
 	}
 
 	for idx, test := range tests {
@@ -236,6 +243,12 @@ func TestHandleResponses(t *testing.T) {
 		ok   bool
 	}
 
+	var mockAddr = []string{
+		"127.0.0.1:45053",
+		"127.0.0.1:45054",
+		"127.0.0.1:45055",
+	}
+
 	var bufs = []*bytes.Buffer{{}, {}}
 	var failingL = log.New(log.WithOut(&failingWriter{}))
 
@@ -250,7 +263,7 @@ func TestHandleResponses(t *testing.T) {
 			s: New(
 				WithLogger(writers[0]),
 				WithServiceLoggerV(writers[1]),
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[0]),
 				WithGRPCOpts(),
 			),
 			e:  event.New().Message("null").Build(),
@@ -261,7 +274,7 @@ func TestHandleResponses(t *testing.T) {
 			s: New(
 				WithLogger(failingL),
 				WithServiceLoggerV(writers[1]),
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[1]),
 				WithGRPCOpts(),
 			),
 			e: event.New().Message("null").Build(),
@@ -271,7 +284,7 @@ func TestHandleResponses(t *testing.T) {
 			s: New(
 				WithLogger(failingL),
 				WithServiceLoggerV(writers[1]),
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[2]),
 				WithGRPCOpts(),
 			),
 			e: event.New().Message("very long message that will overflow the 100 byte threshold for the test failing writer").Build(),
@@ -281,6 +294,8 @@ func TestHandleResponses(t *testing.T) {
 	var handleErrors = func(idx int, test test) {
 		for {
 			select {
+			case <-time.After(maxTestWait):
+				return
 			case err := <-test.s.ErrCh:
 				if test.ok {
 					t.Errorf(
@@ -302,8 +317,7 @@ func TestHandleResponses(t *testing.T) {
 	var verify = func(idx int, test test) {
 		defer test.s.Stop()
 		go test.s.handleResponses(test.e)
-		go handleErrors(idx, test)
-		time.Sleep(time.Millisecond * 200)
+		handleErrors(idx, test)
 	}
 
 	for idx, test := range tests {
@@ -325,6 +339,12 @@ func TestHandleMesages(t *testing.T) {
 		ok   bool
 	}
 
+	var mockAddr = []string{
+		"127.0.0.1:45056",
+		"127.0.0.1:45057",
+		"127.0.0.1:45058",
+	}
+
 	var bufs = []*bytes.Buffer{{}, {}}
 	var failingL = log.New(log.WithOut(&failingWriter{}))
 
@@ -339,7 +359,7 @@ func TestHandleMesages(t *testing.T) {
 			s: New(
 				WithLogger(writers[0]),
 				WithServiceLoggerV(writers[1]),
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[0]),
 				WithGRPCOpts(),
 			),
 			e:  event.New().Message("null").Build(),
@@ -350,7 +370,7 @@ func TestHandleMesages(t *testing.T) {
 			s: New(
 				WithLogger(failingL),
 				WithServiceLoggerV(writers[1]),
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[1]),
 				WithGRPCOpts(),
 			),
 			e: event.New().Message("null").Build(),
@@ -360,7 +380,7 @@ func TestHandleMesages(t *testing.T) {
 			s: New(
 				WithLogger(failingL),
 				WithServiceLoggerV(writers[1]),
-				WithAddr("127.0.0.1:9099"),
+				WithAddr(mockAddr[2]),
 				WithGRPCOpts(),
 			),
 			e: event.New().Message("very long message that will overflow the 100 byte threshold for the test failing writer").Build(),
@@ -370,6 +390,8 @@ func TestHandleMesages(t *testing.T) {
 	var handleErrors = func(idx int, test test) {
 		for {
 			select {
+			case <-time.After(maxTestWait):
+				return
 			case err := <-test.s.ErrCh:
 				if test.ok {
 					t.Errorf(
@@ -391,9 +413,8 @@ func TestHandleMesages(t *testing.T) {
 	var verify = func(idx int, test test) {
 		defer test.s.Stop()
 		go test.s.handleMessages()
-		go handleErrors(idx, test)
 		test.s.LogSv.MsgCh <- test.e
-		time.Sleep(time.Millisecond * 200)
+		handleErrors(idx, test)
 	}
 
 	for idx, test := range tests {

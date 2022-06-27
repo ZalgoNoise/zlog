@@ -1,18 +1,92 @@
 package server
 
 import (
-	"bytes"
+	"context"
 	"errors"
-	"regexp"
+	"io"
+	"reflect"
 	"testing"
-	"time"
 
-	"github.com/zalgonoise/zlog/grpc/client"
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
 	pb "github.com/zalgonoise/zlog/proto/service"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
+
+var (
+	errInvalidRequest error = errors.New("invalid request object")
+	errSentHeader     error = errors.New("already sent header")
+	testErrUnexpected error = errors.New("unexpected error")
+)
+
+type testServerStream struct {
+	hMD        metadata.MD
+	sentHeader bool
+	tMD        metadata.MD
+	err        error
+	ctx        context.Context // for DeepEqual tests
+}
+
+func (s *testServerStream) SetHeader(m metadata.MD) error {
+	s.hMD = m
+	return nil
+}
+
+func (s *testServerStream) SendHeader(m metadata.MD) error {
+	if s.sentHeader {
+		return errSentHeader
+	}
+
+	s.hMD = m
+	s.sentHeader = true
+
+	return nil
+}
+
+func (s *testServerStream) SetTrailer(m metadata.MD) {
+	s.tMD = m
+}
+
+func (s *testServerStream) Context() context.Context { return s.ctx }
+
+func (s *testServerStream) SendMsg(m interface{}) error {
+	msg, ok := m.(*pb.LogResponse)
+
+	if !ok {
+		return testErrUnexpected
+	}
+
+	if msg.GetReqID() == "000" {
+		return testErrUnexpected
+	}
+
+	return nil
+}
+
+func (s *testServerStream) RecvMsg(m interface{}) error {
+	msg, ok := m.(*event.Event)
+
+	if !ok {
+		return testErrUnexpected
+	}
+
+	if msg.GetLevel().String() == "error" {
+		return testErrUnexpected
+	}
+
+	if msg.GetMsg() == "deadline" {
+		return status.Error(codes.DeadlineExceeded, "")
+	}
+
+	if msg.GetMsg() == "EOF" {
+		return io.EOF
+	}
+
+	return nil
+}
 
 func TestUnaryServerLogging(t *testing.T) {
 	module := "LogServer Interceptors"
@@ -22,186 +96,149 @@ func TestUnaryServerLogging(t *testing.T) {
 	_ = funcname
 
 	type test struct {
-		name     string
-		s        *GRPCLogServer
-		matchers []string
+		name      string
+		ok        bool
+		logger    log.Logger
+		withTimer bool
+		req       *event.Event
+		reply     *pb.LogResponse
 	}
 
-	var buf = []*bytes.Buffer{{}, {}, {}}
+	var sInfo = &grpc.UnaryServerInfo{
+		FullMethod: "test",
+	}
+
+	var errStr = "failed to write message"
+	var wBytes int32 = 100
+
+	var handler grpc.UnaryHandler = func(ctx context.Context, req interface{}) (interface{}, error) {
+		r, ok := req.(*event.Event)
+
+		if !ok {
+			return nil, errInvalidRequest
+		}
+
+		if r.GetMsg() == "fail" {
+			res := &pb.LogResponse{
+				Ok:    false,
+				Err:   &errStr,
+				ReqID: "test",
+			}
+
+			return res, errInvalidRequest
+		}
+
+		res := &pb.LogResponse{
+			Ok:    true,
+			ReqID: "test",
+			Bytes: &wBytes,
+		}
+
+		return res, nil
+	}
 
 	var tests = []test{
 		{
-			name: "unary server logging test",
-			s: New(
-				WithLogger(log.New(log.WithOut(buf[0]), log.SkipExit)),
-				WithServiceLoggerV(log.New(log.WithOut(buf[1]), log.CfgTextLevelFirst, log.SkipExit)),
-				WithAddr("127.0.0.1:9099"),
-				WithGRPCOpts(),
-			),
-			matchers: []string{
-				`^\[trace\]\s+\[.*\]\s+\[gRPC\]\s+\[logger\]\s+\[recv\]\s+unary RPC -- \/logservice.LogService\/Log$`,
-				`^\[trace\]\s+\[.*\]\s+\[gRPC\]\s+\[logger\]\s+\[send\]\s+unary RPC -- \/logservice.LogService\/Log.*`,
+			name:      "unary server logging test",
+			ok:        true,
+			logger:    log.New(log.NilConfig),
+			withTimer: false,
+			req:       event.New().Message("null").Build(),
+			reply: &pb.LogResponse{
+				Ok:    true,
+				ReqID: "test",
+				Bytes: &wBytes,
 			},
 		},
 		{
-			name: "unary server logging w/ timer",
-			s: New(
-				WithLogger(log.New(log.WithOut(buf[0]), log.SkipExit)),
-				WithServiceLoggerV(log.New(log.WithOut(buf[1]), log.CfgTextLevelFirst, log.SkipExit)),
-				WithTiming(),
-				WithAddr("127.0.0.1:9099"),
-				WithGRPCOpts(),
-			),
-			matchers: []string{
-				`^\[trace\]\s+\[.*\]\s+\[gRPC\]\s+\[logger\]\s+\[recv\]\s+unary RPC -- \/logservice.LogService\/Log.*`,
-				`^\[trace\]\s+\[.*\]\s+\[gRPC\]\s+\[logger\]\s+\[send\]\s+unary RPC -- \/logservice.LogService\/Log.*`,
+			name:      "unary server logging test w/ timer",
+			ok:        true,
+			logger:    log.New(log.NilConfig),
+			withTimer: true,
+			req:       event.New().Message("null").Build(),
+			reply: &pb.LogResponse{
+				Ok:    true,
+				ReqID: "test",
+				Bytes: &wBytes,
+			},
+		},
+		{
+			name:      "failing unary server logging test",
+			ok:        false,
+			logger:    log.New(log.NilConfig),
+			withTimer: false,
+			req:       event.New().Message("fail").Build(),
+			reply: &pb.LogResponse{
+				Ok:    false,
+				Err:   &errStr,
+				ReqID: "test",
 			},
 		},
 	}
 
-	var reset = func() {
-		for _, b := range buf {
-			b.Reset()
-		}
-	}
+	var verify = func(idx int, test test) {
+		fn := UnaryServerLogging(test.logger, test.withTimer)
 
-	var stop = func(test test) {
-		test.s.Stop()
-		return
-	}
-
-	var initClient = func() (client.GRPCLogger, chan error) {
-		return client.New(
-			client.WithLogger(log.New(log.WithOut(buf[2]), log.SkipExit)),
-			client.WithAddr("127.0.0.1:9099"),
-			client.UnaryRPC(),
-			client.WithGRPCOpts(),
+		res, err := fn(
+			context.Background(),
+			test.req,
+			sInfo,
+			handler,
 		)
-	}
 
-	var bufferFilter = func(in []byte) [][]byte {
-		// split lines
-		var line [][]byte
-		var buf []byte
-
-		for _, b := range in {
-			if b == 10 {
-				if len(buf) > 0 {
-					copy := buf
-					line = append(line, copy)
-					buf = []byte{}
-				}
-				continue
+		if err != nil {
+			if test.ok {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+					idx,
+					module,
+					funcname,
+					err,
+					test.name,
+				)
+				return
 			}
-			buf = append(buf, b)
-		}
 
-		if len(buf) > 0 {
-			copy := buf
-			line = append(line, copy)
-			buf = []byte{}
-		}
-
-		return line
-	}
-
-	var bufferMatcher = func(test test, lines [][]byte) bool {
-		len := len(test.matchers)
-
-		var pass int = 0
-
-		for _, m := range test.matchers {
-			r := regexp.MustCompile(m)
-
-			for _, entry := range lines {
-				if r.Match(entry) {
-					pass++
-					break
-				}
+			if !errors.Is(err, errInvalidRequest) {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] unexpected error: wanted %v ; got %v -- action: %s",
+					idx,
+					module,
+					funcname,
+					errInvalidRequest,
+					err,
+					test.name,
+				)
+				return
 			}
-		}
 
-		if pass != len {
-			return false
-		}
-
-		return true
-	}
-
-	var verifyServiceLogger = func(
-		idx int,
-		test test,
-		c client.GRPCLogger,
-		done chan struct{},
-	) {
-		c.Info("null")
-		time.Sleep(time.Second)
-
-		filter := bufferFilter(buf[1].Bytes())
-
-		var lines []string
-		for _, l := range filter {
-			lines = append(lines, string(l))
-		}
-
-		if !bufferMatcher(test, filter) {
-			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] couldn't detect expected interceptor entries (%v): expected %v ; got %v -- action: %s",
-				idx,
-				module,
-				funcname,
-				len(test.matchers),
-				test.matchers,
-				lines,
-				test.name,
-			)
-			test.s.ErrCh <- errors.New("couldn't detect expected interceptor entries")
 			return
 		}
 
-		done <- struct{}{}
+		r, ok := res.(*pb.LogResponse)
 
-	}
+		if !ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] response is not of type *pb.LogResponse -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.name,
+			)
+			return
+		}
 
-	var verify = func(idx int, test test) {
-		defer reset()
-		defer stop(test)
-
-		var done = make(chan struct{})
-
-		go test.s.Serve()
-		time.Sleep(time.Second)
-
-		c, clientErr := initClient()
-
-		go verifyServiceLogger(idx, test, c, done)
-
-		for {
-			select {
-			case err := <-clientErr:
-				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] unexpected client error: %v -- action: %s",
-					idx,
-					module,
-					funcname,
-					err,
-					test.name,
-				)
-				return
-
-			case err := <-test.s.ErrCh:
-				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] unexpected server error: %v -- action: %s",
-					idx,
-					module,
-					funcname,
-					err,
-					test.name,
-				)
-				return
-			case <-done:
-				return
-			}
+		if !reflect.DeepEqual(r, test.reply) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.reply,
+				r,
+				test.name,
+			)
+			return
 		}
 	}
 
@@ -218,186 +255,96 @@ func TestStreamServerLogging(t *testing.T) {
 	_ = funcname
 
 	type test struct {
-		name     string
-		s        *GRPCLogServer
-		matchers []string
+		name      string
+		ok        bool
+		logger    log.Logger
+		withTimer bool
+		req       string
 	}
 
-	var buf = []*bytes.Buffer{{}, {}, {}}
+	var sInfo = &grpc.StreamServerInfo{
+		FullMethod:     "test",
+		IsClientStream: true,
+		IsServerStream: true,
+	}
+
+	var handler grpc.StreamHandler = func(srv interface{}, stream grpc.ServerStream) error {
+		r, ok := srv.(string)
+
+		if !ok {
+			return errInvalidRequest
+		}
+
+		if r == "fail" {
+			return errInvalidRequest
+		}
+
+		return nil
+	}
 
 	var tests = []test{
 		{
-			name: "unary server logging test",
-			s: New(
-				WithLogger(log.New(log.WithOut(buf[0]), log.SkipExit)),
-				WithServiceLoggerV(log.New(log.WithOut(buf[1]), log.CfgTextLevelFirst, log.SkipExit)),
-				WithAddr("127.0.0.1:9099"),
-				WithGRPCOpts(),
-			),
-			matchers: []string{
-				`^\[debug\]\s+\[.*\]\s+\[gRPC\]\s+\[logger\]\s+\[recv\]\s+stream RPC logger -- received message from gRPC client.*`,
-				`^\[debug\]\s+\[.*\]\s+\[gRPC\]\s+\[logger\]\s+\[send\]\s+stream RPC logger -- sent message to gRPC client.*`,
-			},
+			name:      "unary server logging test",
+			ok:        true,
+			logger:    log.New(log.NilConfig),
+			withTimer: false,
+			req:       "ok",
 		},
 		{
-			name: "unary server logging w/ timer",
-			s: New(
-				WithLogger(log.New(log.WithOut(buf[0]), log.SkipExit)),
-				WithServiceLoggerV(log.New(log.WithOut(buf[1]), log.CfgTextLevelFirst, log.SkipExit)),
-				WithTiming(),
-				WithAddr("127.0.0.1:9099"),
-				WithGRPCOpts(),
-			),
-			matchers: []string{
-				`^\[debug\]\s+\[.*\]\s+\[gRPC\]\s+\[logger\]\s+\[recv\]\s+stream RPC logger -- received message from gRPC client.*`,
-				`^\[debug\]\s+\[.*\]\s+\[gRPC\]\s+\[logger\]\s+\[send\]\s+stream RPC logger -- sent message to gRPC client.*`,
-			},
+			name:      "unary server logging test w/ timer",
+			ok:        true,
+			logger:    log.New(log.NilConfig),
+			withTimer: true,
+			req:       "ok",
 		},
-	}
-
-	var reset = func() {
-		for _, b := range buf {
-			b.Reset()
-		}
-	}
-
-	var stop = func(test test) {
-		test.s.Stop()
-		return
-	}
-
-	var initClient = func() (client.GRPCLogger, chan error) {
-		return client.New(
-			client.WithLogger(log.New(log.WithOut(buf[2]), log.SkipExit)),
-			client.WithAddr("127.0.0.1:9099"),
-			client.StreamRPC(),
-			client.WithGRPCOpts(),
-		)
-	}
-
-	var bufferFilter = func(in []byte) [][]byte {
-		// split lines
-		var line [][]byte
-		var buf []byte
-
-		for _, b := range in {
-			if b == 10 {
-				if len(buf) > 0 {
-					copy := buf
-					line = append(line, copy)
-					buf = []byte{}
-				}
-				continue
-			}
-			buf = append(buf, b)
-		}
-
-		if len(buf) > 0 {
-			copy := buf
-			line = append(line, copy)
-			buf = []byte{}
-		}
-
-		return line
-	}
-
-	var bufferMatcher = func(test test, lines [][]byte) bool {
-		len := len(test.matchers)
-
-		var pass int = 0
-
-		for _, m := range test.matchers {
-			r := regexp.MustCompile(m)
-
-			for _, entry := range lines {
-				if r.Match(entry) {
-					pass++
-					break
-				}
-			}
-		}
-
-		if pass != len {
-			return false
-		}
-
-		return true
-	}
-
-	var verifyServiceLogger = func(
-		idx int,
-		test test,
-		c client.GRPCLogger,
-		done chan struct{},
-	) {
-		c.Info("null")
-		time.Sleep(time.Second)
-
-		filter := bufferFilter(buf[1].Bytes())
-
-		var lines []string
-		for _, l := range filter {
-			lines = append(lines, string(l)+"\n")
-		}
-
-		if !bufferMatcher(test, filter) {
-			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] couldn't detect expected interceptor entries (%v): expected %v ; got %v -- action: %s",
-				idx,
-				module,
-				funcname,
-				len(test.matchers),
-				test.matchers,
-				lines,
-				test.name,
-			)
-			test.s.ErrCh <- errors.New("couldn't detect expected interceptor entries")
-			return
-		}
-
-		done <- struct{}{}
-
+		{
+			name:      "failing unary server logging test",
+			ok:        false,
+			logger:    log.New(log.NilConfig),
+			withTimer: false,
+			req:       "fail",
+		},
 	}
 
 	var verify = func(idx int, test test) {
-		defer reset()
-		defer stop(test)
+		fn := StreamServerLogging(test.logger, test.withTimer)
 
-		var done = make(chan struct{})
+		err := fn(
+			test.req,
+			&testServerStream{
+				ctx: context.Background(),
+			},
+			sInfo,
+			handler,
+		)
 
-		go test.s.Serve()
-		time.Sleep(time.Second)
-
-		c, clientErr := initClient()
-
-		go verifyServiceLogger(idx, test, c, done)
-
-		for {
-			select {
-			case err := <-clientErr:
+		if err != nil {
+			if test.ok {
 				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] unexpected client error: %v -- action: %s",
+					"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 					idx,
 					module,
 					funcname,
 					err,
 					test.name,
 				)
-				return
-
-			case err := <-test.s.ErrCh:
-				t.Errorf(
-					"#%v -- FAILED -- [%s] [%s] unexpected server error: %v -- action: %s",
-					idx,
-					module,
-					funcname,
-					err,
-					test.name,
-				)
-				return
-			case <-done:
 				return
 			}
+
+			if !errors.Is(err, errInvalidRequest) {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] unexpected error: wanted %v ; got %v -- action: %s",
+					idx,
+					module,
+					funcname,
+					errInvalidRequest,
+					err,
+					test.name,
+				)
+				return
+			}
+
+			return
 		}
 	}
 
@@ -420,7 +367,6 @@ func TestLoggingSendMsg(t *testing.T) {
 		ok   bool
 	}
 
-	var buf = new(bytes.Buffer)
 	var bytesResponse = []int32{
 		203,
 		1008,
@@ -434,8 +380,8 @@ func TestLoggingSendMsg(t *testing.T) {
 		{
 			name: "working test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: &pb.LogResponse{
@@ -449,8 +395,8 @@ func TestLoggingSendMsg(t *testing.T) {
 		{
 			name: "errored test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: &pb.LogResponse{
@@ -463,8 +409,8 @@ func TestLoggingSendMsg(t *testing.T) {
 		{
 			name: "not-OK test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: &pb.LogResponse{
@@ -477,8 +423,8 @@ func TestLoggingSendMsg(t *testing.T) {
 		{
 			name: "not-OK test, no error in response",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: &pb.LogResponse{
@@ -491,8 +437,8 @@ func TestLoggingSendMsg(t *testing.T) {
 		{
 			name: "working test w/ timer",
 			t: &loggingStream{
-				stream:    testServerStream{},
-				logger:    log.New(log.WithOut(buf), log.SkipExit),
+				stream:    &testServerStream{},
+				logger:    log.New(log.NilConfig),
 				method:    "testLog",
 				withTimer: true,
 			},
@@ -507,8 +453,8 @@ func TestLoggingSendMsg(t *testing.T) {
 		{
 			name: "errored test w/ timer",
 			t: &loggingStream{
-				stream:    testServerStream{},
-				logger:    log.New(log.WithOut(buf), log.SkipExit),
+				stream:    &testServerStream{},
+				logger:    log.New(log.NilConfig),
 				method:    "testLog",
 				withTimer: true,
 			},
@@ -556,14 +502,12 @@ func TestLoggingRecvMsg(t *testing.T) {
 		ok   bool
 	}
 
-	var buf = new(bytes.Buffer)
-
 	var tests = []test{
 		{
 			name: "working test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m:  event.New().Message("null").Build(),
@@ -572,8 +516,8 @@ func TestLoggingRecvMsg(t *testing.T) {
 		{
 			name: "errored test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: event.New().Level(event.Level_error).Message("null").Build(),
@@ -581,8 +525,8 @@ func TestLoggingRecvMsg(t *testing.T) {
 		{
 			name: "errored with EOF",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: event.New().Message("EOF").Build(),
@@ -590,8 +534,8 @@ func TestLoggingRecvMsg(t *testing.T) {
 		{
 			name: "errored with deadline exceeded",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: event.New().Message("deadline").Build(),
@@ -599,8 +543,8 @@ func TestLoggingRecvMsg(t *testing.T) {
 		{
 			name: "working test w/ timer",
 			t: &loggingStream{
-				stream:    testServerStream{},
-				logger:    log.New(log.WithOut(buf), log.SkipExit),
+				stream:    &testServerStream{},
+				logger:    log.New(log.NilConfig),
 				method:    "testLog",
 				withTimer: true,
 			},
@@ -610,8 +554,8 @@ func TestLoggingRecvMsg(t *testing.T) {
 		{
 			name: "errored test w/ timer",
 			t: &loggingStream{
-				stream:    testServerStream{},
-				logger:    log.New(log.WithOut(buf), log.SkipExit),
+				stream:    &testServerStream{},
+				logger:    log.New(log.NilConfig),
 				method:    "testLog",
 				withTimer: true,
 			},
@@ -653,14 +597,12 @@ func TestLoggingSetHeader(t *testing.T) {
 		m    metadata.MD
 	}
 
-	var buf = new(bytes.Buffer)
-
 	var tests = []test{
 		{
 			name: "working test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: metadata.New(map[string]string{
@@ -679,6 +621,19 @@ func TestLoggingSetHeader(t *testing.T) {
 				module,
 				funcname,
 				err,
+				test.name,
+			)
+			return
+		}
+
+		if !reflect.DeepEqual(test.t.stream.(*testServerStream).hMD, test.m) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.t.stream.(*testServerStream).hMD,
+				test.m,
 				test.name,
 			)
 			return
@@ -703,14 +658,25 @@ func TestLoggingSendHeader(t *testing.T) {
 		m    metadata.MD
 	}
 
-	var buf = new(bytes.Buffer)
-
 	var tests = []test{
 		{
 			name: "working test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
+				method: "testLog",
+			},
+			m: metadata.New(map[string]string{
+				"test": "header",
+			}),
+		},
+		{
+			name: "error test",
+			t: &loggingStream{
+				stream: &testServerStream{
+					sentHeader: true,
+				},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: metadata.New(map[string]string{
@@ -722,12 +688,13 @@ func TestLoggingSendHeader(t *testing.T) {
 	var verify = func(idx int, test test) {
 		err := test.t.SendHeader(test.m)
 
-		if err != nil {
+		if err != nil && !errors.Is(err, errSentHeader) {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
+				"#%v -- FAILED -- [%s] [%s] error mismatch: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
+				errSentHeader,
 				err,
 				test.name,
 			)
@@ -753,14 +720,12 @@ func TestLoggingSetTrailer(t *testing.T) {
 		m    metadata.MD
 	}
 
-	var buf = new(bytes.Buffer)
-
 	var tests = []test{
 		{
 			name: "working test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 			m: metadata.New(map[string]string{
@@ -771,6 +736,19 @@ func TestLoggingSetTrailer(t *testing.T) {
 
 	var verify = func(idx int, test test) {
 		test.t.SetTrailer(test.m)
+
+		if !reflect.DeepEqual(test.t.stream.(*testServerStream).tMD, test.m) {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
+				idx,
+				module,
+				funcname,
+				test.t.stream.(*testServerStream).tMD,
+				test.m,
+				test.name,
+			)
+			return
+		}
 	}
 
 	for idx, test := range tests {
@@ -790,14 +768,16 @@ func TestLoggingContext(t *testing.T) {
 		t    *loggingStream
 	}
 
-	var buf = new(bytes.Buffer)
+	rootCtx := context.Background()
 
 	var tests = []test{
 		{
 			name: "working test",
 			t: &loggingStream{
-				stream: testServerStream{},
-				logger: log.New(log.WithOut(buf), log.SkipExit),
+				stream: &testServerStream{
+					ctx: rootCtx,
+				},
+				logger: log.New(log.NilConfig),
 				method: "testLog",
 			},
 		},
@@ -806,16 +786,19 @@ func TestLoggingContext(t *testing.T) {
 	var verify = func(idx int, test test) {
 		ctx := test.t.Context()
 
-		if ctx == nil {
+		if !reflect.DeepEqual(ctx, rootCtx) {
 			t.Errorf(
-				"#%v -- FAILED -- [%s] [%s] unexpected nil context -- action: %s",
+				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
+				rootCtx,
+				ctx,
 				test.name,
 			)
 			return
 		}
+
 	}
 
 	for idx, test := range tests {

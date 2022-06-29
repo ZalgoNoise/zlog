@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,20 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
 )
+
+var errNoEnv error = errors.New("no environment variable found")
+
+/*
+
+MySQL database / user / table init commands
+
+CREATE USER 'newuser'@'%' IDENTIFIED BY 'user_password';
+GRANT ALL PRIVILEGES ON *.* TO 'newuser'@'%';
+SHOW GRANTS FOR 'newuser'@'%';
+FLUSH PRIVILEGES;
+CREATE DATABASE IF NOT EXISTS zlog;
+
+*/
 
 func getEnv(env string) (val string, ok bool) {
 	v := os.Getenv(env)
@@ -46,7 +61,8 @@ func initEnv(host, port, database string, omitDB bool) (*testDB, error) {
 
 	d := os.Getenv(database)
 	if d == "" && !omitDB {
-		return nil, fmt.Errorf(errStr, database)
+		e := fmt.Errorf(errStr, database)
+		return nil, fmt.Errorf("%w: %s", errNoEnv, e.Error())
 	}
 	out.database = d
 
@@ -162,8 +178,21 @@ func TestNew(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, test.omitDatabase)
 
 		if err != nil {
-			t.Logf(
-				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
+			if errors.Is(err, errNoEnv) {
+				e := errors.Unwrap(err)
+
+				t.Logf(
+					"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v",
+					idx,
+					module,
+					funcname,
+					e,
+				)
+				return
+			}
+
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
 				funcname,
@@ -294,8 +323,21 @@ func TestCreate(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, false)
 
 		if err != nil {
-			t.Logf(
-				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
+			if errors.Is(err, errNoEnv) {
+				e := errors.Unwrap(err)
+
+				t.Logf(
+					"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v",
+					idx,
+					module,
+					funcname,
+					e,
+				)
+				return
+			}
+
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
 				funcname,
@@ -436,8 +478,19 @@ func TestWrite(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, false)
 
 		if err != nil {
+			if errors.Is(err, errNoEnv) {
+				return nil, fmt.Errorf(
+					"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %w -- action: %s",
+					idx,
+					module,
+					funcname,
+					err,
+					test.name,
+				)
+			}
+
 			return nil, fmt.Errorf(
-				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
 				funcname,
@@ -453,7 +506,14 @@ func TestWrite(t *testing.T) {
 	var verify = func(idx int, test test) {
 		db, err := initDB(idx, test)
 
-		if test.ok && err != nil {
+		if err != nil {
+			inner := errors.Unwrap(err)
+
+			if errors.Is(inner, errNoEnv) {
+				t.Log(err)
+				return
+			}
+
 			t.Logf(
 				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
@@ -462,6 +522,10 @@ func TestWrite(t *testing.T) {
 				err,
 				test.name,
 			)
+			return
+		}
+
+		if db == nil && !test.ok {
 			return
 		}
 
@@ -487,8 +551,15 @@ func TestWrite(t *testing.T) {
 	var verifyNewInstance = func(idx int, test test) {
 		db, err := initDB(idx, test)
 
-		if test.ok && err != nil {
-			t.Errorf(
+		if err != nil {
+			inner := errors.Unwrap(err)
+
+			if errors.Is(inner, errNoEnv) {
+				t.Log(err)
+				return
+			}
+
+			t.Logf(
 				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
@@ -496,6 +567,10 @@ func TestWrite(t *testing.T) {
 				err,
 				test.name,
 			)
+			return
+		}
+
+		if db == nil && !test.ok {
 			return
 		}
 
@@ -641,21 +716,36 @@ func TestWithMySQL(t *testing.T) {
 	var catchPanic = func(idx int, test test) {
 		r := recover()
 
-		if r == nil && test.ok {
+		if r == nil {
 			return
 		}
 
 		regexStr := `failed to create logger config -- database creation failed:.+`
 		regex := regexp.MustCompile(regexStr)
 
-		if !regex.MatchString(r.(error).Error()) {
+		err, ok := r.(error)
+
+		if !ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] panic value is not an error: %v -- %T -- action: %s",
+				idx,
+				module,
+				funcname,
+				r,
+				r,
+				test.name,
+			)
+			return
+		}
+
+		if !regex.MatchString(err.Error()) {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] error mismatch: wanted to match %s; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				regexStr,
-				r.(string),
+				err.Error(),
 				test.name,
 			)
 			return
@@ -668,14 +758,25 @@ func TestWithMySQL(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, false)
 
 		if err != nil {
+			inner := errors.Unwrap(err)
+
+			if errors.Is(inner, errNoEnv) {
+				t.Log(err)
+				return
+			}
+
 			t.Logf(
-				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				err,
 				test.name,
 			)
+			return
+		}
+
+		if cfg == nil && !test.ok {
 			return
 		}
 

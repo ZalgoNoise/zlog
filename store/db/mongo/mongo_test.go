@@ -1,6 +1,7 @@
 package mongo
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"github.com/zalgonoise/zlog/log"
 	"github.com/zalgonoise/zlog/log/event"
 )
+
+var errNoEnv error = errors.New("no environment variable found")
 
 func getEnv(env string) (val string, ok bool) {
 	v := os.Getenv(env)
@@ -47,13 +50,15 @@ func initEnv(host, port, database, collection string, omitDB, omitCol bool) (*te
 
 	d := os.Getenv(database)
 	if d == "" && !omitDB {
-		return nil, fmt.Errorf(errStr, database)
+		e := fmt.Errorf(errStr, database)
+		return nil, fmt.Errorf("%w: %s", errNoEnv, e.Error())
 	}
 	out.database = d
 
 	c := os.Getenv(collection)
 	if c == "" && !omitCol {
-		return nil, fmt.Errorf(errStr, collection)
+		e := fmt.Errorf(errStr, collection)
+		return nil, fmt.Errorf("%w: %s", errNoEnv, e.Error())
 	}
 	out.collection = c
 
@@ -192,8 +197,21 @@ func TestNew(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, test.envCollection, test.omitDatabase, test.omitCollection)
 
 		if err != nil {
-			t.Logf(
-				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
+			if errors.Is(err, errNoEnv) {
+				e := errors.Unwrap(err)
+
+				t.Logf(
+					"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v",
+					idx,
+					module,
+					funcname,
+					e,
+				)
+				return
+			}
+
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
 				funcname,
@@ -332,8 +350,21 @@ func TestCreate(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, test.envCollection, false, false)
 
 		if err != nil {
-			t.Logf(
-				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
+			if errors.Is(err, errNoEnv) {
+				e := errors.Unwrap(err)
+
+				t.Logf(
+					"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v",
+					idx,
+					module,
+					funcname,
+					e,
+				)
+				return
+			}
+
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
 				funcname,
@@ -491,8 +522,19 @@ func TestWrite(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, test.envCollection, false, false)
 
 		if err != nil {
+			if errors.Is(err, errNoEnv) {
+				return nil, fmt.Errorf(
+					"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %w -- action: %s",
+					idx,
+					module,
+					funcname,
+					err,
+					test.name,
+				)
+			}
+
 			return nil, fmt.Errorf(
-				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
 				funcname,
@@ -508,8 +550,15 @@ func TestWrite(t *testing.T) {
 	var verify = func(idx int, test test) {
 		db, err := initDB(idx, test)
 
-		if test.ok && err != nil {
-			t.Logf(
+		if err != nil {
+			inner := errors.Unwrap(err)
+
+			if errors.Is(inner, errNoEnv) {
+				t.Log(err)
+				return
+			}
+
+			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
@@ -517,6 +566,10 @@ func TestWrite(t *testing.T) {
 				err,
 				test.name,
 			)
+			return
+		}
+
+		if db == nil && !test.ok {
 			return
 		}
 
@@ -542,7 +595,14 @@ func TestWrite(t *testing.T) {
 	var verifyNewInstance = func(idx int, test test) {
 		db, err := initDB(idx, test)
 
-		if test.ok && err != nil {
+		if err != nil {
+			inner := errors.Unwrap(err)
+
+			if errors.Is(inner, errNoEnv) {
+				t.Log(err)
+				return
+			}
+
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
@@ -551,6 +611,10 @@ func TestWrite(t *testing.T) {
 				err,
 				test.name,
 			)
+			return
+		}
+
+		if db == nil && !test.ok {
 			return
 		}
 
@@ -641,9 +705,6 @@ func TestClose(t *testing.T) {
 			envCollection: "MONGO_COLLECTION",
 			ok:            true,
 		},
-		// {
-		// 	name: "failing closure",
-		// },
 	}
 
 	var initDB = func(idx int, test test) (io.WriteCloser, error) {
@@ -761,21 +822,36 @@ func TestWithMongo(t *testing.T) {
 	var catchPanic = func(idx int, test test) {
 		r := recover()
 
-		if r == nil && test.ok {
+		if r == nil {
 			return
 		}
 
 		regexStr := `failed to create logger config -- database creation failed:.+`
 		regex := regexp.MustCompile(regexStr)
 
-		if !regex.MatchString(r.(error).Error()) {
+		err, ok := r.(error)
+
+		if !ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] panic value is not an error: %v -- %T -- action: %s",
+				idx,
+				module,
+				funcname,
+				r,
+				r,
+				test.name,
+			)
+			return
+		}
+
+		if !regex.MatchString(err.Error()) {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] error mismatch: wanted to match %s; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				regexStr,
-				r.(string),
+				err.Error(),
 				test.name,
 			)
 			return
@@ -788,14 +864,25 @@ func TestWithMongo(t *testing.T) {
 		cfg, err := initEnv(test.envHost, test.envPort, test.envDatabase, test.envCollection, false, false)
 
 		if err != nil {
-			t.Logf(
-				"#%v -- SKIPPED -- [%s] [%s] unexpected error when collecting env: %v -- action: %s",
+			inner := errors.Unwrap(err)
+
+			if errors.Is(inner, errNoEnv) {
+				t.Log(err)
+				return
+			}
+
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				err,
 				test.name,
 			)
+			return
+		}
+
+		if cfg == nil && !test.ok {
 			return
 		}
 

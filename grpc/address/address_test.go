@@ -230,7 +230,6 @@ func TestKeys(t *testing.T) {
 			}
 		}
 
-		// if !reflect.DeepEqual(keys, test.keys) {
 		if len(spree) != len(test.keys) {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
@@ -243,22 +242,6 @@ func TestKeys(t *testing.T) {
 			)
 			return
 		}
-
-		// for _, k := range keys {
-		// 	conn := test.c.Get(k)
-		// 	if conn == nil {
-		// 		t.Errorf(
-		// 			"#%v -- FAILED -- [%s] [%s] output error in key %s: wanted a pointer to grpc.ClientConn ; got %v -- action: %s",
-		// 			idx,
-		// 			module,
-		// 			funcname,
-		// 			k,
-		// 			nil,
-		// 			test.name,
-		// 		)
-		// 		return
-		// 	}
-		// }
 	}
 
 	for idx, test := range tests {

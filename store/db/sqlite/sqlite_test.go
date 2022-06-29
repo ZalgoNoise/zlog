@@ -514,21 +514,36 @@ func TestWithSQLite(t *testing.T) {
 	var catchPanic = func(idx int, test test) {
 		r := recover()
 
-		if r == nil && test.ok {
+		if r == nil {
 			return
 		}
 
 		regexStr := `^failed to create logger config -- database creation failed:.+`
 		regex := regexp.MustCompile(regexStr)
 
-		if !regex.MatchString(r.(error).Error()) {
+		err, ok := r.(error)
+
+		if !ok {
+			t.Errorf(
+				"#%v -- FAILED -- [%s] [%s] panic value is not an error: %v -- %T -- action: %s",
+				idx,
+				module,
+				funcname,
+				r,
+				r,
+				test.name,
+			)
+			return
+		}
+
+		if !regex.MatchString(err.Error()) {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] error mismatch: wanted to match %s; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				regexStr,
-				r.(string),
+				err.Error(),
 				test.name,
 			)
 			return

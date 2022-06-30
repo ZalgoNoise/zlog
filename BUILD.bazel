@@ -24,13 +24,7 @@ go_library(
     srcs = ["main.go"],
     importpath = "github.com/zalgonoise/zlog",
     visibility = ["//visibility:private"],
-    deps = [
-        "//log",
-        "//log/event",
-        "//log/format/text",
-        "//log/logch",
-        "//store/fs",
-    ],
+    deps = ["//log"],
 )
 
 go_binary(

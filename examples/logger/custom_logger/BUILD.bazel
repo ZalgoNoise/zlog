@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "custom_logger_lib",
+    srcs = ["custom_logger.go"],
+    importpath = "github.com/zalgonoise/zlog/examples/logger/custom_logger",
+    visibility = ["//visibility:private"],
+    deps = ["//log"],
+)
+
+go_binary(
+    name = "custom_logger",
+    embed = [":custom_logger_lib"],
+    visibility = ["//visibility:public"],
+)

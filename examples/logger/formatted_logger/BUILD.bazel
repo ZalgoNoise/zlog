@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "formatted_logger_lib",
+    srcs = ["formatted_logger.go"],
+    importpath = "github.com/zalgonoise/zlog/examples/logger/formatted_logger",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//log/format/text",
+    ],
+)
+
+go_binary(
+    name = "formatted_logger",
+    embed = [":formatted_logger_lib"],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "channeled_logger_lib",
+    srcs = ["channeled_logger.go"],
+    importpath = "github.com/zalgonoise/zlog/examples/logger/channeled_logger",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//log/logch",
+    ],
+)
+
+go_binary(
+    name = "channeled_logger",
+    embed = [":channeled_logger_lib"],
+    visibility = ["//visibility:public"],
+)

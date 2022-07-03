@@ -60,8 +60,6 @@ func New(address, database, collection string) (io.WriteCloser, error) {
 	uri.WriteString(address)
 	uri.WriteString("/?maxPoolSize=20&w=majority")
 
-	fmt.Println(uri.String())
-
 	ctx := context.Background()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri.String()))
 	if err != nil {

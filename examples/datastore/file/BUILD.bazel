@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "file_lib",
+    srcs = ["logfile.go"],
+    importpath = "github.com/zalgonoise/zlog/examples/datastore/file",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//store/fs",
+    ],
+)
+
+go_binary(
+    name = "file",
+    embed = [":file_lib"],
+    visibility = ["//visibility:public"],
+)

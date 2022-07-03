@@ -56,7 +56,6 @@ func getTLSConf() server.LogServerConfig {
 
 func main() {
 	// set up two servers for demo purposes
-
 	grpcLoggerAlpha := server.New(
 		server.WithLogger(
 			log.New(

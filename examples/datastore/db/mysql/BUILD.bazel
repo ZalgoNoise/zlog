@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "mysql_lib",
+    srcs = ["mysql.go"],
+    importpath = "github.com/zalgonoise/zlog/examples/datastore/db/mysql",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//store/db/mysql",
+    ],
+)
+
+go_binary(
+    name = "mysql",
+    embed = [":mysql_lib"],
+    visibility = ["//visibility:public"],
+)

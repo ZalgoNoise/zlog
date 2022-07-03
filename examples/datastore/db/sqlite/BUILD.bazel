@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "sqlite_lib",
+    srcs = ["sqlite.go"],
+    importpath = "github.com/zalgonoise/zlog/examples/datastore/db/sqlite",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//log",
+        "//log/event",
+        "//store/db/sqlite",
+    ],
+)
+
+go_binary(
+    name = "sqlite",
+    embed = [":sqlite_lib"],
+    visibility = ["//visibility:public"],
+)

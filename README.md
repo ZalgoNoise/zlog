@@ -12,6 +12,17 @@ _________________________
 
 1. [Overview](#overview)
 1. [Features](#features)
+	1. [Simple API](#simple-api)
+	1. [Highly configurable](#highly-configurable)
+	1. [Feature-rich events](#feature-rich-events)
+	1. [Different formatters](#different-formatters)
+		1. [Text](#text)
+		1. [JSON](#json)
+		1. [BSON](#bson)
+		1. [CSV](#csv)
+		1. [XML](#xml)
+		1. [Protobuf](#protobuf)
+		1. [Gob](#gob)
 1. [Installation](#installation)
 1. [Usage](#usage)
 1. [Integration](#integration)
@@ -40,6 +51,10 @@ _________________
 This library provides a feature-rich structured logger, ready to write to many types of outputs (standard out / error, to buffers, to files and databases) and over-the-wire (via gRPC).
 
 #### Simple API
+
+<!-- 
+	Add an image of a `log.Infof()` call
+-->
 
 The Logger interface in this library provides a set complete set of idiomatic methods which allow to either control the logger:
 
@@ -103,6 +118,11 @@ type Printer interface {
 
 #### Highly configurable 
 
+
+<!-- 
+	Add an image of `log.New()` with added configuration
+-->
+
 Creating a new logger with, for example, `log.New()` takes any number of configurations (including none, for the default configuration). This allows added modularity to the way your logger should behave.
 
 When creating a logger you can:
@@ -143,21 +163,24 @@ var (
 )
 ```
 
+#### Feature-rich events
+
+<!--
+	Add an image of `event.New()....Build()`
+-->
+
+
 #### Different formatters
 
-
-Specifically regarding its formatters, there are several choices avaiable:
-- Text
-- JSON
-- BSON
-- CSV
-- XML
-- Protobuf
-- Gob
+The logger can output events in several different formats, listed below:
 
 ##### Text
 
-Text formatters allow an array of options, with the text formatter sub-package exposing a builder to create a text formatter. Below is the list of methods you can expect when calling `text.New()....Build()`:
+<!-- 
+	Add an image of text formatter's output in a terminal
+-->
+
+The text formatter allows an array of options, with the text formatter sub-package exposing a builder to create a text formatter. Below is the list of methods you can expect when calling `text.New()....Build()`:
 
 Method | Description
 :--:|:--:
@@ -186,27 +209,96 @@ The library also exposes a few initialized preset configurations using text form
 
 ```go
 var (
-	CfgFormatText                  = text.New().Build()  // default
-	CfgTextLongDate                = text.New().Time(text.LTRFC3339).Build()  // with a RFC3339 date format
-	CfgTextShortDate               = text.New().Time(text.LTRFC822Z).Build()  // with a RFC822Z date format
-	CfgTextRubyDate                = text.New().Time(text.LTRubyDate).Build()  // with a RubyDate date format
-	CfgTextDoubleSpace             = text.New().DoubleSpace().Build() // with double spaces
-	CfgTextLevelFirstSpaced        = text.New().DoubleSpace().LevelFirst().Build() // with level-first and double spaces
-	CfgTextLevelFirst              = text.New().LevelFirst().Build() // with level-first
-	CfgTextColorDoubleSpace        = text.New().DoubleSpace().Color().Build() // with color and double spaces
-	CfgTextColorLevelFirstSpaced   = text.New().DoubleSpace().LevelFirst().Color().Build() // with color, level-first and double spaces
-	CfgTextColorLevelFirst         = text.New().LevelFirst().Color().Build() // with color and level-first
-	CfgTextColor                   = text.New().Color().Build() // with color
-	CfgTextOnly                    = text.New().NoHeaders().NoTimestamp().NoLevel().Build() // with only the text content
-	CfgTextNoHeaders               = text.New().NoHeaders().Build() // without headers
-	CfgTextNoTimestamp             = text.New().NoTimestamp().Build() // without timestamp
-	CfgTextColorNoTimestamp        = text.New().NoTimestamp().Color().Build() // without timestamp
-	CfgTextColorUpperNoTimestamp   = text.New().NoTimestamp().Color().Upper().Build() // without timestamp and uppercase headers
+	CfgFormatText                  = WithFormat(text.New().Build())  // default
+	CfgTextLongDate                = WithFormat(text.New().Time(text.LTRFC3339).Build())  // with a RFC3339 date format
+	CfgTextShortDate               = WithFormat(text.New().Time(text.LTRFC822Z).Build())  // with a RFC822Z date format
+	CfgTextRubyDate                = WithFormat(text.New().Time(text.LTRubyDate).Build())  // with a RubyDate date format
+	CfgTextDoubleSpace             = WithFormat(text.New().DoubleSpace().Build()) // with double spaces
+	CfgTextLevelFirstSpaced        = WithFormat(text.New().DoubleSpace().LevelFirst().Build()) // with level-first and double spaces
+	CfgTextLevelFirst              = WithFormat(text.New().LevelFirst().Build()) // with level-first
+	CfgTextColorDoubleSpace        = WithFormat(text.New().DoubleSpace().Color().Build()) // with color and double spaces
+	CfgTextColorLevelFirstSpaced   = WithFormat(text.New().DoubleSpace().LevelFirst().Color().Build()) // with color, level-first and double spaces
+	CfgTextColorLevelFirst         = WithFormat(text.New().LevelFirst().Color().Build()) // with color and level-first
+	CfgTextColor                   = WithFormat(text.New().Color().Build()) // with color
+	CfgTextOnly                    = WithFormat(text.New().NoHeaders().NoTimestamp().NoLevel().Build()) // with only the text content
+	CfgTextNoHeaders               = WithFormat(text.New().NoHeaders().Build()) // without headers
+	CfgTextNoTimestamp             = WithFormat(text.New().NoTimestamp().Build()) // without timestamp
+	CfgTextColorNoTimestamp        = WithFormat(text.New().NoTimestamp().Color().Build()) // without timestamp
+	CfgTextColorUpperNoTimestamp   = WithFormat(text.New().NoTimestamp().Color().Upper().Build()) // without timestamp and uppercase headers
 )
 
 ```
 
 
+##### JSON
+
+
+<!-- 
+	Add an image of JSON formatter's output in a terminal
+-->
+
+The JSON formatter allow generating JSON-formatted events in different ways. These formatters are already initialized as `LoggerConfig` and `LogFormatter` objects.
+
+This formatter allows creating JSON events separated by newlines or not, and also to optionally add indentation:
+
+```go
+type FmtJSON struct {
+	SkipNewline bool
+	Indent      bool
+}
+```
+
+Also note how the `LoggerConfig` presets are exposed. While these are a wrapper for the same formatter, they are also available as `LogFormatter` by not including the `Cfg` prefix:
+
+```go
+var (
+	CfgFormatJSON                  = WithFormat(&json.FmtJSON{})  // default
+	CfgFormatJSONSkipNewline       = WithFormat(&json.FmtJSON{SkipNewline: true}) // with a skip-newline config
+	CfgFormatJSONIndentSkipNewline = WithFormat(&json.FmtJSON{SkipNewline: true, Indent: true}) // with a skip-newline and indentation config
+	CfgFormatJSONIndent            = WithFormat(&json.FmtJSON{Indent: true}) // with an indentation config
+)
+```
+
+
+
+##### BSON
+
+
+<!-- 
+	Add an image of BSON formatter's output in a terminal
+-->
+
+
+##### CSV
+
+
+<!-- 
+	Add an image of BSON formatter's output in a terminal
+-->
+
+
+##### XML
+
+
+<!-- 
+	Add an image of BSON formatter's output in a terminal
+-->
+
+
+##### Protobuf
+
+
+<!-- 
+	Add an image of BSON formatter's output in a terminal
+-->
+
+
+##### Gob
+
+
+<!-- 
+	Add an image of BSON formatter's output in a terminal
+-->
 ________________
 
 

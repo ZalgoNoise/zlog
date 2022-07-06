@@ -15,6 +15,9 @@ _________________________
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)
 	1. [Feature-rich events](#feature-rich-events)
+		1. [Data structure](#data-structure)
+		1. [Event builder](#event-builder)
+		1. [Structured metadata](#structured-metadata)
 	1. [Different formatters](#different-formatters)
 		1. [Text](#text)
 		1. [JSON](#json)
@@ -186,7 +189,7 @@ message Event {
 ```
 
 
-##### Builder
+##### Event builder
 
 
 An event is created with a builder pattern, by defining a set of elements before _spitting out_ the resulting object. 

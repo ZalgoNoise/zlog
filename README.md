@@ -56,7 +56,7 @@ This library provides a feature-rich structured logger, ready to write to many t
 	Add an image of a `log.Infof()` call
 -->
 
-The Logger interface in this library provides a set complete set of idiomatic methods which allow to either control the logger:
+The [Logger interface](log/logger.go#L95) in this library provides a set complete set of idiomatic methods which allow to either control the logger:
 
 
 ```go
@@ -73,7 +73,7 @@ type Logger interface {
 }
 ```
 
-...or to print messages in the `fmt.Print()` / `fmt.Println()` / `fmt.Printf()` way:
+...or to use its [Printer interface](log/print.go#L18) and print messages in the `fmt.Print()` / `fmt.Println()` / `fmt.Printf()` way:
 
 
 ```go
@@ -123,19 +123,20 @@ type Printer interface {
 	Add an image of `log.New()` with added configuration
 -->
 
-Creating a new logger with, for example, `log.New()` takes any number of configurations (including none, for the default configuration). This allows added modularity to the way your logger should behave.
+Creating a new logger with, for example, [`log.New()`](log/logger.go#L134) takes any number of configurations (including none, for the default configuration). This allows added modularity to the way your logger should behave.
 
-When creating a logger you can:
-- `NilLogger()` - create a __nil-logger__ (that doesn't write anything to anywhere)
-- `WithPrefix(string)` - set a __default prefix__
-- `WithSub(string)` - set a __default sub-prefix__
-- `WithOut(...io.Writer) ` - set (a) __default writer(s)__
-- `WithFormat(LogFormatter)` - set the formatter for the log event output content
-- `SkipExit` config - set the __skip-exit option__ (to skip `os.Exit(1)` and `panic()` calls)
-- `WithFilter(event.Level)` - set a __log-level filter__
-- `WithDatabase(...io.WriteCloser)` - set a __database writer__ (if using a database)
+Method / Variable | Description
+:--:|:--:
+[`NilLogger()`](log/conf.go#L154) | create a __nil-logger__ (that doesn't write anything to anywhere)
+[`WithPrefix(string)`](log/conf.go#L165) | set a __default prefix__
+[`WithSub(string)`](log/conf.#L172) | set a __default sub-prefix__
+[`WithOut(...io.Writer)`](log/format.go#L179) | set (a) __default writer(s)__
+[`WithFormat(LogFormatter)`](log/format.go#L33) | set the formatter for the log event output content
+[`SkipExit` config](log/conf.go#L78) | set the __skip-exit option__ (to skip `os.Exit(1)` and `panic()` calls)
+[`WithFilter(event.Level)`](log/conf.go#L203) | set a __log-level filter__
+[`WithDatabase(...io.WriteCloser)`](log/conf.go#L211) | set a __database writer__ (if using a database)
 
-Beyond the functions and preset configurations above, the package also exposes the following preset for the default config:
+Beyond the functions and preset configurations above, the package also exposes the following preset for the [default config](log/conf.go#L56):
 
 ```go
 var DefaultConfig LoggerConfig = &multiconf{
@@ -147,7 +148,7 @@ var DefaultConfig LoggerConfig = &multiconf{
 }
 ```
 
-...and the following (initialized) presets for several useful "defaults":
+...and the following [(initialized) presets](log/conf.go#L77) for several useful "defaults":
 
 ```go
 var (
@@ -171,7 +172,7 @@ var (
 
 ##### Data structure
 
-The events are defined in a protocol buffer format, in [`proto/event.proto`](proto/event.proto); to give it a seamless integration as a gRPC logger's request message:
+The events are defined in a protocol buffer format, in [`proto/event.proto`](proto/event.proto#L20); to give it a seamless integration as a gRPC logger's request message:
 
 ```protobuf
 message Event {
@@ -190,17 +191,17 @@ message Event {
 
 An event is created with a builder pattern, by defining a set of elements before _spitting out_ the resulting object. 
 
-The event builder will allow chaining methods after `event.New()` until the `Build()` method is called. Below is a list of all available methods to the `event.EventBuilder`:
+The event builder will allow chaining methods after [`event.New()`](log/event/builder.go#L29) until the [`Build()`](log/event/builder.go#L107) method is called. Below is a list of all available methods to the [`event.EventBuilder`](log/event/builder.go#L14):
 
 Method signature | Description
 :--:|:--:
-`Prefix(p string) *EventBuilder` | set the prefix element
-`Sub(s string) *EventBuilder` | set the sub-prefix element
-`Message(m string) *EventBuilder` | set the message body element
-`Level(l Level) *EventBuilder` | set the level element
-`Metadata(m map[string]interface{}) *EventBuilder` | set (or add to) the metadata element
-`CallStack(all bool) *EventBuilder` | grab the current call stack, and add it as a "callstack" object in the event's metadata
-`Build() *Event` | build an event with configured elements, defaults applied where needed, and by adding a timestamp
+[`Prefix(p string) *EventBuilder`](log/event/builder.go#L47) | set the prefix element
+[`Sub(s string) *EventBuilder`](log/event/builder.go#L54) | set the sub-prefix element
+[`Message(m string) *EventBuilder`](log/event/builder.go#L61) | set the message body element
+[`Level(l Level) *EventBuilder`](log/event/builder.go#L68) | set the level element
+[`Metadata(m map[string]interface{}) *EventBuilder`](log/event/builder.go#L75) | set (or add to) the metadata element
+[`CallStack(all bool) *EventBuilder`](log/event/builder.go#L94) | grab the current call stack, and add it as a "callstack" object in the event's metadata
+[`Build() *Event`](log/event/builder.go#L107) | build an event with configured elements, defaults applied where needed, and by adding a timestamp
 
 ##### Structured metadata
 
@@ -213,7 +214,7 @@ The event package also exposes a unique type ([`event.Field`](log/event/field.go
 type Field map[string]interface{}
 ```
 
-The [`event.Field`](log/event/field.go#L11) type exposes three methods to allow fast / easy conversion to `structpb.Struct` pointers; needed for the protobuf encoders:
+The [`event.Field`](log/event/field.go#L11) type exposes three methods to allow fast / easy conversion to [`structpb.Struct`](https://pkg.go.dev/google.golang.org/protobuf/types/known/structpb#Struct) pointers; needed for the protobuf encoders:
 
 ```go
 // AsMap method returns the Field in it's (raw) string-interface{} map format
@@ -241,32 +242,32 @@ The logger can output events in several different formats, listed below:
 	Add an image of text formatter's output in a terminal
 -->
 
-The text formatter allows an array of options, with the text formatter sub-package exposing a builder to create a text formatter. Below is the list of methods you can expect when calling `text.New()....Build()`:
+The text formatter allows an array of options, with the text formatter sub-package exposing a builder to create a text formatter. Below is the list of methods you can expect when calling [`text.New()....Build()`](log/format/text/text.go#L87):
 
 Method | Description
 :--:|:--:
-`Time(LogTimestamp)` | define the timestamp format, based on the exposed list of timestamps, from the table below
-`LevelFirst()` | place the log level as the first element in the line
-`DoubleSpace()` | place double-tab-spaces between elements (`\t\t`)
-`Color()` | add color to log levels (it is skipped on Windows CLI, as it doesn't support it)
-`Upper()` | make log level, prefix and sub-prefix uppercase
-`NoTimestamp()` | skip adding the timestamp element
-`NoHeaders()` | skip adding the prefix and sub-prefix elements
-`NoLevel()` | skip adding the log level element
+[`Time(LogTimestamp)](log/format/text/text.go#L93)` | define the timestamp format, based on the exposed list of timestamps, from the table below
+[`LevelFirst()`](log/format/text/text.go#L100) | place the log level as the first element in the line
+[`DoubleSpace()`](log/format/text/text.go#L107) | place double-tab-spaces between elements (`\t\t`)
+[`Color()`](log/format/text/text.go#L114) | add color to log levels (it is skipped on Windows CLI, as it doesn't support it)
+[`Upper()`](log/format/text/text.go#L121) | make log level, prefix and sub-prefix uppercase
+[`NoTimestamp()`](log/format/text/text.go#L128) | skip adding the timestamp element
+[`NoHeaders()`](log/format/text/text.go#L135) | skip adding the prefix and sub-prefix elements
+[`NoLevel()`](log/format/text/text.go#L142) | skip adding the log level element
 
 Regarding the timestamp constraints, please note the available timestamps for the text formatter:
 
 Constant | Description
 :--:|:--:
-`LTRFC3339Nano`| Follows the standard in `time.RFC3339Nano`
-`LTRFC3339`| Follows the standard in `time.RFC3339`
-`LTRFC822Z`| Follows the standard in `time.RFC822Z`
-`LTRubyDate`| Follows the standard in `time.RubyDate`
-`LTUnixNano`| Displays a unix timestamp, in nanos
-`LTUnixMilli`| Displays a unix timestamp, in millis
-`LTUnixMicro`| Displays a unix timestamp, in micros
+[`LTRFC3339Nano`](log/format/text/text.go#L48) | Follows the standard in `time.RFC3339Nano`
+[`LTRFC3339`](log/format/text/text.go#L49) | Follows the standard in `time.RFC3339`
+[`LTRFC822Z`](log/format/text/text.go#L50) | Follows the standard in `time.RFC822Z`
+[`LTRubyDate`](log/format/text/text.go#L51) | Follows the standard in `time.RubyDate`
+[`LTUnixNano`](log/format/text/text.go#L52) | Displays a unix timestamp, in nanos
+[`LTUnixMilli`](log/format/text/text.go#L53) | Displays a unix timestamp, in millis
+[`LTUnixMicro`](log/format/text/text.go#L54) | Displays a unix timestamp, in micros
 
-The library also exposes a few initialized preset configurations using text formatters, as in the list below. While these are `LoggerConfig` presets, they're a wrapper for the same formatter, which is also available by not including the `Cfg` prefix:
+The library also exposes a few initialized preset configurations using text formatters, as in the list below. While these are [`LoggerConfig`](log/conf.go#L21) presets, they're a wrapper for [the same formatter](log/format.go#L18), which is also available by not including the `Cfg` prefix:
 
 ```go
 var (
@@ -298,9 +299,9 @@ var (
 	Add an image of JSON formatter's output in a terminal
 -->
 
-The JSON formatter allow generating JSON-formatted events in different ways. These formatters are already initialized as `LoggerConfig` and `LogFormatter` objects.
+The JSON formatter allow generating JSON-formatted events in different ways. These formatters are already initialized as [`LoggerConfig`](log/format.go#L69) and [`LogFormatter`](log/format.go#L39) objects.
 
-This formatter allows creating JSON events separated by newlines or not, and also to optionally add indentation:
+[This formatter](log/format/json/json.go#L13) allows creating JSON events separated by newlines or not, and also to optionally add indentation:
 
 ```go
 type FmtJSON struct {
@@ -309,7 +310,7 @@ type FmtJSON struct {
 }
 ```
 
-Also note how the `LoggerConfig` presets are exposed. While these are a wrapper for the same formatter, they are also available as `LogFormatter` by not including the `Cfg` prefix:
+Also note how the [`LoggerConfig`](log/format.go#L69) presets are exposed. While these are a wrapper for the same formatter, they are also available as [`LogFormatter`](log/format.go#L39) by not including the `Cfg` prefix:
 
 ```go
 var (

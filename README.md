@@ -169,6 +169,67 @@ var (
 	Add an image of `event.New()....Build()`
 -->
 
+##### Data structure
+
+The events are defined in a protocol buffer format, in [`proto/event.proto`](proto/event.proto); to give it a seamless integration as a gRPC logger's request message:
+
+```protobuf
+message Event {
+    optional google.protobuf.Timestamp time = 1;
+    optional string prefix = 2 [ default = "log" ];
+    optional string sub = 3;
+    optional Level level = 4 [ default = info ];
+    required string msg = 5;
+    optional google.protobuf.Struct meta = 6;
+}
+```
+
+
+##### Builder
+
+
+An event is created with a builder pattern, by defining a set of elements before _spitting out_ the resulting object. 
+
+The event builder will allow chaining methods after `event.New()` until the `Build()` method is called. Below is a list of all available methods to the `event.EventBuilder`:
+
+Method signature | Description
+:--:|:--:
+`Prefix(p string) *EventBuilder` | set the prefix element
+`Sub(s string) *EventBuilder` | set the sub-prefix element
+`Message(m string) *EventBuilder` | set the message body element
+`Level(l Level) *EventBuilder` | set the level element
+`Metadata(m map[string]interface{}) *EventBuilder` | set (or add to) the metadata element
+`CallStack(all bool) *EventBuilder` | grab the current call stack, and add it as a "callstack" object in the event's metadata
+`Build() *Event` | build an event with configured elements, defaults applied where needed, and by adding a timestamp
+
+##### Structured metadata
+
+Metadata is added to the as a `map[string]interface{}` which is compatible with JSON output (for the most part, for most the common data types). This allows a list of key-value pairs where the key is always a string (an identifier) and the value is the data itself, regardless of the type.
+
+The event package also exposes a unique type ([`event.Field`](log/event/field.go#L11)):
+
+```go
+// Field type is a generic type to build Event Metadata
+type Field map[string]interface{}
+```
+
+The [`event.Field`](log/event/field.go#L11) type exposes three methods to allow fast / easy conversion to `structpb.Struct` pointers; needed for the protobuf encoders:
+
+```go
+// AsMap method returns the Field in it's (raw) string-interface{} map format
+func (f Field) AsMap() map[string]interface{} {}
+
+// ToStructPB method will convert the metadata in the protobuf Event as a pointer to a
+// structpb.Struct, returning this and an error if any.
+//
+// The metadata (a map[string]interface{}) is converted to JSON (bytes), and this data is
+// unmarshalled into a *structpb.Struct object.
+func (f Field) ToStructPB() (*structpb.Struct, error) {}
+
+// Encode method is similar to Field.ToStructPB(), but it does not return any errors.
+func (f Field) Encode() *structpb.Struct {}
+```
+
 
 #### Different formatters
 

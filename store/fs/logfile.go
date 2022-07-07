@@ -55,7 +55,7 @@ func New(path string) (*Logfile, error) {
 }
 
 // MaxSize method will define the rotation indicator for the Logfile, or, the target size
-// when should the logfile be rotated
+// when should the logfile be rotated (in MBs)
 func (f *Logfile) MaxSize(mb int) *Logfile {
 	f.rotate = mb
 	return f
@@ -136,7 +136,7 @@ func (f *Logfile) cutExt(path string) string {
 	return path[:len(path)-4]
 }
 
-// Size method is a wrapper for an os.File.Stat() followed by os.File.Stat()
+// Size method is a wrapper for an os.File.Stat() followed by fs.FileInfo.Size()
 func (f *Logfile) Size() (int64, error) {
 	s, err := f.file.Stat()
 	if err != nil {
@@ -169,7 +169,7 @@ func (f *Logfile) Rotate() error {
 	return nil
 }
 
-// Write method is defined to implement the io.Writer interface, for Logfile to be compatible with LoggerI
+// Write method is defined to implement the io.Writer interface, for Logfile to be compatible with Logger
 // as an output to be used
 func (f *Logfile) Write(b []byte) (n int, err error) {
 	// write first

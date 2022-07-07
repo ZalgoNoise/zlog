@@ -26,6 +26,14 @@ _________________________
 		1. [XML](#xml)
 		1. [Protobuf](#protobuf)
 		1. [Gob](#gob)
+	1. [Data Stores](#data-stores)
+		1. [Writer interface](#writer-interface)
+		1. [Logfile](#logfile)
+		1. [Databases](#databases)
+			1. [SQLite](#sqlite)
+			1. [MySQL](#mysql)
+			1. [PostgreSQL](#postgresql)
+			1. [MongoDB](#mongodb)
 1. [Installation](#installation)
 1. [Usage](#usage)
 1. [Integration](#integration)
@@ -364,6 +372,179 @@ var (
 <!-- 
 	Add an image of BSON formatter's output in a terminal
 -->
+
+#### Data stores
+
+##### Writer interface
+
+
+<!-- 
+	Add an image of Logger.Write() being called
+-->
+
+
+Not only [`Logger` interface](log/logger.go#L95) uses the [`io.Writer` interface](https://pkg.go.dev/io#Writer) to write to its outputs with its [`Output()` method](log/print.go#L88), it also implements it in its own [`Write()` method](log/logger.go#L307) so it can be used directly as one. This gives the logger more flexibility as it can be vastly integrated with other modules.
+
+
+The the input slice of bytes is decoded, in case the input is an encoded [`event.Event`](log/event/event.pb.go#L96). If the conversion is successful, the input event is logged as-is.
+
+If it is not an [`event.Event`](log/event/event.pb.go#L96) (there will be an error from the [`Decode()` method](log/event/event.go#L32)), then a new message is created where:
+- Log level is set to the default value (info)
+- Prefix, sub-prefix and metadata are added from the logger's configuration, or defaults if they aren't set.
+- input byte stream is converted to a string, and that will be log event message body:
+
+```go
+func (l *logger) Write(p []byte) (n int, err error) {
+	// decode bytes
+	m, err := event.Decode(p)
+
+	// default to printing message as if it was a byte slice payload for the log event body
+	if err != nil {
+		return l.Output(event.New().
+			Level(event.Default_Event_Level).
+			Prefix(l.prefix).
+			Sub(l.sub).
+			Message(string(p)).
+			Metadata(l.meta).
+			Build())
+	}
+
+	// print message
+	return l.Output(m)
+}
+```
+
+##### Logfile 
+
+
+<!-- 
+	Add an image of a directory containing some logfiles
+-->
+
+This library also provides a simple [`Logfile`](store/fs/logfile.go#L18) (an actual file in the disk where log entries are written to) configuration with appealing features for simple applications.
+
+```go
+type Logfile struct {
+	path   string
+	file   *os.File
+	size   int64
+	rotate int
+}
+```
+
+The [`Logfile`](store/fs/logfile.go#L18) exposes a few methods that could be helpful to keep the events organized:
+
+Method | Description
+:--:|:--:
+[`MaxSize(mb int) *Logfile`](store/fs/logfile.go#L59) | sets the rotation indicator for the Logfile, or, the target size when should the logfile be rotated (in MBs)
+[`Size() (int64, error)`](store/fs/logfile.go#L139) | a wrapper for an [`os.File.Stat()`](https://pkg.go.dev/os#File.Stat) followed by [`fs.FileInfo.Size()`](https://pkg.go.dev/io/fs#FileInfo)
+[`IsTooHeavy() bool`](store/fs/logfile.go#L151) | verify the file's size and rotate it if exceeding the set maximum weight (in the Logfile's rotate element)
+[`Write(b []byte) (n int, err error)`](store/fs/logfile.go#L174) | implement the io.Writer interface, for Logfile to be compatible with Logger as an output to be used
+
+
+##### Databases
+
+It's perfectly possible to write log events to a database instead of the terminal, a buffer, or a file. It makes it more reliable for a larger scale operation or for the long-run.
+
+This library leverages an ORM to handle interactions with most of the databases, for the sake of simplicity and streamlined testing -- these should focus on using a database as a writer, and not re-testing the database connections, configurations, etc. This is why an ORM is being used. This library uses [GORM](https://gorm.io/) for this purpose.
+
+Databases are not configured to loggers as an [`io.Writer` interface](https://pkg.go.dev/io#Writer) using the [`WithOut()` method](log/conf.go#L179), but with their dedicated [`WithDatabase()` method](log/conf.go#L211). This takes an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser).
+
+
+To create this [`io.WriterCloser`](https://pkg.go.dev/io#WriteCloser), either the database package's appropriate `New()` method can be used; or by using its package function for the same purpose, `WithXxx()`.
+
+Note the available database writers, and their features:
+
+##### SQLite
+
+
+<!-- 
+	Add an image of a SQLite logger config and calls (?)
+-->
+
+
+
+Symbol | Type | Description
+:--:|:--:|:--:
+[`New(path string) (sqldb io.WriteCloser, err error)`](store/db/sqlite/sqlite.go#L22) | function | takes in a path to a .db file; and create a new instance of a SQLite3 object; returning an io.WriteCloser and an error.
+[`*SQLite.Create(msg ...*event.Event) error`](store/db/sqlite/sqlite.go#L39) | method | will register any number of event.Event in the SQLite database, returning an error (exposed method, but it's mostly used internally )
+[`*SQLite.Write(p []byte) (n int, err error)`](store/db/sqlite/sqlite.go#L71) | method | implements the io.Writer interface, for SQLite DBs to be used with Logger, as its writer.
+[`*SQLite.Close() error`](store/db/sqlite/sqlite.go#L97) | method | method added for compatibility with DBs that require it
+[`WithSQLite(path string) log.LoggerConfig`](store/db/sqlite/sqlite.go#L113) | function | takes in a path to a .db file, and a table name; and returns a LoggerConfig so that this type of writer is defined in a Logger
+
+##### MySQL
+
+
+<!-- 
+	Add an image of a MySQL logger config and calls (?)
+-->
+
+
+> Using this package will require the following environment variables to be set:
+
+Variable | Type | Description
+:--:|:--:|:--:
+`MYSQL_USER` | string | username for the MySQL database connection
+`MYSQL_PASSWORD` | string | password for the MySQL database connection
+
+Symbol | Type | Description
+:--:|:--:|:--:
+[`New(address, database string) (sqldb io.WriteCloser, err error)`](store/db/mysql/mysql.go#L32) | function | takes in a mysql DB address and database name; and create a new instance of a MySQL object; returning an io.WriteCloser and an error.
+[`*MySQL.Create(msg ...*event.Event) error`](store/db/mysql/mysql.go#L50) | method | will register any number of event.Event in the MySQL database, returning an error (exposed method, but it's mostly used internally )
+[`*MySQL.Write(p []byte) (n int, err error)`](store/db/mysql/mysql.go#L82) | method | implements the io.Writer interface, for MySQL DBs to be used with Logger, as its writer.
+[`*MySQL.Close() error`](store/db/mysql/mysql.go#L112) | method | method added for compatibility with DBs that require it
+[`WithMySQL(addr, database string) log.LoggerConfig`](store/db/mysql/mysql.go#L166) | function | takes in an address to a MySQL server, and a database name; and returns a LoggerConfig so that this type of writer is defined in a Logger
+
+
+##### PostgreSQL
+
+
+<!-- 
+	Add an image of a Postgres logger config and calls (?)
+-->
+
+
+> Using this package will require the following environment variables to be set:
+
+Variable | Type | Description
+:--:|:--:|:--:
+`POSTGRES_USER` | string | username for the Postgres database connection
+`POSTGRES_PASSWORD` | string | password for the Postgres database connection
+
+Symbol | Type | Description
+:--:|:--:|:--:
+[`New(address, port, database string) (sqldb io.WriteCloser, err error)`](store/db/postgres/postgres.go#L33) | function | takes in a postgres DB address, port and database name; and create a new instance of a Postgres object; returning an io.WriteCloser and an error.
+[`*Postgres.Create(msg ...*event.Event) error`](store/db/postgres/postgres.go#L52) | method | will register any number of event.Event in the Postgres database, returning an error (exposed method, but it's mostly used internally )
+[`*Postgres.Write(p []byte) (n int, err error)`](store/db/postgres/postgres.go#L84) | method | implements the io.Writer interface, for Postgres DBs to be used with Logger, as its writer.
+[`*Postgres.Close() error`](store/db/postgres/postgres.go#L118) | method | method added for compatibility with DBs that require it
+[`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/postgres/postgres.go#L172) | function | takes in an address and port to a Postgres server, and a database name; and returns a LoggerConfig so that this type of writer is defined in a Logger
+
+
+
+##### MongoDB
+
+
+<!-- 
+	Add an image of a Mongo logger config and calls (?)
+-->
+
+
+> Using this package will require the following environment variables to be set:
+
+Variable | Type | Description
+:--:|:--:|:--:
+`MONGO_USER` | string | username for the Mongo database connection
+`MONGO_PASSWORD` | string | password for the Mongo database connection
+
+Symbol | Type | Description
+:--:|:--:|:--:
+[`New(address, database, collection string) (io.WriteCloser, error)`](store/db/mongo/mongo.go#L36) | function | takes in a mysql DB address and database name; and create a new instance of a Mongo object; returning an io.WriteCloser and an error.
+[`*Mongo.Create(msg ...*event.Event) error`](store/db/mongo/mongo.go#L85) | method | will register any number of event.Event in the Mongo database, returning an error (exposed method, but it's mostly used internally )
+[`*Mongo.Write(p []byte) (n int, err error)`](store/db/mongo/mongo.go#L132) | method | implements the io.Writer interface, for Mongo DBs to be used with Logger, as its writer.
+[`*Mongo.Close() error`](store/db/mongo/mongo.go#L79) | method | used to terminate the live connection to the MongoDB instance
+[`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/mongo/mongo.go#L163) | function | takes in the address to the mongo server, and a database and collection name; and returns a LoggerConfig so that this type of writer is defined in a Logger
+
+
 ________________
 
 

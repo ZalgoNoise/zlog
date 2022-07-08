@@ -181,6 +181,7 @@ var (
 	Add an image of `event.New()....Build()`
 -->
 
+
 ##### Data structure
 
 The events are defined in a protocol buffer format, in [`proto/event.proto`](proto/event.proto#L20); to give it a seamless integration as a gRPC logger's request message:
@@ -213,6 +214,74 @@ Method signature | Description
 [`Metadata(m map[string]interface{}) *EventBuilder`](log/event/builder.go#L75) | set (or add to) the metadata element
 [`CallStack(all bool) *EventBuilder`](log/event/builder.go#L94) | grab the current call stack, and add it as a "callstack" object in the event's metadata
 [`Build() *Event`](log/event/builder.go#L107) | build an event with configured elements, defaults applied where needed, and by adding a timestamp
+
+##### Log levels
+
+Log levels are defined as a protobuf enum, as [`Level` enum](proto/event.proto#L9):
+
+```protobuf
+enum Level {
+    trace = 0;
+    debug = 1;
+    info = 2;
+    warn = 3;
+    error = 4;
+    fatal = 5;
+    reserved 6 to 8;
+    panic = 9;
+}
+```
+
+The [generated code](log/event/event.pb.go) creates a type and two maps which set these levels:
+
+```go
+type Level int32
+
+const (
+	Level_trace Level = 0
+	Level_debug Level = 1
+	Level_info  Level = 2
+	Level_warn  Level = 3
+	Level_error Level = 4
+	Level_fatal Level = 5
+	Level_panic Level = 9
+)
+
+// Enum value maps for Level.
+var (
+	Level_name = map[int32]string{
+		0: "trace",
+		1: "debug",
+		2: "info",
+		3: "warn",
+		4: "error",
+		5: "fatal",
+		9: "panic",
+	}
+	Level_value = map[string]int32{
+		"trace": 0,
+		"debug": 1,
+		"info":  2,
+		"warn":  3,
+		"error": 4,
+		"fatal": 5,
+		"panic": 9,
+	}
+)
+```
+
+This way, the enum is ready for changes in a consistent and seamless way. Here is how you'd define a log level as you create a new event:
+
+```go
+// import "github.com/zalgonoise/zlog/log/event"
+
+e := event.New().
+		   Message("Critical warning!"). // add a message body to event
+		   Level(event.Level_warn).		 // set log level
+		   Build()						 // build it
+```
+
+The [`Level` type](log/event/event.pb.go#L25) also has an exposed (custom) method, [`Int() int32`](log/event/level.go#L6), which acts as a quick converter from the map value to an `int32` value.
 
 ##### Structured metadata
 

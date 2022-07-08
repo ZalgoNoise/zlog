@@ -613,6 +613,25 @@ Symbol | Type | Description
 [`*Mongo.Close() error`](store/db/mongo/mongo.go#L79) | method | used to terminate the live connection to the MongoDB instance
 [`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/mongo/mongo.go#L163) | function | takes in the address to the mongo server, and a database and collection name; and returns a LoggerConfig so that this type of writer is defined in a Logger
 
+#### gRPC
+
+To provide a solution to loggers that write _over the wire_, this library implements a [gRPC](https://grpc.io/) log server with a number of useful features; as well a [gRPC](https://grpc.io/) log client which will act as a regular logger, but one that writes the log messages to a gRPC log server.
+
+The choice for gRPC was simple. The framework is very solid and provides both fast and secure transmission of messages over a network. This is all that it's needed, right? Nope! There are also protocol buffers which helped in shaping the structure of this library in a more organized way (in my opinion).
+
+Originally, the plan was to create the event data structures in Go (manually), and from that point integrate the logger logic as an HTTP Writer or something -- note this is already possible as the [Logger interface](log/logger.go#L95) implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer) already. But the problem there would be a repetition in defining the event data structure. If gRPC was in fact the choice, it would mean that there would be a data structure for Go and another for gRPC (with generated Go code, for the same thing).
+
+So, easy-peasy: scratch off the Go data structure and keep the protocol buffers, even for (local) events and loggers. This worked great, it was easy enough to switch over, and the logic remained _kinda_ the same way, in the end.
+
+The added benefit is that gRPC and protobuf will create this generated code (from [`proto/event.proto`](proto/event.proto) and [`proto/service.proto`](proto/service.proto), to [`log/event/event.pb.go`](log/event/event.pb.go)) and [`proto/service/service.pb.go`](proto/service/service.pb.go) respectively); which it a huge boost to productivity.
+
+An added bonus is a very lightweight encoded format of the exchanged messages, as you are able to convert the protocol buffer messages into byte slices, too.
+
+Lastly, no network logic implementation headaches as creating a gRPC server and client is super smooth -- it only takes a few hours reading documentation and examples. The benefit is being able to very quickly push out a server-client solution to your app, with zero effort in the _engine_ transmitting those messages, only what you actually do with them.
+
+On this note, it's also possible to easily implement a log client in a different programming language supported by [gRPC](https://grpc.io/). This means that if you really love this library, then you could create a Java-based gRPC log client for your Android app, while you run your gRPC log server in Go, in your big-shot datacenter.
+
+This section will cover features that you will find in both server and client implementations.
 
 ________________
 

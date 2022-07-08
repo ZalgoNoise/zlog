@@ -625,7 +625,7 @@ Originally, the plan was to create the event data structures in Go (manually), a
 
 So, easy-peasy: scratch off the Go data structure and keep the protocol buffers, even for (local) events and loggers. This worked great, it was easy enough to switch over, and the logic remained _kinda_ the same way, in the end.
 
-The added benefit is that gRPC and protobuf will create this generated code (from [`proto/event.proto`](proto/event.proto) and [`proto/service.proto`](proto/service.proto), to [`log/event/event.pb.go`](log/event/event.pb.go)) and [`proto/service/service.pb.go`](proto/service/service.pb.go) respectively); which it a huge boost to productivity.
+The added benefit is that gRPC and protobuf will create this generated code (from [`proto/event.proto`](proto/event.proto) and [`proto/service.proto`](proto/service.proto), to [`log/event/event.pb.go`](log/event/event.pb.go) and [`proto/service/service.pb.go`](proto/service/service.pb.go) respectively); which it a huge boost to productivity.
 
 An added bonus is a very lightweight encoded format of the exchanged messages, as you are able to convert the protocol buffer messages into byte slices, too.
 

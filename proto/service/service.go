@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"io"
-	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/zalgonoise/zlog/log/event"
+	"google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -18,8 +19,6 @@ const commPrefix string = "gRPC"
 
 var (
 	ErrNoResponse = errors.New("couldn't receive a response for the write request, from the logging module")
-
-	contextCancelledRegexp = regexp.MustCompile(`rpc error: code = Canceled desc = context canceled`)
 
 	// closedchan is a reusable closed channel.
 	closedchan = make(chan struct{})
@@ -162,7 +161,7 @@ func (s *LogServer) logStream(ctx context.Context, stream LogService_LogStreamSe
 				}
 
 				// context cancelled by client -- exit
-				if contextCancelledRegexp.MatchString(err.Error()) {
+				if errCode := status.Code(err); errCode == codes.Canceled {
 					return
 				}
 

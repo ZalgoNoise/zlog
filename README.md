@@ -647,13 +647,52 @@ It also contains additional methods used within the core logic of the gRPC Log S
 
 The Log Server is found in [`grpc/server/server.go`](grpc/server/server.go), which defines how the server is initialized, how can it be configured, and other features. This should be perceived as a simple wrapper for setting up a gRPC server using the logic in [`proto/service/service.go`](proto/service/service.go), with added features to make it even more useful.
 
-A new Log Server is created with the public function [`New()`](grpc/server/server.go#L102), which parses any number of configurations (covered below). The resulting [`GRPCLogServer` pointer](grpc/server/server.go#L31) will expose the following methods:
+A new Log Server is created with the public function [`New(...LogServerConfig)`](grpc/server/server.go#L102), which parses any number of configurations (covered below). The resulting [`GRPCLogServer` pointer](grpc/server/server.go#L31) will expose the following methods:
 
 Method | Description
 :--:|:--:
-`Serve()` | a long-running, blocking function which will launch the gRPC server 
-`Stop()` | a wrapper for the routine involved to (gracefully) stop this gRPC Log Server.
+[`Serve()`](grpc/server/server.go#L241) | a long-running, blocking function which will launch the gRPC server 
+[`Stop()`](grpc/server/server.go#L277) | a wrapper for the routine involved to (gracefully) stop this gRPC Log Server.
 
+##### Log Server Configs
+
+The Log Server can be configured in a number of ways, like specifying exposed address, the output logger for your events, a _service logger_ for the Log Server activity (yes, a logger for your logger), added metadata like timing, and of course TLS. 
+
+Here is the list of exposed functions to allow a granular configuration of your Log Server:
+
+Function | Description 
+:--:|:--:
+[`WithAddr(string)`](grpc/server/conf.go#L161) | takes one address for the gRPC Log Server to listen to. Defaults to `localhost:9099`
+[`WithLogger(...log.Logger)`](grpc/server/conf.go#L180) | defines this gRPC Log Server's logger(s)
+[`WithServiceLogger(...log.Logger)`](grpc/server/conf.go#L204) | defines this gRPC Log Server's service logger(s) (for the gRPC Log Server activity)
+[`WithServiceLoggerV(...log.Logger)`](grpc/server/conf.go#230) | defines this gRPC Log Server's service logger(s) (for the gRPC Log Server activity) in verbose mode -- by adding an interceptor that checks each transaction, if OK or not, and for errors (added overhead)
+[`WithTiming()`](grpc/server/conf.go#L254) | sets a gRPC Log Server's service logger to measure the time taken when executing RPCs, as added metadata (added overhead)
+[`WithGRPCOpts(...grpc.ServerOption)`](grpc/server/conf.go#L263) | sets a gRPC Log Server's service logger to measure the time taken when executing RPCs, as added metadata (added overhead)
+[`WithTLS(certPath, keyPath string, caPath ...string)`](grpc/server/conf.go#L288) | allows configuring TLS / mTLS for a gRPC Log Server. If only two parameters are passed (certPath, keyPath), it will run its TLS flow. If three parameters are set (certPath, keyPath, caPath), it will run its mTLS flow.
+
+
+Lastly, the library also exposes some preset configurations:
+
+```go
+var (
+	defaultConfig LogServerConfig = &multiconf{
+		confs: []LogServerConfig{
+			WithAddr(""),
+			WithLogger(),
+			WithServiceLogger(),
+		},
+	}
+
+	DefaultCfg        = LogServerConfigs[0] // default LogServerConfig
+	ServiceLogDefault = LogServerConfigs[1] // default logger as service logger
+	ServiceLogNil     = LogServerConfigs[2] // nil-service-logger LogServerConfig
+	ServiceLogColor   = LogServerConfigs[3] // colored, level-first, service logger
+	ServiceLogJSON    = LogServerConfigs[4] // JSON service logger
+	LoggerDefault     = LogServerConfigs[5] // default logger
+	LoggerColor       = LogServerConfigs[6] // colored, level-first logger
+	LoggerJSON        = LogServerConfigs[7] // JSON logger
+)
+```
 
 ##### gRPC Log Client
 

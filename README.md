@@ -635,6 +635,28 @@ On this note, it's also possible to easily implement a log client in a different
 
 This section will cover features that you will find in both server and client implementations.
 
+##### gRPC Log Service
+
+The service, defined in [`proto/service/service.go`](proto/service/service.go), is the implementation of the log server core logic, from the [gRPC generated code](proto/service/service.pb.go).
+
+This file will have the implementation of the [`LogServer` struct](proto/service/service.go#L34) and its [`Log()` method](proto/service/service.go#L75) and [`LogStream()` method](proto/service/service.go#L92) -- on how the server handles the messages exchanged in either configuration, as a unary RPC logger or a stream RPC logger.
+
+It also contains additional methods used within the core logic of the gRPC Log Server; such as its [`Done()` method](proto/service/service.go#L321) and [`Stop` method](store/service/service.go#L247).
+
+##### gRPC Log Server
+
+The Log Server is found in [`grpc/server/server.go`](grpc/server/server.go), which defines how the server is initialized, how can it be configured, and other features. This should be perceived as a simple wrapper for setting up a gRPC server using the logic in [`proto/service/service.go`](proto/service/service.go), with added features to make it even more useful.
+
+A new Log Server is created with the public function [`New()`](grpc/server/server.go#L102), which parses any number of configurations (covered below). The resulting [`GRPCLogServer` pointer](grpc/server/server.go#L31) will expose the following methods:
+
+Method | Description
+:--:|:--:
+`Serve()` | a long-running, blocking function which will launch the gRPC server 
+`Stop()` | a wrapper for the routine involved to (gracefully) stop this gRPC Log Server.
+
+
+##### gRPC Log Client
+
 ________________
 
 

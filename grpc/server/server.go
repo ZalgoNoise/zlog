@@ -273,9 +273,9 @@ func (s GRPCLogServer) Serve() {
 }
 
 // Stop method will be a wrapper for the routine involved to (gracefully) stop this gRPC
-// Log Server. It will first call the
+// Log Server.
 func (s GRPCLogServer) Stop() {
-	// s.LogSv.Stop()
+
 	if grpcServer != nil {
 		grpcServer.Stop()
 	}

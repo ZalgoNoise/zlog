@@ -848,7 +848,7 @@ func (c *GRPCLogClient) Fields(fields map[string]interface{}) log.Logger {
 
 // IsSkipExit method implements the Printer interface.
 //
-// IsSkipExit method returns a boolean on whether the gRPC Log Client's serive logger is
+// IsSkipExit method returns a boolean on whether the gRPC Log Client's service logger is
 // set to skip os.Exit(1) or panic() calls.
 //
 // It is used in functions which call these, to first evaluate if those calls should be

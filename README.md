@@ -40,6 +40,9 @@ _________________________
 		1. [gRPC Log Server](#grpc-log-server)
 			1. [Log Server Configs](#log-server-configs)
 		1. [gRPC Log Client](#grpc-log-client)
+			1. [Log Client Configs](#log-client-configs)
+			1. [Log Client Backoff](#log-client-backoff)
+		1. [Connection Addresses](#connection-addresses)
 1. [Installation](#installation)
 1. [Usage](#usage)
 1. [Integration](#integration)
@@ -699,6 +702,42 @@ var (
 ```
 
 ##### gRPC Log Client
+
+There is a gRPC Log Client implementation in Go, for the sake of providing an out-of-the-box solution for communicating with the gRPC Log Server; although this can simply serve as a reference for you to implement your own gRPC Log Client -- in any of the gRPC-supported languages.
+
+This client will act just like a regular Logger, with added features (and configurations):
+
+```go
+// import (
+// 	"github.com/zalgonoise/zlog/log"
+// 	"github.com/zalgonoise/zlog/log/logch"
+// )
+
+type GRPCLogger interface {
+	log.Logger
+	logch.ChanneledLogger
+}
+```
+
+Creating a new gRPC Log Client depends on whether you're setting up a Unary gRPC logger or a Stream gRPC one. The [`New(...LogClientConfig)` function](grpc/client/client.go#L166) will serve as a factory, where depending on the configuration it will either spawn a [Unary gRPC logger](grpc/client/client.go#L192) or a [Stream gRPC logger](grpc/client/client.go#L199). Similar to other modules, the underlying builder pattern as you create a [`GRPCLogger`](grpc/client/client.go#L62) will apply the default configuration before overwriting it with the user's configs.
+
+This client will expose the public methods as per the interfaces it contains, and nothing else. There are a few things to keep in mind:
+
+Method | Description
+:--:|:--:
+[`Close()`](grpc/client/client.go#L582) | iterates through all (alive) connections in the `ConnAddr` map, and close them. After doing so, it sends the done signal to its channel, which causes all open streams to cancel their context and exit gracefully
+[`Output(*event.Event) (int, error)`](grpc/client/client.go#L622) |  pushes the incoming Log Message to the message channel, which is sent to a gRPC Log Server, either via a Unary or Stream RPC. Note that it will always return `1, nil`.
+[`SetOuts(...io.Writer) log.Logger`](grpc/client/client.go#L643) | for compatibility with the Logger interface, this method must take in io.Writers. However, this is not how the gRPC Log Client will work to register messages. Instead, the input io.Writer needs to be of type `ConnAddr`. More info on this type below. This method overwrites the configured addresses.
+[`AddOuts(...io.Writer) log.Logger`](grpc/client/client.go#L703) | for compatibility with the Logger interface, this method must take in io.Writers. However, this is not how the gRPC Log Client will work to register messages. Instead, the input io.Writer needs to be of type `ConnAddr`. More info on this type below. This method adds addresses to the configured ones.
+[`Write([]byte) (int, error)`](grpc/client/client.go#L776) | consider that `Write()` will return a call of `Output()`. This means that you should expect it to return `1, nil`.
+[`IsSkipExit() bool`](grpc/client/client.go#L859) | returns a boolean on whether the gRPC Log Client's __service logger__ is set to skip os.Exit(1) or panic() calls.
+
+
+##### Log Client Configs
+
+##### Log Client Backoff
+
+##### Connection Addresses
 
 ________________
 

@@ -253,9 +253,9 @@ func WithLogger(loggers ...log.Logger) LogClientConfig {
 
 }
 
-// WithLogger function will define this gRPC Log Client's service logger.
-// This logger will register the gRPC Client transactions; and not the log
-// messages it is handling.
+// WithLogger function will define this gRPC Log Client's service logger,
+// in verbose mode. This logger will register the gRPC Client transactions;
+// and not the log messages it is handling.
 //
 // This function's loggers input parameter is variadic -- it supports setting
 // any number of loggers. If no input is provided, then it will default to

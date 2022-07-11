@@ -735,9 +735,198 @@ Method | Description
 
 ##### Log Client Configs
 
+This Log Client can be configured in a number of ways, like specifying exposed address, the output logger for your events, a _service logger_ for the Log Server activity (yes, a logger for your logger), added metadata like timing, and of course TLS. 
+
+Here is the list of exposed functions to allow a granular configuration of your Log Server:
+
+Function | Description 
+:--:|:--:
+[`WithAddr(...string)`](grpc/client/conf.go#L176) | take in any amount of addresses, and create a connections map with them, for the gRPC client to connect to the server. Defaults to `localhost:9099`
+[`StreamRPC()`](grpc/client/conf.go#L199) | sets this gRPC Log Client type as Stream RPC
+[`UnaryRPC()`](grpc/client/conf.go#L208) | sets this gRPC Log Client type as Unary RPC
+[`WithLogger(...log.Logger)`](grpc/client/conf.go#L223) | defines this gRPC Log Client's service logger. This logger will register the gRPC Client transactions; and not the log messages it is handling.
+[`WithLoggerV(...log.Logger)`](grpc/client/conf.go#L265) | defines this gRPC Log Client's service logger, in verbose mode. This logger will register the gRPC Client transactions; and not the log messages it is handling. (added overhead)
+[`WithBackoff(time.Duration, BackoffFunc)`](grpc/client/conf.go#L310) | takes in a time.Duration value to set as the exponential backoff module's retry deadline, and a BackoffFunc to customize the backoff pattern. Backoff is further described in the next section.
+[`WithTiming()`](grpc/client/conf.go#L340) | sets a gRPC Log Client's service logger to measure the time taken when executing RPCs. It is only an option, and is directly tied to the configured service logger. (added overhead)
+[`WithGRPCOpts(...grpc.DialOption)`](grpc/client/conf.go#L349) | allows passing in any number of grpc.DialOption, which are added to the gRPC Log Client.
+[`Insecure()`](grpc/client/conf.go#L372) | allows creating an insecure gRPC connection (maybe for testing purposes) by adding a new option for insecure transport credentials (no TLS / mTLS).
+[`WithTLS(string, ...string)`](grpc/client/conf.go#L372) | allows configuring TLS / mTLS for a gRPC Log Client. If only one parameter is passed (caPath), it will run its TLS flow. If three parameters are set (caPath, certPath, keyPath), it will run its mTLS flow.
+
+Lastly, the library also exposes some preset configurations:
+
+```go
+var (
+	defaultConfig LogClientConfig = &multiconf{
+		confs: []LogClientConfig{
+			WithAddr(""),
+			WithGRPCOpts(),
+			Insecure(),
+			WithLogger(),
+			WithBackoff(0, BackoffExponential()),
+		},
+	}
+
+	DefaultCfg     = LogClientConfigs[0] // default LogClientConfig
+	BackoffFiveMin = LogClientConfigs[1] // backoff config with 5-minute deadline
+	BackoffHalfMin = LogClientConfigs[2] // backoff config with 30-second deadline
+)
+```
+
+
 ##### Log Client Backoff
 
+There is a Backoff module available, in order to retry transactions in case they fail in any (perceivable) way. While this is optional, it was implemented to consider that connections over a network may fail.
+
+This package exposes the following types to serve as a core logic for any backoff implementation:
+
+```go
+type BackoffFunc func(uint) time.Duration
+
+type Backoff struct {
+	counter     uint
+	max         time.Duration
+	wait        time.Duration
+	call        interface{}
+	msg         []*event.Event
+	backoffFunc BackoffFunc
+	locked      bool
+	mu          sync.Mutex
+}
+```
+
+[`BackoffFunc`](grpc/client/backoff.go#L33) takes in a(n unsigned) integer representing the attempt counter, and returns a time.Duration value of how much should the module wait before the next attempt / retry.
+
+[`Backoff`](grpc/client/backoff.go#L44) struct defines the elements of a backoff module, which is configured by setting a BackoffFunc to define the interval between each attempt.
+
+Backoff will also try to act as a message buffer in case the server connection cannot be established -- as it will attempt to flush these records to the server as soon as connected. 
+
+Implementing backoff logic is as simple as writing a function which will return a function with the same signature as [`BackoffFunc`](grpc/client/backoff.go#L33). The parameters that your function takes or how it arrives to the return time.Duration value is completely up to you.
+
+Two examples below, one for [`NoBackoff()`](grpc/client/backoff.go#L58) and one for [`BackoffExponential()`](grpc/client/backoff.go#L89):
+
+```go
+func NoBackoff() BackoffFunc {
+	return func(attempt uint) time.Duration {
+		return 0
+	}
+}
+
+func BackoffExponential() BackoffFunc {
+	return func(attempt uint) time.Duration {
+		return time.Millisecond * time.Duration(
+			int64(math.Pow(2, float64(attempt)))+rand.New(
+				rand.NewSource(time.Now().UnixNano())).Int63n(1000),
+		)
+	}
+}
+```
+
+With this in mind, regardless if the exposed [`BackoffFunc`](grpc/client/backoff.go#L33), you may pass a deadline and your own [`BackoffFunc`](grpc/client/backoff.go#L33) to [`WithBackoff()`](grpc/client/conf.go#L310), as you create your gRPC Log Client.
+
+Here is a list of the preset [`BackoffFunc`](grpc/client/backoff.go#L33) factories, available in this library:
+
+Function | Description
+:--:|:--:
+[`NoBackoff()`](grpc/client/backoff.go#L58) | returns a BackoffFunc that overrides the backoff module by setting a zero wait-between duration. This is detected as a sign that the module should be overriden.
+[`BackoffLinear(time.Duration)`](grpc/client/backoff.go#L67) | returns a BackoffFunc that sets a linear backoff according to the input duration. If the input duration is 0, then the default wait-between time is set (3 seconds).
+[`BackoffIncremental(time.Duration)`](grpc/client/backoff.go#L79) | returns a BackoffFunc that calculates exponential backoff according to a scalar method
+[`BackoffExponential()`](grpc/client/backoff.go#L89) | returns a BackoffFunc that calculates exponential backoff [according to its standard](https://en.wikipedia.org/wiki/Exponential_backoff)
+
+Creating a new [`Backoff`](grpc/client/backoff.go#L44) instance can be manual, although not necessary considering it is embeded in the gRPC Log Client's logic:
+
+```go
+// import "github.com/zalgonoise/zlog/grpc/client"
+
+b := client.NewBackoff()
+b.BackoffFunc(
+	// your BackoffFunc here
+)
+```
+
+From this point onwards, the Backoff module is called on certain errors. For example:
+
+_From [grpc/client/client.go](grpc/client/client.go#L230)_
+
+```go
+func (c *GRPCLogClient) connect() error {
+	// (...)
+
+		// handle dial errors
+		if err != nil {
+			retryErr := c.backoff.UnaryBackoffHandler(err, c.svcLogger)
+			if errors.Is(retryErr, ErrBackoffLocked) {
+				return retryErr
+			} else if errors.Is(retryErr, ErrFailedConn) {
+				return retryErr
+			} else {
+				// (...)
+			}
+		// (...)
+		}
+	// (...)
+}
+```
+
+While this Backoff logic can be taken as a reference for different implementations, it is very specific to the gRPC Log Client's logic considering its [`init()` method](grpc/client/backoff.go#L109) and [`Register()` method](grpc/client/backoff.go#L238); which are hooks for being able to work with either Unary or Stream gRPC Log Clients.
+
 ##### Connection Addresses
+
+Connection Addresses, or [`ConnAddr` type](grpc/address/address.go#L8) is a custom type for `map[string]*grpc.ClientConn`, that also exposes a few handy methods for this particular application. 
+
+Considering that the Logger interface works with io.Writer interfaces to write events, it was becoming pretty obvious that the gRPC Client / Server logic would need to either discard the `Write()`, `AddOuts()` and `SetOuts()` while adding different methods (or configs) in replacement ...or why not keep working with an io.Writer?
+
+The [`ConnAddr` type](grpc/address/address.go#L8) implements this and other useful methods which will allow the gRPC client and server logic to leverage the same methods as in the Logger interface for the purposes that it needs. This, similar to the Logger interface, allows one gRPC Log Client to connect to multiple gRPC Log Servers at the same time, writing the same events to different endpoints (as needed).
+
+There is also a careful verification if the input io.Writer is actually of type `address.ConnAddr`, for example in the [client's `SetOuts()` method](grpc/client/client.go#L643):
+
+```go
+func (c *GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
+	// (...)
+	for _, remote := range outs {
+		// ensure the input writer is not nil
+		if remote == nil {
+			continue
+		}
+
+		// ensure the input writer is of type *address.ConnAddr
+		// if not, skip this writer and register this event
+		if r, ok := remote.(*address.ConnAddr); !ok {		
+			// (...)
+		} else {
+			o = append(o, r.Keys()...)
+		}
+	}
+	// (...)
+}
+```
+
+The core of the [`ConnAddr` type](grpc/address/address.go#L8) stores addresses prior to _verifying_ them. As the gRPC Log Client starts running, it will iterate through all addresses in the map and connect to them (thus the map of strings and pointers to grpc.ClientConn).
+
+A [`ConnAddr`](grpc/address/address.go#L8) is initialized with any number of parameters (at least one, otherwise it returns nil):
+
+```go
+// import "github.com/zalgonoise/zlog/grpc/address"
+
+a := address.New(
+	"localhost:9099",
+	"mycoolserver.io:9099",
+	// more addresses
+)
+```
+
+This type exposes a few methods that may be useful; although keep in mind that all of this logic is embeded in the gRPC client and server implementations already (in their `WithAddr()` configs and writer-related methods like `AddOuts()` and `SetOuts()`):
+
+Method | Description
+:--:|:--:
+[`AsMap() map[string]*grpc.ClientConn`](grpc/address/address.go#L39) | returns a `ConnAddr` object in a `map[string]*grpc.ClientConn` format
+[`Add(...string)`](grpc/address/address.go#L45) | allocates the input strings as entries in the map, with initialized pointers to grpc.ClientConn
+[`Keys() []string`](grpc/address/address.go#L66) | returns a `ConnAddr` object's keys (its addresses) in a slice of strings
+[`Get(string) *grpc.ClientConn`](grpc/address/address.go#L76) | returns the pointer to a grpc.ClientConn, as referenced in the input address k
+[`Set(string, *grpc.ClientConn)`](grpc/address/address.go#L86) | allocates the input connection to the input string, within the `ConnAddr` map (overwritting it if existing)
+[`Len() int`](grpc/address/address.go#L94) | returns the size of the `ConnAddr` map
+[`Reset()`](grpc/address/address.go#L99) | overwrites the existing `ConnAddr` map with a new, empty one.
+[`Unset(...string)`](grpc/address/address.go#L110) | removes the input addr strings from the `ConnAddr` map, if existing
+[`Write(p []byte) (n int, err error)`](grpc/address/address.go#L134) | an implementation of io.Writer, so that the ConnAddr map can be used in a gRPC Logger's SetOuts() and AddOuts() methods. These need to conform with the Logger interface that implements the same methods. For the same layer of compatibility to be possible in a gRPC Logger (who will write its log entries in a remote server), it uses these methods to implement its way of altering the existing connections, instead of dismissing this part of the implementation all together. __This is not a regular io.Writer__.
 
 ________________
 

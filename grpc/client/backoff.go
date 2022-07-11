@@ -26,6 +26,10 @@ const (
 
 type streamFunc func()
 type logFunc func(*event.Event)
+
+// BackoffFunc takes in a(n unsigned) integer representing the attempt counter, and
+// returns a time.Duration value of how much should the module wait before the next
+// attempt / retry
 type BackoffFunc func(uint) time.Duration
 
 // Backoff struct defines the elements of a backoff module, which is configured
@@ -57,7 +61,7 @@ func NoBackoff() BackoffFunc {
 	}
 }
 
-// BackoffLinear function will return a BackoffFunc that calculates
+// BackoffLinear function will return a BackoffFunc that sets
 // a linear backoff according to the input duration. If the input
 // duration is 0, then the default wait-between time is set.
 func BackoffLinear(t time.Duration) BackoffFunc {

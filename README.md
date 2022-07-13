@@ -21,6 +21,7 @@ _________________________
 		1. [Structured metadata](#structured-metadata)
 	1. [Different formatters](#different-formatters)
 		1. [Text](#text)
+			1. [Log Timestamps](#log-timestamps)
 		1. [JSON](#json)
 		1. [BSON](#bson)
 		1. [CSV](#csv)
@@ -285,9 +286,9 @@ This way, the enum is ready for changes in a consistent and seamless way. Here i
 // import "github.com/zalgonoise/zlog/log/event"
 
 e := event.New().
-		   Message("Critical warning!"). // add a message body to event
-		   Level(event.Level_warn).		 // set log level
-		   Build()						 // build it
+           Message("Critical warning!"). // add a message body to event
+           Level(event.Level_warn).		 // set log level
+           Build()						 // build it
 ```
 
 The [`Level` type](log/event/event.pb.go#L25) also has an exposed (custom) method, [`Int() int32`](log/event/level.go#L6), which acts as a quick converter from the map value to an `int32` value.
@@ -335,7 +336,7 @@ The text formatter allows an array of options, with the text formatter sub-packa
 
 Method | Description
 :--:|:--:
-[`Time(LogTimestamp)](log/format/text/text.go#L93)` | define the timestamp format, based on the exposed list of timestamps, from the table below
+[`Time(LogTimestamp)`](log/format/text/text.go#L93) | define the timestamp format, based on the exposed [list of timestamps](#log-timestamps), from the table below
 [`LevelFirst()`](log/format/text/text.go#L100) | place the log level as the first element in the line
 [`DoubleSpace()`](log/format/text/text.go#L107) | place double-tab-spaces between elements (`\t\t`)
 [`Color()`](log/format/text/text.go#L114) | add color to log levels (it is skipped on Windows CLI, as it doesn't support it)
@@ -344,17 +345,19 @@ Method | Description
 [`NoHeaders()`](log/format/text/text.go#L135) | skip adding the prefix and sub-prefix elements
 [`NoLevel()`](log/format/text/text.go#L142) | skip adding the log level element
 
+##### Log Timestamps
+
 Regarding the timestamp constraints, please note the available timestamps for the text formatter:
 
 Constant | Description
 :--:|:--:
-[`LTRFC3339Nano`](log/format/text/text.go#L48) | Follows the standard in `time.RFC3339Nano`
-[`LTRFC3339`](log/format/text/text.go#L49) | Follows the standard in `time.RFC3339`
-[`LTRFC822Z`](log/format/text/text.go#L50) | Follows the standard in `time.RFC822Z`
-[`LTRubyDate`](log/format/text/text.go#L51) | Follows the standard in `time.RubyDate`
-[`LTUnixNano`](log/format/text/text.go#L52) | Displays a unix timestamp, in nanos
-[`LTUnixMilli`](log/format/text/text.go#L53) | Displays a unix timestamp, in millis
-[`LTUnixMicro`](log/format/text/text.go#L54) | Displays a unix timestamp, in micros
+[`LTRFC3339Nano`](log/format/text/text.go#L48) | Follows the standard in [`time.RFC3339Nano`](https://pkg.go.dev/time#pkg-constants)
+[`LTRFC3339`](log/format/text/text.go#L49) | Follows the standard in [`time.RFC3339`](https://pkg.go.dev/time#pkg-constants)
+[`LTRFC822Z`](log/format/text/text.go#L50) | Follows the standard in [`time.RFC822Z`](https://pkg.go.dev/time#pkg-constants)
+[`LTRubyDate`](log/format/text/text.go#L51) | Follows the standard in [`time.RubyDate`](https://pkg.go.dev/time#pkg-constants)
+[`LTUnixNano`](log/format/text/text.go#L52) | Displays a Unix timestamp, in nanos
+[`LTUnixMilli`](log/format/text/text.go#L53) | Displays a Unix timestamp, in millis
+[`LTUnixMicro`](log/format/text/text.go#L54) | Displays a Unix timestamp, in micros
 
 The library also exposes a few initialized preset configurations using text formatters, as in the list below. While these are [`LoggerConfig`](log/conf.go#L21) presets, they're a wrapper for [the same formatter](log/format.go#L18), which is also available by not including the `Cfg` prefix:
 
@@ -388,7 +391,7 @@ var (
 	Add an image of JSON formatter's output in a terminal
 -->
 
-The JSON formatter allow generating JSON-formatted events in different ways. These formatters are already initialized as [`LoggerConfig`](log/format.go#L69) and [`LogFormatter`](log/format.go#L39) objects.
+The JSON formatter allow generating JSON events in different ways. These formatters are already initialized as [`LoggerConfig`](log/format.go#L69) and [`LogFormatter`](log/format.go#L39) objects.
 
 [This formatter](log/format/json/json.go#L13) allows creating JSON events separated by newlines or not, and also to optionally add indentation:
 
@@ -544,11 +547,11 @@ Note the available database writers, and their features:
 
 Symbol | Type | Description
 :--:|:--:|:--:
-[`New(path string) (sqldb io.WriteCloser, err error)`](store/db/sqlite/sqlite.go#L22) | function | takes in a path to a .db file; and create a new instance of a SQLite3 object; returning an io.WriteCloser and an error.
-[`*SQLite.Create(msg ...*event.Event) error`](store/db/sqlite/sqlite.go#L39) | method | will register any number of event.Event in the SQLite database, returning an error (exposed method, but it's mostly used internally )
-[`*SQLite.Write(p []byte) (n int, err error)`](store/db/sqlite/sqlite.go#L71) | method | implements the io.Writer interface, for SQLite DBs to be used with Logger, as its writer.
+[`New(path string) (sqldb io.WriteCloser, err error)`](store/db/sqlite/sqlite.go#L22) | function | takes in a path to a `.db` file; and create a new instance of a [`SQLite3`](store/db/sqlite/sqlite.go#L15) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
+[`*SQLite.Create(msg ...*event.Event) error`](store/db/sqlite/sqlite.go#L39) | method | will register any number of [`event.Event`](log/event/event.pb.go#L96) in the SQLite database, returning an error (exposed method, but it's mostly used internally )
+[`*SQLite.Write(p []byte) (n int, err error)`](store/db/sqlite/sqlite.go#L71) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for SQLite DBs to be used with a [`Logger` interface](log/logger.go#L95), as its writer.
 [`*SQLite.Close() error`](store/db/sqlite/sqlite.go#L97) | method | method added for compatibility with DBs that require it
-[`WithSQLite(path string) log.LoggerConfig`](store/db/sqlite/sqlite.go#L113) | function | takes in a path to a .db file, and a table name; and returns a LoggerConfig so that this type of writer is defined in a Logger
+[`WithSQLite(path string) log.LoggerConfig`](store/db/sqlite/sqlite.go#L113) | function | takes in a path to a `.db` file, and a table name; and returns a [`LoggerConfig`](log/conf.go#L21) so that this type of writer is defined in a [`Logger`](log/logger.go#L95)
 
 ##### MySQL
 
@@ -567,11 +570,11 @@ Variable | Type | Description
 
 Symbol | Type | Description
 :--:|:--:|:--:
-[`New(address, database string) (sqldb io.WriteCloser, err error)`](store/db/mysql/mysql.go#L32) | function | takes in a mysql DB address and database name; and create a new instance of a MySQL object; returning an io.WriteCloser and an error.
-[`*MySQL.Create(msg ...*event.Event) error`](store/db/mysql/mysql.go#L50) | method | will register any number of event.Event in the MySQL database, returning an error (exposed method, but it's mostly used internally )
-[`*MySQL.Write(p []byte) (n int, err error)`](store/db/mysql/mysql.go#L82) | method | implements the io.Writer interface, for MySQL DBs to be used with Logger, as its writer.
+[`New(address, database string) (sqldb io.WriteCloser, err error)`](store/db/mysql/mysql.go#L32) | function | takes in a MySQL DB address and database name; and create a new instance of a [`MySQL`](store/db/mysql/mysql.go#L24) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
+[`*MySQL.Create(msg ...*event.Event) error`](store/db/mysql/mysql.go#L50) | method | will register any number of [`event.Event`](log/event/event.pb.go#L96) in the MySQL database, returning an error (exposed method, but it's mostly used internally )
+[`*MySQL.Write(p []byte) (n int, err error)`](store/db/mysql/mysql.go#L82) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for MySQL DBs to be used with a [`Logger` interface](log/logger.go#L95), as its writer.
 [`*MySQL.Close() error`](store/db/mysql/mysql.go#L112) | method | method added for compatibility with DBs that require it
-[`WithMySQL(addr, database string) log.LoggerConfig`](store/db/mysql/mysql.go#L166) | function | takes in an address to a MySQL server, and a database name; and returns a LoggerConfig so that this type of writer is defined in a Logger
+[`WithMySQL(addr, database string) log.LoggerConfig`](store/db/mysql/mysql.go#L166) | function | takes in an address to a MySQL server, and a database name; and returns a [`LoggerConfig`](log/conf.go#L21) so that this type of writer is defined in a [`Logger`](log/logger.go#L95)
 
 
 ##### PostgreSQL
@@ -591,11 +594,11 @@ Variable | Type | Description
 
 Symbol | Type | Description
 :--:|:--:|:--:
-[`New(address, port, database string) (sqldb io.WriteCloser, err error)`](store/db/postgres/postgres.go#L33) | function | takes in a postgres DB address, port and database name; and create a new instance of a Postgres object; returning an io.WriteCloser and an error.
-[`*Postgres.Create(msg ...*event.Event) error`](store/db/postgres/postgres.go#L52) | method | will register any number of event.Event in the Postgres database, returning an error (exposed method, but it's mostly used internally )
-[`*Postgres.Write(p []byte) (n int, err error)`](store/db/postgres/postgres.go#L84) | method | implements the io.Writer interface, for Postgres DBs to be used with Logger, as its writer.
+[`New(address, port, database string) (sqldb io.WriteCloser, err error)`](store/db/postgres/postgres.go#L33) | function | takes in a Postgres DB address, port and database name; and create a new instance of a [`Postgres`](store/db/postgres/postgres.go#L24) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
+[`*Postgres.Create(msg ...*event.Event) error`](store/db/postgres/postgres.go#L52) | method | will register any number of [`event.Event`](log/event/event.pb.go#L96) in the Postgres database, returning an error (exposed method, but it's mostly used internally )
+[`*Postgres.Write(p []byte) (n int, err error)`](store/db/postgres/postgres.go#L84) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Postgres DBs to be used with a [`Logger` interface](log/logger.go#L95), as its writer.
 [`*Postgres.Close() error`](store/db/postgres/postgres.go#L118) | method | method added for compatibility with DBs that require it
-[`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/postgres/postgres.go#L172) | function | takes in an address and port to a Postgres server, and a database name; and returns a LoggerConfig so that this type of writer is defined in a Logger
+[`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/postgres/postgres.go#L172) | function | takes in an address and port to a Postgres server, and a database name; and returns a [`LoggerConfig`](log/conf.go#L21) so that this type of writer is defined in a [`Logger`](log/logger.go#L95)
 
 
 
@@ -616,11 +619,11 @@ Variable | Type | Description
 
 Symbol | Type | Description
 :--:|:--:|:--:
-[`New(address, database, collection string) (io.WriteCloser, error)`](store/db/mongo/mongo.go#L36) | function | takes in a mysql DB address and database name; and create a new instance of a Mongo object; returning an io.WriteCloser and an error.
-[`*Mongo.Create(msg ...*event.Event) error`](store/db/mongo/mongo.go#L85) | method | will register any number of event.Event in the Mongo database, returning an error (exposed method, but it's mostly used internally )
-[`*Mongo.Write(p []byte) (n int, err error)`](store/db/mongo/mongo.go#L132) | method | implements the io.Writer interface, for Mongo DBs to be used with Logger, as its writer.
+[`New(address, database, collection string) (io.WriteCloser, error)`](store/db/mongo/mongo.go#L36) | function | takes in a MongoDB address, database and collection names; and create a new instance of a [`Mongo`](store/db/mongo/mongo.go#L26) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
+[`*Mongo.Create(msg ...*event.Event) error`](store/db/mongo/mongo.go#L85) | method | will register any number of [`event.Event`](log/event/event.pb.go#L96) in the Mongo database, returning an error (exposed method, but it's mostly used internally )
+[`*Mongo.Write(p []byte) (n int, err error)`](store/db/mongo/mongo.go#L132) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Mongo DBs to be used with a [`Logger` interface](log/logger.go#L95), as its writer.
 [`*Mongo.Close() error`](store/db/mongo/mongo.go#L79) | method | used to terminate the live connection to the MongoDB instance
-[`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/mongo/mongo.go#L163) | function | takes in the address to the mongo server, and a database and collection name; and returns a LoggerConfig so that this type of writer is defined in a Logger
+[`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/mongo/mongo.go#L163) | function | takes in the address to the mongo server, and a database and collection name; and returns a [`LoggerConfig`](log/conf.go#L21) so that this type of writer is defined in a [`Logger`](log/logger.go#L95)
 
 #### gRPC
 

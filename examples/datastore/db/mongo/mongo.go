@@ -47,7 +47,7 @@ func setupMethodOne(dbAddr, dbPort, dbName, dbColl string) (log.Logger, func()) 
 }
 
 func setupMethodTwo(dbAddr, dbPort, dbName, dbColl string) log.Logger {
-	// create one with the package function, that just
+	// create one with the package function
 	return log.New(
 		mongo.WithMongo(dbAddr+":"+dbPort, dbName, dbColl),
 	)

@@ -44,7 +44,7 @@ func setupMethodOne(dbAddr, dbPort, dbName string) log.Logger {
 }
 
 func setupMethodTwo(dbAddr, dbPort, dbName string) log.Logger {
-	// create one with the package function, that just
+	// create one with the package function
 	return log.New(
 		mysql.WithMySQL(dbAddr+":"+dbPort, dbName),
 	)

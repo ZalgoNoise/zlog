@@ -73,9 +73,10 @@ This library provides a feature-rich structured logger, ready to write to many t
 
 #### Simple API
 
-<!-- 
-	Add an image of a `log.Infof()` call
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/simple_logger_cli.png" />
+</p>
+
 
 The [Logger interface](log/logger.go#L95) in this library provides a set complete set of idiomatic methods which allow to either control the logger:
 
@@ -140,9 +141,10 @@ type Printer interface {
 #### Highly configurable 
 
 
-<!-- 
-	Add an image of `log.New()` with added configuration
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/logger_new.png" />
+</p>
+
 
 Creating a new logger with, for example, [`log.New()`](log/logger.go#L134) takes any number of configurations (including none, for the default configuration). This allows added modularity to the way your logger should behave.
 
@@ -187,9 +189,9 @@ var (
 
 #### Feature-rich events
 
-<!--
-	Add an image of `event.New()....Build()`
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/event_builder.png" />
+</p>
 
 
 ##### Data structure
@@ -295,6 +297,39 @@ The [`Level` type](log/event/event.pb.go#L25) also has an exposed (custom) metho
 
 ##### Structured metadata
 
+
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/metadata.png" />
+</p>
+
+
+_output to the call above:_
+
+```json
+{
+  "timestamp": "2022-07-14T15:48:23.386745176Z",
+  "service": "module",
+  "module": "service",
+  "level": "info",
+  "message": "Logger says hi!",
+  "metadata": {
+    "multi-value": true,
+    "nested-metadata": {
+      "inner-with-type-field": {
+        "ok": true
+      }
+    },
+    "three-numbers": [
+      0,
+      1,
+      2
+    ],
+    "type": "structured logger"
+  }
+}
+```
+
+
 Metadata is added to the as a `map[string]interface{}` which is compatible with JSON output (for the most part, for most the common data types). This allows a list of key-value pairs where the key is always a string (an identifier) and the value is the data itself, regardless of the type.
 
 The event package also exposes a unique type ([`event.Field`](log/event/field.go#L11)):
@@ -328,9 +363,10 @@ The logger can output events in several different formats, listed below:
 
 ##### Text
 
-<!-- 
-	Add an image of text formatter's output in a terminal
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/text_formatter.png" />
+</p>
+
 
 The text formatter allows an array of options, with the text formatter sub-package exposing a builder to create a text formatter. Below is the list of methods you can expect when calling [`text.New()....Build()`](log/format/text/text.go#L87):
 
@@ -387,9 +423,10 @@ var (
 ##### JSON
 
 
-<!-- 
-	Add an image of JSON formatter's output in a terminal
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/json_formatter.png" />
+</p>
+
 
 The JSON formatter allow generating JSON events in different ways. These formatters are already initialized as [`LoggerConfig`](log/format.go#L69) and [`LogFormatter`](log/format.go#L39) objects.
 
@@ -418,50 +455,51 @@ var (
 ##### BSON
 
 
-<!-- 
-	Add an image of BSON formatter's output in a terminal
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/bson_formatter.png" />
+</p>
+
 
 
 ##### CSV
 
 
-<!-- 
-	Add an image of BSON formatter's output in a terminal
--->
-
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/csv_formatter.png" />
+</p>
 
 ##### XML
 
 
-<!-- 
-	Add an image of BSON formatter's output in a terminal
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/xml_formatter.png" />
+</p>
 
 
 ##### Protobuf
 
 
-<!-- 
-	Add an image of BSON formatter's output in a terminal
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/pb_formatter.png" />
+</p>
 
 
 ##### Gob
 
-
-<!-- 
-	Add an image of BSON formatter's output in a terminal
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/gob_formatter.png" />
+</p>
 
 #### Data stores
 
 ##### Writer interface
 
 
-<!-- 
-	Add an image of Logger.Write() being called
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/log_writer.png" />
+</p>
+
+> Output of the [example in `examples/logger/log_as_writer/`](examples/logger/log_as_writer/log_as_writer.go)
 
 
 Not only [`Logger` interface](log/logger.go#L95) uses the [`io.Writer` interface](https://pkg.go.dev/io#Writer) to write to its outputs with its [`Output()` method](log/print.go#L88), it also implements it in its own [`Write()` method](log/logger.go#L307) so it can be used directly as one. This gives the logger more flexibility as it can be vastly integrated with other modules.
@@ -498,9 +536,9 @@ func (l *logger) Write(p []byte) (n int, err error) {
 ##### Logfile 
 
 
-<!-- 
-	Add an image of a directory containing some logfiles
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_file.png" />
+</p>
 
 This library also provides a simple [`Logfile`](store/fs/logfile.go#L18) (an actual file in the disk where log entries are written to) configuration with appealing features for simple applications.
 
@@ -539,9 +577,9 @@ Note the available database writers, and their features:
 ##### SQLite
 
 
-<!-- 
-	Add an image of a SQLite logger config and calls (?)
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_sqlite.png" />
+</p>
 
 
 
@@ -556,9 +594,9 @@ Symbol | Type | Description
 ##### MySQL
 
 
-<!-- 
-	Add an image of a MySQL logger config and calls (?)
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_mysql.png" />
+</p>
 
 
 > Using this package will require the following environment variables to be set:
@@ -580,9 +618,9 @@ Symbol | Type | Description
 ##### PostgreSQL
 
 
-<!-- 
-	Add an image of a Postgres logger config and calls (?)
--->
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_postgres.png" />
+</p>
 
 
 > Using this package will require the following environment variables to be set:
@@ -605,10 +643,9 @@ Symbol | Type | Description
 ##### MongoDB
 
 
-<!-- 
-	Add an image of a Mongo logger config and calls (?)
--->
-
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_mongo.png" />
+</p>
 
 > Using this package will require the following environment variables to be set:
 

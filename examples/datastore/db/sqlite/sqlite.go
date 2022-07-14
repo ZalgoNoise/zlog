@@ -40,7 +40,7 @@ func setupMethodOne(dbPath string) log.Logger {
 }
 
 func setupMethodTwo(dbPath string) log.Logger {
-	// create one with the package function, that just
+	// create one with the package function
 	return log.New(
 		sqlite.WithSQLite(dbPath),
 	)

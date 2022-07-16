@@ -154,10 +154,10 @@ Method / Variable | Description
 [`WithPrefix(string)`](log/conf.go#L165) | set a __default prefix__
 [`WithSub(string)`](log/conf.#L172) | set a __default sub-prefix__
 [`WithOut(...io.Writer)`](log/format.go#L179) | set (a) __default writer(s)__
-[`WithFormat(LogFormatter)`](log/format.go#L33) | set the formatter for the log event output content
+[`WithFormat(LogFormatter)`](log/format.go#L33) | set the [formatter](#different-formatters) for the log event output content
 [`SkipExit` config](log/conf.go#L78) | set the __skip-exit option__ (to skip `os.Exit(1)` and `panic()` calls)
 [`WithFilter(event.Level)`](log/conf.go#L203) | set a __log-level filter__
-[`WithDatabase(...io.WriteCloser)`](log/conf.go#L211) | set a __database writer__ (if using a database)
+[`WithDatabase(...io.WriteCloser)`](log/conf.go#L211) | set a __database writer__ (if [using a database](#databases))
 
 Beyond the functions and preset configurations above, the package also exposes the following preset for the [default config](log/conf.go#L56):
 
@@ -330,7 +330,7 @@ _output to the call above:_
 ```
 
 
-Metadata is added to the as a `map[string]interface{}` which is compatible with JSON output (for the most part, for most the common data types). This allows a list of key-value pairs where the key is always a string (an identifier) and the value is the data itself, regardless of the type.
+Metadata is added to the [`event.Event`](log/event/event.pb.go#L96) as a `map[string]interface{}` which is compatible with JSON output (for the most part, for most the common data types). This allows a list of key-value pairs where the key is always a string (an identifier) and the value is the data itself, regardless of the type.
 
 The event package also exposes a unique type ([`event.Field`](log/event/field.go#L11)):
 
@@ -558,7 +558,7 @@ Method | Description
 [`MaxSize(mb int) *Logfile`](store/fs/logfile.go#L59) | sets the rotation indicator for the Logfile, or, the target size when should the logfile be rotated (in MBs)
 [`Size() (int64, error)`](store/fs/logfile.go#L139) | a wrapper for an [`os.File.Stat()`](https://pkg.go.dev/os#File.Stat) followed by [`fs.FileInfo.Size()`](https://pkg.go.dev/io/fs#FileInfo)
 [`IsTooHeavy() bool`](store/fs/logfile.go#L151) | verify the file's size and rotate it if exceeding the set maximum weight (in the Logfile's rotate element)
-[`Write(b []byte) (n int, err error)`](store/fs/logfile.go#L174) | implement the io.Writer interface, for Logfile to be compatible with Logger as an output to be used
+[`Write(b []byte) (n int, err error)`](store/fs/logfile.go#L174) | implement the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Logfile to be compatible with Logger as an output to be used
 
 
 ##### Databases

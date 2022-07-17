@@ -419,7 +419,7 @@ func (f Field) Encode() *structpb.Struct {}
 
 It's also possible to include the current callstack (at the time of the log event being built / created) as metadata to the log entry, by calling the event's [`Callstack(all bool)`](log/event/builder.go#L94/) method.
 
-This call will add the `map[string]interface{}` output of a [`trace.New(bool)` call](log/trace/trace.go#L27). This `trace` package will fetch the call stack from a [`runtime.Stack([]byte, bool)` call](https://pkg.go.dev/runtime#Stack), where the limit in size is 1 kilobyte (`make([]byte, 1024)`).
+This call will add the `map[string]interface{}` output of a [`trace.New(bool)` call](log/trace/trace.go#L27), to the event's metadata element, as an object named `callstack`. This `trace` package will fetch the call stack from a [`runtime.Stack([]byte, bool)` call](https://pkg.go.dev/runtime#Stack), where the limit in size is 1 kilobyte (`make([]byte, 1024)`).
 
 This package will parse the contents of this call and build a JSON document (as a `map[string]interface{}`) with key `callstack`, as a list of objects. These objects will have three elements:
 

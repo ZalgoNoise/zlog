@@ -5,6 +5,18 @@ import (
 	"runtime"
 )
 
+const (
+	callStackMaxSize int    = 1024
+	goRoutineRegexp  string = `^goroutine (\d*) \[(.*)\]:$`
+
+	mKey      string = "method"
+	rKey      string = "reference"
+	idKey     string = "id"
+	statusKey string = "status"
+	stackKey  string = "stack"
+	goRKey    string = "goroutine-"
+)
+
 type stacktrace struct {
 	buf    []byte
 	split  [][]byte
@@ -38,7 +50,7 @@ func newCallStack() *stacktrace {
 }
 
 func (s *stacktrace) getCallStack(all bool) *stacktrace {
-	buf := make([]byte, 1024)
+	buf := make([]byte, callStackMaxSize)
 	n := runtime.Stack(buf, all)
 	s.buf = buf[0:n]
 
@@ -74,7 +86,7 @@ func (s *stacktrace) parseCallStack() *stacktrace {
 	}
 
 	cs := goRoutine{}
-	regxGoRoutine := regexp.MustCompile(`^goroutine (\d*) \[(.*)\]:$`)
+	regxGoRoutine := regexp.MustCompile(goRoutineRegexp)
 
 	for i := 0; i < len(s.split); i++ {
 		if regxGoRoutine.Match(s.split[i]) {
@@ -118,17 +130,17 @@ func (s *stacktrace) mapCallStack() *stacktrace {
 		for _, v := range s.stack {
 
 			f := map[string]interface{}{
-				"method":    v.method,
-				"reference": v.reference,
+				mKey: v.method,
+				rKey: v.reference,
 			}
 
 			stackMap = append(stackMap, f)
 		}
 
-		field["goroutine-"+s.id] = map[string]interface{}{
-			"id":     s.id,
-			"status": s.status,
-			"stack":  stackMap,
+		field[goRKey+s.id] = map[string]interface{}{
+			idKey:     s.id,
+			statusKey: s.status,
+			stackKey:  stackMap,
 		}
 
 	}

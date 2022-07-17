@@ -21,6 +21,7 @@ _________________________
 		1. [Event builder](#event-builder)
 		1. [Log levels](#log-levels)
 		1. [Structured metadata](#structured-metadata)
+		1. [Callstack in metadata](#callstack-in-metadata)
 	1. [Different formatters](#different-formatters)
 		1. [Text](#text)
 			1. [Log Timestamps](#log-timestamps)

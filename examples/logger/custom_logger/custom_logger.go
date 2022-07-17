@@ -11,7 +11,10 @@ func main() {
 
 	// just calling the New() function will spawn a standard logger
 	// that is -- one that prints to os.Stdout with the default configuration
-	logger := log.New()
+	logger := log.New(
+		log.WithPrefix("svc"),
+		log.WithSub("mod"),
+	)
 
 	logger.Printf("message from custom logger: %v", true)
 	logger.Trace("with different methods for different log levels")

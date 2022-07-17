@@ -10,6 +10,8 @@ _________________________
 
 ## Index
 
+
+
 1. [Overview](#overview)
 1. [Features](#features)
 	1. [Simple API](#simple-api)
@@ -76,6 +78,9 @@ This library provides a feature-rich structured logger, ready to write to many t
 <p align="center">
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/simple_logger_cli.png" />
 </p>
+
+
+> See the [example in `examples/logger/simple_logger/`](examples/logger/simple_logger/simple_logger.go)
 
 
 The [Logger interface](log/logger.go#L95) in this library provides a set complete set of idiomatic methods which allow to either control the logger:
@@ -146,6 +151,9 @@ type Printer interface {
 </p>
 
 
+> See the [example in `examples/logger/custom_logger/`](examples/logger/custom_logger/custom_logger.go)
+
+
 Creating a new logger with, for example, [`log.New()`](log/logger.go#L134) takes any number of configurations (including none, for the default configuration). This allows added modularity to the way your logger should behave.
 
 Method / Variable | Description
@@ -192,6 +200,9 @@ var (
 <p align="center">
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/event_builder.png" />
 </p>
+
+
+> See the [example in `examples/logger/modular_events/`](examples/logger/modular_events/modular_events.go)
 
 
 ##### Data structure
@@ -356,8 +367,71 @@ func (f Field) ToStructPB() (*structpb.Struct, error) {}
 func (f Field) Encode() *structpb.Struct {}
 ```
 
+#### Callstack in metadata 
+
+```json
+{
+  "timestamp": "2022-07-17T14:59:41.793879193Z",
+  "service": "log",
+  "level": "error",
+  "message": "operation failed",
+  "metadata": {
+    "callstack": {
+      "goroutine-1": {
+        "id": "1",
+        "stack": [
+          {
+            "method": "github.com/zalgonoise/zlog/log/trace.(*stacktrace).getCallStack(...)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/log/trace/trace.go:54"
+          },
+          {
+            "method": "github.com/zalgonoise/zlog/log/trace.New(0x30?)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/log/trace/trace.go:41 +0x7f"
+          },
+          {
+            "method": "github.com/zalgonoise/zlog/log/event.(*EventBuilder).CallStack(0xc000075fc0, 0x30?)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/log/event/builder.go:99 +0x6b"
+          },
+          {
+            "method": "main.subOperation(0x0)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/examples/logger/callstack_in_metadata/callstack_md.go:31 +0x34b"
+          },
+          {
+            "method": "main.operation(...)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/examples/logger/callstack_in_metadata/callstack_md.go:15"
+          },
+          {
+            "method": "main.main()",
+            "reference": "/go/src/github.com/zalgonoise/zlog/examples/logger/callstack_in_metadata/callstack_md.go:42 +0x33"
+          }
+        ],
+        "status": "running"
+      }
+    },
+    "error": "input cannot be zero",
+    "input": 0
+  }
+}
+```
+
+> Output of the [example in `examples/logger/callstack_in_metadata/`](examples/logger/callstack_in_metadata/callstack_md.go)
+
+It's also possible to include the current callstack (at the time of the log event being built / created) as metadata to the log entry, by calling the event's [`Callstack(all bool)`](log/event/builder.go#L94/) method.
+
+This call will add the `map[string]interface{}` output of a [`trace.New(bool)` call](log/trace/trace.go#L27). This `trace` package will fetch the call stack from a [`runtime.Stack([]byte, bool)` call](https://pkg.go.dev/runtime#Stack), where the limit in size is 1 kilobyte (`make([]byte, 1024)`).
+
+This package will parse the contents of this call and build a JSON document (as a `map[string]interface{}`) with key `callstack`, as a list of objects. These objects will have three elements:
+
+- an `id` element, as the numeric identifier for the goroutine in question
+- a `status` element, like `running`
+- a `stack` element, which is a list of objects, each object contains:
+    - a `method` element (package and method / function call)
+	- a `reference` element (path in filesystem, with a pointer to the file and line)
+
 
 #### Different formatters
+
+> See the [example in `examples/logger/formatted_logger/`](examples/logger/formatted_logger/formatted_logger.go)
 
 The logger can output events in several different formats, listed below:
 
@@ -540,6 +614,8 @@ func (l *logger) Write(p []byte) (n int, err error) {
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_file.png" />
 </p>
 
+> See the [example in `examples/datastore/file/`](examples/datastore/file/logfile.go)
+
 This library also provides a simple [`Logfile`](store/fs/logfile.go#L18) (an actual file in the disk where log entries are written to) configuration with appealing features for simple applications.
 
 ```go
@@ -582,6 +658,7 @@ Note the available database writers, and their features:
 </p>
 
 
+> See the [example in `examples/datastore/db/sqlite/`](examples/datastore/db/sqlite/sqlite.go)
 
 Symbol | Type | Description
 :--:|:--:|:--:
@@ -598,6 +675,8 @@ Symbol | Type | Description
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_mysql.png" />
 </p>
 
+
+> See the [example in `examples/datastore/db/mysql/`](examples/datastore/db/mysql/mysql.go)
 
 > Using this package will require the following environment variables to be set:
 
@@ -618,10 +697,12 @@ Symbol | Type | Description
 ##### PostgreSQL
 
 
+
 <p align="center">
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_postgres.png" />
 </p>
 
+> See the [example in `examples/datastore/db/postgres/`](examples/datastore/db/postgres/postgres.go)
 
 > Using this package will require the following environment variables to be set:
 
@@ -646,6 +727,8 @@ Symbol | Type | Description
 <p align="center">
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_mongo.png" />
 </p>
+
+> See the [example in `examples/datastore/db/mongo/`](examples/datastore/db/mongo/mongo.go)
 
 > Using this package will require the following environment variables to be set:
 
@@ -691,6 +774,9 @@ This file will have the implementation of the [`LogServer` struct](proto/service
 It also contains additional methods used within the core logic of the gRPC Log Server; such as its [`Done()` method](proto/service/service.go#L321) and [`Stop` method](store/service/service.go#L247).
 
 ##### gRPC Log Server
+
+
+> See the [examples in `examples/grpc/simple_unary_client_server/server/`](examples/grpc/simple_unary_client_server/server/server.go) and [in `examples/grpc/simple_stream_client_server/server/`](examples/grpc/simple_stream_client_server/server/server.go)
 
 The Log Server is found in [`grpc/server/server.go`](grpc/server/server.go), which defines how the server is initialized, how can it be configured, and other features. This should be perceived as a simple wrapper for setting up a gRPC server using the logic in [`proto/service/service.go`](proto/service/service.go), with added features to make it even more useful.
 
@@ -742,6 +828,9 @@ var (
 ```
 
 ##### gRPC Log Client
+
+
+> See the [examples in `examples/grpc/simple_unary_client_server/client/`](examples/grpc/simple_unary_client_server/client/client.go) and [in `examples/grpc/simple_stream_client_server/client/`](examples/grpc/simple_stream_client_server/client/client.go)
 
 There is a gRPC Log Client implementation in Go, for the sake of providing an out-of-the-box solution for communicating with the gRPC Log Server; although this can simply serve as a reference for you to implement your own gRPC Log Client -- in any of the gRPC-supported languages.
 

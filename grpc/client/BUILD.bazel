@@ -7,6 +7,7 @@ go_library(
         "client.go",
         "conf.go",
         "logging.go",
+        "multilog.go",
         "timing.go",
     ],
     importpath = "github.com/zalgonoise/zlog/grpc/client",

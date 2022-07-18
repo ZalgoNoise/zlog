@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "conf.go",
         "logging.go",
+        "multilog.go",
         "server.go",
         "timing.go",
     ],

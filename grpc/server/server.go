@@ -21,6 +21,11 @@ var (
 	grpcServer *grpc.Server
 )
 
+type LogServer interface {
+	Serve()
+	Stop()
+}
+
 // GRPCLogServer struct will define the elements required to build and work with
 // a gRPC Log Server.
 //

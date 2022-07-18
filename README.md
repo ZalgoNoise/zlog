@@ -22,6 +22,7 @@ _________________________
 		1. [Log levels](#log-levels)
 		1. [Structured metadata](#structured-metadata)
 		1. [Callstack in metadata](#callstack-in-metadata)
+	1. [Multi-everything](#multi-everything)
 	1. [Different formatters](#different-formatters)
 		1. [Text](#text)
 			1. [Log Timestamps](#log-timestamps)
@@ -429,6 +430,173 @@ This package will parse the contents of this call and build a JSON document (as 
     - a `method` element (package and method / function call)
 	- a `reference` element (path in filesystem, with a pointer to the file and line)
 
+#### Multi-everything
+
+In this library, there are many implementations of `multiSomething`, following the same logic of [`io.MultiWriter()`](https://pkg.go.dev/io#MultiWriter).
+
+In the reference above, the data structure holds a slice of [`io.Writer` interface](https://pkg.go.dev/io#Writer), and implements the same methods as an [`io.Writer`](https://pkg.go.dev/io#Writer). Its implementation of the `Write()` method will involve iterating through all configured [`io.Writer`](https://pkg.go.dev/io#Writer), and calling its own `Write()` method accordingly.
+
+It is a very useful concept in the sense that you're able to _merge_ a slice of interfaces while working with a single one. It allows greater manouverability with maybe a few downsides or restrictions. It is not a required module but merely a helper, or a wrapper for a simple purpose.
+
+The actual [`io.MultiWriter()`](https://pkg.go.dev/io#MultiWriter) is used when defining a [`io.Writer`](https://pkg.go.dev/io#Writer) for the logger; to allow setting it up with multiple writers:
+
+
+```go
+func (l *logger) SetOuts(outs ...io.Writer) Logger {
+	// (...)
+
+	l.out = io.MultiWriter(newouts...)
+	return l
+}
+```
+> from [log/logger.go](log/logger.go#L180)
+
+```go
+func (l *logger) AddOuts(outs ...io.Writer) Logger {
+	// (...)
+
+	l.out = io.MultiWriter(newouts...)
+	return l
+}
+```
+> from [log/logger.go](log/logger.go#L207)
+
+```go
+func WithOut(out ...io.Writer) LoggerConfig {
+	// (...)
+
+	if len(out) > 1 {
+		return &LCOut{
+			out: io.MultiWriter(out...),
+		}
+	}
+
+	// (...)
+}
+```
+> from [log/conf.go](log/conf.go#L179)
+
+...but even beyond this useful implementation, it is _mimicked_ in other pars of the code base:
+
+- as a [`LoggerConfig` merger](log/conf.go#L25):
+
+```go
+type LoggerConfig interface {
+	Apply(lb *LoggerBuilder)
+}
+
+type multiconf struct {
+	confs []LoggerConfig
+}
+
+func (m multiconf) Apply(lb *LoggerBuilder) {
+	for _, c := range m.confs {
+		if c != nil {
+			c.Apply(lb)
+		}
+	}
+}
+
+func MultiConf(conf ...LoggerConfig) LoggerConfig {
+	// (...)
+}
+```
+
+-  as a [`Logger` interface merger](log/multilog.go#L11):
+
+```go
+type multiLogger struct {
+	loggers []Logger
+}
+
+// func (l *multiLogger) {every single method in Logger}
+
+func MultiLogger(loggers ...Logger) Logger {
+	// (...)
+}
+```
+
+- as a [`MultiWriteCloser`](store/db/db.go#L96) for databases:
+
+```go
+func MultiWriteCloser(wc ...io.WriteCloser) io.WriteCloser {
+	// (...)
+}
+
+```
+
+- as a [`LogClientConfig` merger](grpc/client/conf.go#L61):
+
+```go
+type LogClientConfig interface {
+	Apply(ls *gRPCLogClientBuilder)
+}
+
+type multiconf struct {
+	confs []LogClientConfig
+}
+
+func (m multiconf) Apply(lb *gRPCLogClientBuilder) {
+	for _, c := range m.confs {
+		c.Apply(lb)
+	}
+}
+
+func MultiConf(conf ...LogClientConfig) LogClientConfig {
+	// (...)
+}
+```
+
+- as a [`LogServerConfig` merger](grpc/server/conf.go#L57):
+
+```go
+type LogServerConfig interface {
+	Apply(ls *gRPCLogServerBuilder)
+}
+
+type multiconf struct {
+	confs []LogServerConfig
+}
+
+func (m multiconf) Apply(lb *gRPCLogServerBuilder) {
+	for _, c := range m.confs {
+		c.Apply(lb)
+	}
+}
+
+func MultiConf(conf ...LogServerConfig) LogServerConfig {
+	// (...)
+}
+```
+
+-  as a [`GRPCLogger` interface (client) merger](grpc/client/multilog.go#L13):
+
+```go
+type multiLogger struct {
+	loggers []GRPCLogger
+}
+
+// func (l *multiLogger) {every single method in Logger and ChanneledLogger}
+
+func MultiLogger(loggers ...GRPCLogger) GRPCLogger {
+	// (...)
+}
+```
+
+-  as a [`LogServer` interface merger](grpc/server/multilog.go#L13):
+
+```go
+type multiLogger struct {
+	loggers []LogServer
+}
+
+// func (l *multiLogger) Serve() {}
+// func (l *multiLogger) Stop() {}
+
+func MultiLogger(loggers ...LogServer) LogServer {
+	// (...)
+}
+```
 
 #### Different formatters
 

@@ -13,6 +13,7 @@ _________________________
 
 
 1. [Overview](#overview)
+1. [Installation](#installation)
 1. [Features](#features)
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)
@@ -48,7 +49,6 @@ _________________________
 			1. [Log Client Configs](#log-client-configs)
 			1. [Log Client Backoff](#log-client-backoff)
 		1. [Connection Addresses](#connection-addresses)
-1. [Installation](#installation)
 1. [Usage](#usage)
 1. [Integration](#integration)
 1. [Benchmarks](#benchmarks)
@@ -67,7 +67,30 @@ Basing myself off of the standard library `log` package, the goal was to create 
 Very quickly it became apparent that this project had little or no minimalism as it grew, as I intended to add new features as I learned new technologies and techniques.
 
 That being the case, the goal morphed from simplicity to feature-rich **and** developer-friendly at the same time -- using abstractions and wrappers to allow more complex configuration or behavior if the dev wants, while (trying to) keep it idiomatic when using simple or default configurations. 
- 
+
+________________
+
+
+### Installation
+
+To use the library in a project you're working on, ensure that you've initialized your `go.mod` file by running:
+
+```shell
+go mod init ${package_name}
+go mod tidy
+```
+
+After doing so, you can `go get` this library:
+
+```shell
+go get github.com/zalgonoise/zlog
+```
+
+From this point onward, you can import the library in your code and use it as needed.
+
+> There are plans to add a CLI version too, to serve as a gRPC Log Server binary or a one-shot logger binary. The corresponding `go install` instructions will be added by then.
+
+
 _________________
 
 
@@ -1225,11 +1248,6 @@ Method | Description
 [`Reset()`](grpc/address/address.go#L99) | overwrites the existing [`ConnAddr` type](grpc/address/address.go#L8) object with a new, empty one.
 [`Unset(...string)`](grpc/address/address.go#L110) | removes the input addr strings from the [`ConnAddr` type](grpc/address/address.go#L8) object, if existing
 [`Write(p []byte) (n int, err error)`](grpc/address/address.go#L134) | an implementation of [`io.Writer` interface](https://pkg.go.dev/io#Writer), so that the [`ConnAddr` type](grpc/address/address.go#L8) object can be used in a gRPC Log Client's [`SetOuts()`](grpc/client/client.go#L643) and [`AddOuts()`](grpc/client/client.go#L703) methods. These need to conform with the [Logger interface](log/logger.go#L95) that implements the same methods. For the same layer of compatibility to be possible in a gRPC Log Client (who will write its log entries in a remote server), it uses these methods to implement its way of altering the existing connections, instead of dismissing this part of the implementation all together. __This is not a regular [`io.Writer` interface](https://pkg.go.dev/io#Writer)__.
-
-________________
-
-
-### Installation
 
 _________________
 

@@ -76,7 +76,7 @@ ________________
 To use the library in a project you're working on, ensure that you've initialized your `go.mod` file by running:
 
 ```shell
-go mod init ${package_name}
+go mod init ${package_name} # like github.com/user/repo
 go mod tidy
 ```
 

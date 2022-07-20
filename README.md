@@ -86,7 +86,20 @@ After doing so, you can `go get` this library:
 go get github.com/zalgonoise/zlog
 ```
 
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/go_get_zlog.png" />
+</p>
+
+
+
 From this point onward, you can import the library in your code and use it as needed.
+
+
+<p align="center">
+  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/go_mod_zlog.png" />
+</p>
+
+
 
 > There are plans to add a CLI version too, to serve as a gRPC Log Server binary or a one-shot logger binary. The corresponding `go install` instructions will be added by then.
 

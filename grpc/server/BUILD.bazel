@@ -6,6 +6,7 @@ go_library(
         "conf.go",
         "logging.go",
         "multilog.go",
+        "nilserver.go",
         "server.go",
         "timing.go",
     ],
@@ -31,6 +32,8 @@ go_test(
     srcs = [
         "conf_test.go",
         "logging_test.go",
+        "multilog_test.go",
+        "nilserver_test.go",
         "server_test.go",
         "timing_test.go",
     ],

@@ -133,12 +133,6 @@ func New(confs ...LogServerConfig) *GRPCLogServer {
 func (s GRPCLogServer) registerComms() {
 	for {
 		msg := <-s.logSv.Comm
-		// msg, ok := <-s.LogSv.Comm
-		// if !ok {
-		// 	s.SvcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(event.Field{"error": ErrMessageParse.Error()}).Build())
-		// 	continue
-		// }
-
 		s.svcLogger.Log(msg)
 	}
 }

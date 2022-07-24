@@ -3,7 +3,31 @@ package server
 import (
 	"reflect"
 	"testing"
+
+	"github.com/zalgonoise/zlog/log/event"
 )
+
+type testLogServer struct{}
+
+func (testLogServer) Serve() {}
+func (testLogServer) Stop()  {}
+func (testLogServer) Channels() (logCh, logSvCh chan *event.Event, errCh chan error) {
+	logCh = make(chan *event.Event, 0)
+	logSvCh = make(chan *event.Event, 0)
+	errCh = make(chan error, 0)
+
+	go func() {
+		for {
+			select {
+			case _ = <-logCh:
+				continue // test goes on, first
+			case _ = <-logSvCh:
+				return // then it stops, on the second (svLogger) call
+			}
+		}
+	}()
+	return
+}
 
 func TestMultiLogger(t *testing.T) {
 	module := "GRPCLogServer"
@@ -19,10 +43,10 @@ func TestMultiLogger(t *testing.T) {
 	}
 
 	var loggers = []LogServer{
-		NilServer(),
-		NilServer(),
-		NilServer(),
-		NilServer(),
+		&testLogServer{},
+		&testLogServer{},
+		&testLogServer{},
+		&testLogServer{},
 	}
 
 	var tests = []test{
@@ -93,6 +117,10 @@ func TestMultiLogger(t *testing.T) {
 		if ml != nil {
 			ml.Serve()
 			ml.Stop()
+			log, svLog, _ := ml.Channels() // skip error coverage for now
+
+			log <- event.New().Message("null").Build()
+			svLog <- event.New().Message("null").Build()
 		}
 	}
 

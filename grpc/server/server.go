@@ -24,6 +24,7 @@ var (
 type LogServer interface {
 	Serve()
 	Stop()
+	Channels() (logCh, logSvCh chan *event.Event, errCh chan error)
 }
 
 // GRPCLogServer struct will define the elements required to build and work with
@@ -280,4 +281,30 @@ func (s GRPCLogServer) Stop() {
 	}
 
 	s.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
+}
+
+func (s GRPCLogServer) Channels() (logCh, logSvCh chan *event.Event, errCh chan error) {
+	// create new channels to route messages
+	logCh = make(chan *event.Event)
+	logSvCh = make(chan *event.Event)
+	errCh = s.errCh
+
+	// launch logger channel goroutine (direct access to writing logs)
+	go func(ch chan *event.Event) {
+		for {
+			msg := <-ch
+			s.logger.Log(msg)
+		}
+	}(logCh)
+
+	// launch service logger channel goroutine (service logs write access)
+	go func(ch chan *event.Event) {
+		for {
+			msg := <-ch
+			s.svcLogger.Log(msg)
+		}
+	}(logSvCh)
+
+	// return channels
+	return logCh, logSvCh, errCh
 }

@@ -82,7 +82,7 @@ func TestNew(t *testing.T) {
 		server := New(test.cfg...)
 
 		// skip error channel deepequal
-		if server.ErrCh == nil {
+		if server.errCh == nil {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] unexpected nil error channel -- action: %s",
 				idx,
@@ -92,11 +92,11 @@ func TestNew(t *testing.T) {
 			)
 			return
 		}
-		server.ErrCh = nil
-		test.wants.ErrCh = nil
+		server.errCh = nil
+		test.wants.errCh = nil
 
 		// skip LogSv deepequal (tested in pb package)
-		if server.LogSv == nil {
+		if server.logSv == nil {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] unexpected nil log server -- action: %s",
 				idx,
@@ -106,8 +106,8 @@ func TestNew(t *testing.T) {
 			)
 			return
 		}
-		server.LogSv = nil
-		test.wants.LogSv = nil
+		server.logSv = nil
+		test.wants.logSv = nil
 
 		// check options length first
 		if len(server.opts) != test.optsLen {
@@ -207,7 +207,7 @@ func TestServe(t *testing.T) {
 				select {
 				case <-time.After(maxTestWait):
 					return
-				case err := <-test.s.ErrCh:
+				case err := <-test.s.errCh:
 					if test.ok {
 						t.Errorf(
 							"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
@@ -296,7 +296,7 @@ func TestHandleResponses(t *testing.T) {
 			select {
 			case <-time.After(maxTestWait):
 				return
-			case err := <-test.s.ErrCh:
+			case err := <-test.s.errCh:
 				if test.ok {
 					t.Errorf(
 						"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
@@ -308,7 +308,7 @@ func TestHandleResponses(t *testing.T) {
 					)
 					return
 				}
-			case <-test.s.LogSv.Done():
+			case <-test.s.logSv.Done():
 				return
 			}
 		}
@@ -392,7 +392,7 @@ func TestHandleMesages(t *testing.T) {
 			select {
 			case <-time.After(maxTestWait):
 				return
-			case err := <-test.s.ErrCh:
+			case err := <-test.s.errCh:
 				if test.ok {
 					t.Errorf(
 						"#%v -- FAILED -- [%s] [%s] unexpected error: %v -- action: %s",
@@ -404,7 +404,7 @@ func TestHandleMesages(t *testing.T) {
 					)
 					return
 				}
-			case <-test.s.LogSv.Done():
+			case <-test.s.logSv.Done():
 				return
 			}
 		}
@@ -413,7 +413,7 @@ func TestHandleMesages(t *testing.T) {
 	var verify = func(idx int, test test) {
 		defer test.s.Stop()
 		go test.s.handleMessages()
-		test.s.LogSv.MsgCh <- test.e
+		test.s.logSv.MsgCh <- test.e
 		handleErrors(idx, test)
 	}
 

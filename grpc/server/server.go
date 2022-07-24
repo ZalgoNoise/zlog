@@ -36,10 +36,10 @@ type LogServer interface {
 type GRPCLogServer struct {
 	addr      string
 	opts      []grpc.ServerOption
-	Logger    log.Logger
-	SvcLogger log.Logger
-	ErrCh     chan error
-	LogSv     *pb.LogServer
+	logger    log.Logger
+	svcLogger log.Logger
+	errCh     chan error
+	logSv     *pb.LogServer
 }
 
 // gRPCLogServerBuilder is a helper data structure to spawn new GRPCLogServers
@@ -83,10 +83,10 @@ func (b *gRPCLogServerBuilder) build() *GRPCLogServer {
 	return &GRPCLogServer{
 		addr:      b.addr,
 		opts:      append(b.opts, opts...),
-		Logger:    b.logger,
-		SvcLogger: b.svcLogger,
-		ErrCh:     make(chan error),
-		LogSv:     pb.NewLogServer(),
+		logger:    b.logger,
+		svcLogger: b.svcLogger,
+		errCh:     make(chan error),
+		logSv:     pb.NewLogServer(),
 	}
 
 }
@@ -132,14 +132,14 @@ func New(confs ...LogServerConfig) *GRPCLogServer {
 // them in the service logger accordingly.
 func (s GRPCLogServer) registerComms() {
 	for {
-		msg := <-s.LogSv.Comm
+		msg := <-s.logSv.Comm
 		// msg, ok := <-s.LogSv.Comm
 		// if !ok {
 		// 	s.SvcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("LogServer.Comm").Message("couldn't parse message from LogServer").Metadata(event.Field{"error": ErrMessageParse.Error()}).Build())
 		// 	continue
 		// }
 
-		s.SvcLogger.Log(msg)
+		s.svcLogger.Log(msg)
 	}
 }
 
@@ -151,9 +151,9 @@ func (s GRPCLogServer) listen() net.Listener {
 	lis, err := net.Listen("tcp", s.addr)
 
 	if err != nil {
-		s.ErrCh <- err
+		s.errCh <- err
 
-		s.SvcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("listen").
+		s.svcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("listen").
 			Message("couldn't listen to input address").Metadata(event.Field{
 			"error": err.Error(),
 			"addr":  s.addr,
@@ -162,7 +162,7 @@ func (s GRPCLogServer) listen() net.Listener {
 		return nil
 	}
 
-	s.SvcLogger.Log(event.New().Level(event.Level_info).Prefix("gRPC").Sub("listen").
+	s.svcLogger.Log(event.New().Level(event.Level_info).Prefix("gRPC").Sub("listen").
 		Message("gRPC server is listening to connections").Metadata(event.Field{
 		"addr": s.addr,
 	}).Build())
@@ -177,7 +177,7 @@ func (s GRPCLogServer) listen() net.Listener {
 // number of bytes written and an error. From this point, depending on the outcome,
 // a pb.LogResponse object is built and sent to the Responses channel
 func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
-	n, err := s.Logger.Output(logmsg)
+	n, err := s.logger.Output(logmsg)
 	n32 := int32(n)
 
 	// generate request ID
@@ -192,10 +192,10 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 			errStr = err.Error()
 		}
 
-		s.SvcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("handler").Message("issue writting log message").Metadata(event.Field{"error": errStr, "bytesWritten": n}).Build())
+		s.svcLogger.Log(event.New().Level(event.Level_warn).Prefix("gRPC").Sub("handler").Message("issue writting log message").Metadata(event.Field{"error": errStr, "bytesWritten": n}).Build())
 
 		// send not OK response
-		s.LogSv.Resp <- &pb.LogResponse{
+		s.logSv.Resp <- &pb.LogResponse{
 			Ok:    false,
 			ReqID: reqID,
 			Err:   &errStr,
@@ -204,10 +204,10 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 		return
 	}
 
-	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
+	s.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("input log message parsed and registered").Build())
 
 	// send OK response
-	s.LogSv.Resp <- &pb.LogResponse{
+	s.logSv.Resp <- &pb.LogResponse{
 		Ok:    true,
 		ReqID: reqID,
 		Bytes: &n32,
@@ -217,22 +217,22 @@ func (s GRPCLogServer) handleResponses(logmsg *event.Event) {
 // handleMessages method will be a (blocking) function kicked off as a go-routine
 // which will take in messages from the Log Server's message channel and register them
 func (s GRPCLogServer) handleMessages() {
-	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
+	s.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("message handler is running").Build())
 
 	// avoid calling Done() method repeatedly
-	done := s.LogSv.Done()
+	done := s.logSv.Done()
 
 	for {
 		select {
 		// new message is received
-		case msg := <-s.LogSv.MsgCh:
+		case msg := <-s.logSv.MsgCh:
 
 			// send message to be written in a goroutine
 			go s.handleResponses(msg)
 
 		// done signal is received
 		case <-done:
-			s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
+			s.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("handler").Message("received done signal").Build())
 			return
 		}
 	}
@@ -252,12 +252,12 @@ func (s GRPCLogServer) Serve() {
 	go s.handleMessages()
 
 	grpcServer = grpc.NewServer(s.opts...)
-	pb.RegisterLogServiceServer(grpcServer, s.LogSv)
+	pb.RegisterLogServiceServer(grpcServer, s.logSv)
 
 	// gRPC reflection
 	reflection.Register(grpcServer)
 
-	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("serve").
+	s.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("serve").
 		Message("gRPC server is running").Metadata(event.Field{
 		"addr": s.addr,
 	}).Build())
@@ -265,9 +265,9 @@ func (s GRPCLogServer) Serve() {
 	// tests for grpcServer.Serve() are out-of-scope as it is part of the
 	// gRPC framework logic
 	if err := grpcServer.Serve(lis); err != nil {
-		s.ErrCh <- err
+		s.errCh <- err
 
-		s.SvcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("serve").
+		s.svcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("serve").
 			Message("gRPC server crashed with an error").Metadata(event.Field{
 			"error": err.Error(),
 			"addr":  s.addr,
@@ -285,5 +285,5 @@ func (s GRPCLogServer) Stop() {
 		grpcServer.Stop()
 	}
 
-	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
+	s.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
 }

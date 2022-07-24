@@ -36,6 +36,7 @@ func TestNilServer(t *testing.T) {
 		if s != nil {
 			s.Serve()
 			s.Stop()
+			s.Channels()
 		}
 	}
 

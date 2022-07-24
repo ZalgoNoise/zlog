@@ -34,7 +34,7 @@ type LogServer interface {
 // any (important) log events to a different output, with its own configuration
 // and requirements.
 type GRPCLogServer struct {
-	Addr      string
+	addr      string
 	opts      []grpc.ServerOption
 	Logger    log.Logger
 	SvcLogger log.Logger
@@ -81,7 +81,7 @@ func (b *gRPCLogServerBuilder) build() *GRPCLogServer {
 	}
 
 	return &GRPCLogServer{
-		Addr:      b.addr,
+		addr:      b.addr,
 		opts:      append(b.opts, opts...),
 		Logger:    b.logger,
 		SvcLogger: b.svcLogger,
@@ -148,7 +148,7 @@ func (s GRPCLogServer) registerComms() {
 //
 // If there are no errors setting up this listener, the function returns a net.Listener
 func (s GRPCLogServer) listen() net.Listener {
-	lis, err := net.Listen("tcp", s.Addr)
+	lis, err := net.Listen("tcp", s.addr)
 
 	if err != nil {
 		s.ErrCh <- err
@@ -156,7 +156,7 @@ func (s GRPCLogServer) listen() net.Listener {
 		s.SvcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("listen").
 			Message("couldn't listen to input address").Metadata(event.Field{
 			"error": err.Error(),
-			"addr":  s.Addr,
+			"addr":  s.addr,
 		}).Build())
 
 		return nil
@@ -164,7 +164,7 @@ func (s GRPCLogServer) listen() net.Listener {
 
 	s.SvcLogger.Log(event.New().Level(event.Level_info).Prefix("gRPC").Sub("listen").
 		Message("gRPC server is listening to connections").Metadata(event.Field{
-		"addr": s.Addr,
+		"addr": s.addr,
 	}).Build())
 
 	return lis
@@ -259,7 +259,7 @@ func (s GRPCLogServer) Serve() {
 
 	s.SvcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("serve").
 		Message("gRPC server is running").Metadata(event.Field{
-		"addr": s.Addr,
+		"addr": s.addr,
 	}).Build())
 
 	// tests for grpcServer.Serve() are out-of-scope as it is part of the
@@ -270,7 +270,7 @@ func (s GRPCLogServer) Serve() {
 		s.SvcLogger.Log(event.New().Level(event.Level_fatal).Prefix("gRPC").Sub("serve").
 			Message("gRPC server crashed with an error").Metadata(event.Field{
 			"error": err.Error(),
-			"addr":  s.Addr,
+			"addr":  s.addr,
 		}).Build())
 		return
 	}

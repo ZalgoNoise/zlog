@@ -283,6 +283,9 @@ func (s GRPCLogServer) Stop() {
 	s.svcLogger.Log(event.New().Level(event.Level_debug).Prefix("gRPC").Sub("Stop").Message("srv: received done signal").Build())
 }
 
+// Channels method returns channels for a Log Server's I/O. It returns a channel for
+// log messages (for actual log event writes), a channel for the service logger
+// (the server's own logger), and an error channel to collect Log Server errors from.
 func (s GRPCLogServer) Channels() (logCh, logSvCh chan *event.Event, errCh chan error) {
 	// create new channels to route messages
 	logCh = make(chan *event.Event)

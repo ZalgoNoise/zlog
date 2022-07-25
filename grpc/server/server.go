@@ -21,6 +21,12 @@ var (
 	grpcServer *grpc.Server
 )
 
+// LogServer interface defines the behavior of a gRPC Log Server, which focuses
+// mostly on its (background) runtime operations.
+//
+// The interface exposes a `Channels()` method nevertheless, which allows for local
+// control of log messages (and error handling) without having to send a message
+// over-the-wire
 type LogServer interface {
 	Serve()
 	Stop()

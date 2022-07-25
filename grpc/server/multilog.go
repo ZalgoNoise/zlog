@@ -42,6 +42,10 @@ func (ml *multiLogger) build() LogServer {
 	return ml
 }
 
+// Multilogger function takes in any number of LogServer interfaces, merging them together
+// and returning a single LogServer.
+//
+// This is a LogServer multiplexer.
 func MultiLogger(loggers ...LogServer) LogServer {
 
 	if loggers == nil || len(loggers) == 0 {
@@ -58,6 +62,10 @@ func MultiLogger(loggers ...LogServer) LogServer {
 	return ml.build()
 }
 
+// Serve is the implementation of the `Serve()` method, from the LogServer interface
+//
+// It will cycle through all configured loggers and launching their `Serve()` method
+// as a goroutine, except for the last one. This is a blocking operation.
 func (l *multiLogger) Serve() {
 	var idxLimit = len(l.loggers) - 2
 
@@ -69,6 +77,11 @@ func (l *multiLogger) Serve() {
 	}
 
 }
+
+// Stop is the implementation of the `Stop()` method, from the LogServer interface
+//
+// It will cycle through all configured loggers and launching their `Stop()` method
+// as a goroutine, except for the last one. This is a blocking operation.
 func (l *multiLogger) Stop() {
 	var idxLimit = len(l.loggers) - 2
 
@@ -80,6 +93,19 @@ func (l *multiLogger) Stop() {
 	}
 }
 
+// Channels is the implementation of the `Channels()` method, from the LogServer interface
+//
+// It creates new event and error channels similar to a `Channels()` call, but launches three
+// listeners (as goroutines) to monitor for messages and fan-out to all configured loggers
+// respectively.
+//
+// Both `*event.Event` channels (for the _actual logger_ and the service logger) will listen
+// for messages as normal, but a received message is fanned-out to all configured loggers, to
+// their respective output event channel.
+//
+// The error channel (a read one) works the opposite way: all error channels are iterated through
+// and a goroutine is launched for each of them. On _any_ error received, a copy is sent to the
+//  output error channel
 func (l *multiLogger) Channels() (logCh, logSvCh chan *event.Event, errCh chan error) {
 
 	// make output channels

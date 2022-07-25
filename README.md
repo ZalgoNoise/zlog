@@ -983,7 +983,15 @@ It also contains additional methods used within the core logic of the gRPC Log S
 
 > See the [examples in `examples/grpc/simple_unary_client_server/server/`](examples/grpc/simple_unary_client_server/server/server.go) and [in `examples/grpc/simple_stream_client_server/server/`](examples/grpc/simple_stream_client_server/server/server.go)
 
-The Log Server is found in [`grpc/server/server.go`](grpc/server/server.go), which defines how the server is initialized, how can it be configured, and other features. This should be perceived as a simple wrapper for setting up a gRPC server using the logic in [`proto/service/service.go`](proto/service/service.go), with added features to make it even more useful.
+The [`LogServer` interface](grpc/server/server.go#L24) is found in [`grpc/server/server.go`](grpc/server/server.go), which defines how the server is initialized, how can it be configured, and other features. This should be perceived as a simple wrapper for setting up a gRPC server using the logic in [`proto/service/service.go`](proto/service/service.go), with added features to make it even more useful:
+
+```go
+type LogServer interface {
+	Serve()
+	Stop()
+	Channels() (logCh, logSvCh chan *event.Event, errCh chan error)
+}
+```
 
 A new Log Server is created with the public function [`New(...LogServerConfig)`](grpc/server/server.go#L102), which parses any number of configurations (covered below). The resulting [`GRPCLogServer` pointer](grpc/server/server.go#L31) will expose the following methods:
 
@@ -991,6 +999,7 @@ Method | Description
 :--:|:--:
 [`Serve()`](grpc/server/server.go#L241) | a long-running, blocking function which will launch the gRPC server 
 [`Stop()`](grpc/server/server.go#L277) | a wrapper for the routine involved to (gracefully) stop this gRPC Log Server.
+[`Channels() (logCh, logSvCh chan *event.Event, errCh chan error)`](grpc/server/server.go#L289) | returns channels for a Log Server's I/O. It returns a channel for log messages (for actual log event writes), a channel for the service logger (the server's own logger), and an error channel to collect Log Server errors from.
 
 ##### Log Server Configs
 

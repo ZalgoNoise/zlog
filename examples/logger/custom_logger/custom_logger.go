@@ -23,7 +23,7 @@ func main() {
 	// you can then customize the logger itself by:
 	//   - adding / changing writers (outputs)
 	//   - persisting prefix, sub-prefix and structured metadata
-	buf := &bytes.Buffer{}
+	buf := new(bytes.Buffer)
 	logger.SetOuts(buf)
 	logger.Prefix("service")
 	logger.Sub("module")

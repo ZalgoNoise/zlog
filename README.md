@@ -14,6 +14,7 @@ _________________________
 
 1. [Overview](#overview)
 1. [Installation](#installation)
+1. [Usage](#usage)
 1. [Features](#features)
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)
@@ -49,7 +50,6 @@ _________________________
 			1. [Log Client Configs](#log-client-configs)
 			1. [Log Client Backoff](#log-client-backoff)
 		1. [Connection Addresses](#connection-addresses)
-1. [Usage](#usage)
 1. [Integration](#integration)
 1. [Benchmarks](#benchmarks)
 1. [Contributing](#contributing)
@@ -91,7 +91,6 @@ go get github.com/zalgonoise/zlog
 </p>
 
 
-
 From this point onward, you can import the library in your code and use it as needed.
 
 
@@ -102,6 +101,102 @@ From this point onward, you can import the library in your code and use it as ne
 
 
 > There are plans to add a CLI version too, to serve as a gRPC Log Server binary or a one-shot logger binary. The corresponding `go install` instructions will be added by then.
+
+_________________
+
+### Usage
+
+This section covers basic usage and typical use-cases of different modules in this library. There are several [individual examples](./examples/) to provide direct context, as well as the [Features](#features) section, which goes in-depth on each module and their functionality. In here you will find reference to certain actions, a snippet from the respective example and a brief explanation of what's happening.
+
+
+#### Simple Logger - [_example_](./examples/logger/simple_logger/simple_logger.go)
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log"
+)
+
+func main() {
+	log.Print("this is the simplest approach to entering a log message")
+	log.Tracef("and can include formatting: %v %v %s", 3.5, true, "string")
+	log.Errorln("which is similar to fmt.Print() method calls")
+
+	log.Panicf("example of a logger panic event: %v", true)
+}
+```
+
+_Output_
+
+```
+[info]  [2022-07-26T17:05:46.208657519Z]        [log]   this is the simplest approach to entering a log message
+[trace] [2022-07-26T17:05:46.208750114Z]        [log]   and can include formatting: 3.5 true string
+[error] [2022-07-26T17:05:46.208759031Z]        [log]   which is similar to fmt.Print() method calls
+
+[panic] [2022-07-26T17:05:46.208766425Z]        [log]   example of a logger panic event: true
+panic: example of a logger panic event: true
+
+goroutine 1 [running]:
+github.com/zalgonoise/zlog/log.(*logger).Panicf(0xc0001dafc0, {0x952348, 0x23}, {0xc0001af410, 0x1, 0x1})
+        /go/src/github.com/zalgonoise/zlog/log/print.go:226 +0x357
+github.com/zalgonoise/zlog/log.Panicf(...)
+        /go/src/github.com/zalgonoise/zlog/log/print.go:784
+main.main()
+        /go/src/github.com/zalgonoise/zlog/examples/logger/simple_logger/simple_logger.go:19 +0x183
+exit status 2
+
+```
+
+
+The simplest approach to using the logger library is to call its built-in methods, as if they were `fmt.Print()`-like calls. The logger exposes methods for registering messages in [different log levels](#log-levels), defined in its [`Printer` interface](./log/print.go#L18).
+
+Note that there are calls which are configured to halt the application's runtime, like `Fatal()` and `Panic()`. These exit calls can be skipped in the [logger's configuration](#highly-configurable).
+
+
+#### Custom Logger - [_example_](./examples/logger/custom_logger/custom_logger.go)
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"bytes"
+	"fmt"
+
+	"github.com/zalgonoise/zlog/log"
+)
+
+func main() {
+	logger := log.New(
+		log.WithPrefix("svc"),
+		log.WithSub("mod"),
+	)
+
+	buf := new(bytes.Buffer)
+
+	logger.SetOuts(buf)
+	logger.Prefix("service")
+	logger.Sub("module")
+
+	logger.Info("message written to a new buffer")
+
+	fmt.Println(buf.String())
+}
+```
+
+_Output_
+
+```
+[info]  [2022-07-26T17:04:25.371617213Z]        [service]       [module]        message written to a new buffer
+```
+
+The logger is customized on creation, and any number of configuration can be passed to it. This makes it flexible for simple configurations (where only defaults are applied), and makes it granular enough for the complex ones.
+
+Furthermore, it will also expose [certain methods](#simple-api) to allow changes to the logger's configuration during runtime (with `Prefix()`, `Sub()` and `Metadata()`, as well as `AddOuts()` and `SetOuts()` methods).
 
 
 _________________
@@ -180,6 +275,23 @@ type Printer interface {
 }
 ```
 
+The logger configuration methods (listed below) can be used during runtime, to adapt the logger to the application's needs. However special care needs to be taken when calling the log writer-altering methods (`AddOuts()` and `SetOuts()`) considering that they can raise undersirable effects. It's recommended for these methods to be called when the logger is initialized in your app, if called at all.
+
+
+Method | Description
+:--:|:--:
+[`SetOuts(...io.Writer) Logger`](./log/logger.go#L180) | sets (replaces) the defined [`io.Writer`](https://pkg.go.dev/io#Writer) in the Logger with the input list of [`io.Writer`](https://pkg.go.dev/io#Writer).
+[`AddOuts(...io.Writer) Logger`](./log/logger.go#L207) | adds (appends) the defined [`io.Writer`](https://pkg.go.dev/io#Writer) in the Logger with the input list of [`io.Writer`](https://pkg.go.dev/io#Writer).
+[`Prefix(string) Logger`](./log/logger.go#L237) | sets a logger-scoped (as opposed to message-scoped) prefix string to the logger
+[`Sub(string) Logger`](./log/logger.go#L259) | sets a logger-scoped (as opposed to message-scoped) sub-prefix string to the logger
+[`Fields(map[string]interface{}) Logger`](./log/logger.go#L275) | sets logger-scoped (as opposed to message-scoped) metadata fields to the logger
+[`IsSkipExit() bool`](./log/logger.go#L294) | returns a boolean on whether this logger is set to skip os.Exit(1) or panic() calls.
+
+> Note: `SetOuts()` and `AddOuts()` methods will apply the [multi-writer pattern](#multi-everything) to the input list of [`io.Writer`](https://pkg.go.dev/io#Writer). The writers are merged as one.
+
+> Note: Logger-scoped parameters (prefix, sub-prefix and metadata) allow calling either the [`Printer` interface](./log/print.go#18) methods (including event-based methods like `Log()` and `Output()`) without having to define these values. This can be especially useful when registering multiple log events in a certain module of your code -- _however_, the drawback is that these values are persisted in the logger, so you may need to unset them (calling `nil` or empty values on them).
+
+> Note: `IsSkipExit()` is a useful method, used for example to determine wether a [MultiLogger](#multi-everything) should should be presented as a skip-exit-calls logger or not -- if _at least one_ configured logger in a multilogger is __not__ skipping exit calls, its output would be `false`.
 
 #### Highly configurable 
 
@@ -1271,9 +1383,6 @@ Method | Description
 [`Unset(...string)`](grpc/address/address.go#L110) | removes the input addr strings from the [`ConnAddr` type](grpc/address/address.go#L8) object, if existing
 [`Write(p []byte) (n int, err error)`](grpc/address/address.go#L134) | an implementation of [`io.Writer` interface](https://pkg.go.dev/io#Writer), so that the [`ConnAddr` type](grpc/address/address.go#L8) object can be used in a gRPC Log Client's [`SetOuts()`](grpc/client/client.go#L643) and [`AddOuts()`](grpc/client/client.go#L703) methods. These need to conform with the [Logger interface](log/logger.go#L95) that implements the same methods. For the same layer of compatibility to be possible in a gRPC Log Client (who will write its log entries in a remote server), it uses these methods to implement its way of altering the existing connections, instead of dismissing this part of the implementation all together. __This is not a regular [`io.Writer` interface](https://pkg.go.dev/io#Writer)__.
 
-_________________
-
-### Usage
 
 _______________
 

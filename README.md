@@ -106,7 +106,7 @@ _________________
 
 ### Usage
 
-This section covers basic usage and typical use-cases of different modules in this library. There are several [individual examples](./examples/) to provide direct context, as well as the [Features](#features) section, which goes in-depth on each module and their functionality. In here you will find reference to certain actions, a snippet from the respective example and a brief explanation of what's happening.
+This section covers basic usage and typical use-cases of different modules in this library. There are several [individual examples](./examples/) to provide direct context, as well as the [Features](#features) section, which goes in-depth on each module and its functionality. In here you will find reference to certain actions, a snippet from the respective example and a brief explanation of what's happening.
 
 
 #### Simple Logger - [_example_](./examples/logger/simple_logger/simple_logger.go)

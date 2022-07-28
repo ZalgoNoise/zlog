@@ -202,6 +202,97 @@ Furthermore, it will also expose [certain methods](#simple-api) to allow changes
 _________________
 
 
+
+#### MultiLogger - [_example_](./examples/logger/multilogger/multilogger.go)
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"bytes"
+	"fmt"
+
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+)
+
+func main() {
+	buf := new(bytes.Buffer)
+
+	stdLogger := log.New() // default logger printing to stdErr
+	jsonLogger := log.New( // custom JSON logger, writing to buffer
+		log.WithOut(buf),
+		log.CfgFormatJSONIndent,
+	)
+
+	// join both loggers
+	logger := log.MultiLogger(
+		stdLogger,
+		jsonLogger,
+	)
+
+	// print messages to stderr
+	logger.Info("some event occurring")
+	logger.Warn("a warning pops-up")
+	logger.Log(
+		event.New().Level(event.Level_error).
+			Message("and finally an error").
+			Metadata(event.Field{
+				"code":      5,
+				"some-data": true,
+			}).
+			Build())
+
+	// print buffer content
+	fmt.Print("\n---\n- JSON data:\n---\n", buf.String())
+}
+```
+
+_Output_
+
+```
+[info]  [2022-07-28T17:12:44.966084127Z]        [log]   some event occurring
+[warn]  [2022-07-28T17:12:44.966220938Z]        [log]   a warning pops-up
+[error] [2022-07-28T17:12:44.966246265Z]        [log]   and finally an error    [ code = 5 ; some-data = true ] 
+
+---
+- JSON data:
+---
+{
+  "timestamp": "2022-07-28T17:12:44.966187177Z",
+  "service": "log",
+  "level": "info",
+  "message": "some event occurring"
+}
+{
+  "timestamp": "2022-07-28T17:12:44.966234771Z",
+  "service": "log",
+  "level": "warn",
+  "message": "a warning pops-up"
+}
+{
+  "timestamp": "2022-07-28T17:12:44.966246265Z",
+  "service": "log",
+  "level": "error",
+  "message": "and finally an error",
+  "metadata": {
+    "code": 5,
+    "some-data": true
+  }
+}
+```
+
+The logger on [line 21](./examples/logger/multilogger/multilogger.go#L21) is merging any loggers provided as input. In this example, the caller can leverage this functionality to write the same events to different outputs (with different formats), or with certain log level filters (`writerA` will register all events, while `writerB` will register events that are `error` and above).
+
+This approach can be taken with all kinds of loggers, provided that they they implement the same methods as [`Logger` interface](log/logger.go#L95). By all kinds of loggers, I mean those within this library, such as having a standard-error logger, as well as a gRPC Log Client configured as one, with [`MultiLogger()`](log/multilog.go#L11). More information on [_multi-everything_, in its own section](#multi-everything)
+
+
+_________________
+
+
+
 ### Features
 
 This library provides a feature-rich structured logger, ready to write to many types of outputs (standard out / error, to buffers, to files and databases) and over-the-wire (via gRPC).

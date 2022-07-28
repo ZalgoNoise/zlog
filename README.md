@@ -286,7 +286,7 @@ _Output_
 
 The logger on [line 21](./examples/logger/multilogger/multilogger.go#L21) is merging any loggers provided as input. In this example, the caller can leverage this functionality to write the same events to different outputs (with different formats), or with certain log level filters (`writerA` will register all events, while `writerB` will register events that are `error` and above).
 
-This approach can be taken with all kinds of loggers, provided that they they implement the same methods as [`Logger` interface](log/logger.go#L95). By all kinds of loggers, I mean those within this library, such as having a standard-error logger, as well as a gRPC Log Client configured as one, with [`MultiLogger()`](log/multilog.go#L11). More information on [_multi-everything_, in its own section](#multi-everything)
+This approach can be taken with all kinds of loggers, provided that they they implement the same methods as [`Logger` interface](./log/logger.go#L95). By all kinds of loggers, I mean those within this library, such as having a standard-error logger, as well as a gRPC Log Client configured as one, with [`MultiLogger()`](./log/multilog.go#L11). More information on [_multi-everything_, in its own section](#multi-everything)
 
 
 _________________
@@ -304,10 +304,10 @@ This library provides a feature-rich structured logger, ready to write to many t
 </p>
 
 
-> See the [example in `examples/logger/simple_logger/`](examples/logger/simple_logger/simple_logger.go)
+> See the [example in `examples/logger/simple_logger/`](./examples/logger/simple_logger/simple_logger.go)
 
 
-The [Logger interface](log/logger.go#L95) in this library provides a set complete set of idiomatic methods which allow to either control the logger:
+The [Logger interface](./log/logger.go#L95) in this library provides a set complete set of idiomatic methods which allow to either control the logger:
 
 
 ```go
@@ -324,7 +324,7 @@ type Logger interface {
 }
 ```
 
-...or to use its [Printer interface](log/print.go#L18) and print messages in the `fmt.Print()` / `fmt.Println()` / `fmt.Printf()` way:
+...or to use its [Printer interface](./log/print.go#L18) and print messages in the `fmt.Print()` / `fmt.Println()` / `fmt.Printf()` way:
 
 
 ```go
@@ -392,23 +392,23 @@ Method | Description
 </p>
 
 
-> See the [example in `examples/logger/custom_logger/`](examples/logger/custom_logger/custom_logger.go)
+> See the [example in `examples/logger/custom_logger/`](./examples/logger/custom_logger/custom_logger.go)
 
 
-Creating a new logger with, for example, [`log.New()`](log/logger.go#L134) takes any number of configurations (including none, for the default configuration). This allows added modularity to the way your logger should behave.
+Creating a new logger with, for example, [`log.New()`](./log/logger.go#L134) takes any number of configurations (including none, for the default configuration). This allows added modularity to the way your logger should behave.
 
 Method / Variable | Description
 :--:|:--:
-[`NilLogger()`](log/conf.go#L154) | create a __nil-logger__ (that doesn't write anything to anywhere)
-[`WithPrefix(string)`](log/conf.go#L165) | set a __default prefix__
-[`WithSub(string)`](log/conf.#L172) | set a __default sub-prefix__
-[`WithOut(...io.Writer)`](log/format.go#L179) | set (a) __default writer(s)__
-[`WithFormat(LogFormatter)`](log/format.go#L33) | set the [formatter](#different-formatters) for the log event output content
-[`SkipExit` config](log/conf.go#L78) | set the __skip-exit option__ (to skip `os.Exit(1)` and `panic()` calls)
-[`WithFilter(event.Level)`](log/conf.go#L203) | set a __log-level filter__
-[`WithDatabase(...io.WriteCloser)`](log/conf.go#L211) | set a __database writer__ (if [using a database](#databases))
+[`NilLogger()`](./log/conf.go#L154) | create a __nil-logger__ (that doesn't write anything to anywhere)
+[`WithPrefix(string)`](./log/conf.go#L165) | set a __default prefix__
+[`WithSub(string)`](./log/conf.#L172) | set a __default sub-prefix__
+[`WithOut(...io.Writer)`](./log/format.go#L179) | set (a) __default writer(s)__
+[`WithFormat(LogFormatter)`](./log/format.go#L33) | set the [formatter](#different-formatters) for the log event output content
+[`SkipExit` config](./log/conf.go#L78) | set the __skip-exit option__ (to skip `os.Exit(1)` and `panic()` calls)
+[`WithFilter(event.Level)`](./log/conf.go#L203) | set a __log-level filter__
+[`WithDatabase(...io.WriteCloser)`](./log/conf.go#L211) | set a __database writer__ (if [using a database](#databases))
 
-Beyond the functions and preset configurations above, the package also exposes the following preset for the [default config](log/conf.go#L56):
+Beyond the functions and preset configurations above, the package also exposes the following preset for the [default config](./log/conf.go#L56):
 
 ```go
 var DefaultConfig LoggerConfig = &multiconf{
@@ -420,7 +420,7 @@ var DefaultConfig LoggerConfig = &multiconf{
 }
 ```
 
-...and the following [(initialized) presets](log/conf.go#L77) for several useful "defaults":
+...and the following [(initialized) presets](./log/conf.go#L77) for several useful "defaults":
 
 ```go
 var (
@@ -443,12 +443,12 @@ var (
 </p>
 
 
-> See the [example in `examples/logger/modular_events/`](examples/logger/modular_events/modular_events.go)
+> See the [example in `examples/logger/modular_events/`](./examples/logger/modular_events/modular_events.go)
 
 
 ##### Data structure
 
-The events are defined in a protocol buffer format, in [`proto/event.proto`](proto/event.proto#L20); to give it a seamless integration as a gRPC logger's request message:
+The events are defined in a protocol buffer format, in [`proto/event.proto`](./proto/event.proto#L20); to give it a seamless integration as a gRPC logger's request message:
 
 ```protobuf
 message Event {
@@ -467,21 +467,21 @@ message Event {
 
 An event is created with a builder pattern, by defining a set of elements before _spitting out_ the resulting object. 
 
-The event builder will allow chaining methods after [`event.New()`](log/event/builder.go#L29) until the [`Build()`](log/event/builder.go#L107) method is called. Below is a list of all available methods to the [`event.EventBuilder`](log/event/builder.go#L14):
+The event builder will allow chaining methods after [`event.New()`](./log/event/builder.go#L29) until the [`Build()`](./log/event/builder.go#L107) method is called. Below is a list of all available methods to the [`event.EventBuilder`](./log/event/builder.go#L14):
 
 Method signature | Description
 :--:|:--:
-[`Prefix(p string) *EventBuilder`](log/event/builder.go#L47) | set the prefix element
-[`Sub(s string) *EventBuilder`](log/event/builder.go#L54) | set the sub-prefix element
-[`Message(m string) *EventBuilder`](log/event/builder.go#L61) | set the message body element
-[`Level(l Level) *EventBuilder`](log/event/builder.go#L68) | set the level element
-[`Metadata(m map[string]interface{}) *EventBuilder`](log/event/builder.go#L75) | set (or add to) the metadata element
-[`CallStack(all bool) *EventBuilder`](log/event/builder.go#L94) | grab the current call stack, and add it as a "callstack" object in the event's metadata
-[`Build() *Event`](log/event/builder.go#L107) | build an event with configured elements, defaults applied where needed, and by adding a timestamp
+[`Prefix(p string) *EventBuilder`](./log/event/builder.go#L47) | set the prefix element
+[`Sub(s string) *EventBuilder`](./log/event/builder.go#L54) | set the sub-prefix element
+[`Message(m string) *EventBuilder`](./log/event/builder.go#L61) | set the message body element
+[`Level(l Level) *EventBuilder`](./log/event/builder.go#L68) | set the level element
+[`Metadata(m map[string]interface{}) *EventBuilder`](./log/event/builder.go#L75) | set (or add to) the metadata element
+[`CallStack(all bool) *EventBuilder`](./log/event/builder.go#L94) | grab the current call stack, and add it as a "callstack" object in the event's metadata
+[`Build() *Event`](./log/event/builder.go#L107) | build an event with configured elements, defaults applied where needed, and by adding a timestamp
 
 ##### Log levels
 
-Log levels are defined as a protobuf enum, as [`Level` enum](proto/event.proto#L9):
+Log levels are defined as a protobuf enum, as [`Level` enum](./proto/event.proto#L9):
 
 ```protobuf
 enum Level {
@@ -496,7 +496,7 @@ enum Level {
 }
 ```
 
-The [generated code](log/event/event.pb.go) creates a type and two maps which set these levels:
+The [generated code](./log/event/event.pb.go) creates a type and two maps which set these levels:
 
 ```go
 type Level int32
@@ -545,7 +545,7 @@ e := event.New().
            Build()						 // build it
 ```
 
-The [`Level` type](log/event/event.pb.go#L25) also has an exposed (custom) method, [`Int() int32`](log/event/level.go#L6), which acts as a quick converter from the map value to an `int32` value.
+The [`Level` type](./log/event/event.pb.go#L25) also has an exposed (custom) method, [`Int() int32`](./log/event/level.go#L6), which acts as a quick converter from the map value to an `int32` value.
 
 ##### Structured metadata
 
@@ -582,16 +582,16 @@ _output to the call above:_
 ```
 
 
-Metadata is added to the [`event.Event`](log/event/event.pb.go#L96) as a `map[string]interface{}` which is compatible with JSON output (for the most part, for most the common data types). This allows a list of key-value pairs where the key is always a string (an identifier) and the value is the data itself, regardless of the type.
+Metadata is added to the [`event.Event`](./log/event/event.pb.go#L96) as a `map[string]interface{}` which is compatible with JSON output (for the most part, for most the common data types). This allows a list of key-value pairs where the key is always a string (an identifier) and the value is the data itself, regardless of the type.
 
-The event package also exposes a unique type ([`event.Field`](log/event/field.go#L11)):
+The event package also exposes a unique type ([`event.Field`](./log/event/field.go#L11)):
 
 ```go
 // Field type is a generic type to build Event Metadata
 type Field map[string]interface{}
 ```
 
-The [`event.Field`](log/event/field.go#L11) type exposes three methods to allow fast / easy conversion to [`structpb.Struct`](https://pkg.go.dev/google.golang.org/protobuf/types/known/structpb#Struct) pointers; needed for the protobuf encoders:
+The [`event.Field`](./log/event/field.go#L11) type exposes three methods to allow fast / easy conversion to [`structpb.Struct`](https://pkg.go.dev/google.golang.org/protobuf/types/known/structpb#Struct) pointers; needed for the protobuf encoders:
 
 ```go
 // AsMap method returns the Field in it's (raw) string-interface{} map format
@@ -655,11 +655,11 @@ func (f Field) Encode() *structpb.Struct {}
 }
 ```
 
-> Output of the [example in `examples/logger/callstack_in_metadata/`](examples/logger/callstack_in_metadata/callstack_md.go)
+> Output of the [example in `examples/logger/callstack_in_metadata/`](./examples/logger/callstack_in_metadata/callstack_md.go)
 
-It's also possible to include the current callstack (at the time of the log event being built / created) as metadata to the log entry, by calling the event's [`Callstack(all bool)`](log/event/builder.go#L94/) method.
+It's also possible to include the current callstack (at the time of the log event being built / created) as metadata to the log entry, by calling the event's [`Callstack(all bool)`](./log/event/builder.go#L94/) method.
 
-This call will add the `map[string]interface{}` output of a [`trace.New(bool)` call](log/trace/trace.go#L27), to the event's metadata element, as an object named `callstack`. This `trace` package will fetch the call stack from a [`runtime.Stack([]byte, bool)` call](https://pkg.go.dev/runtime#Stack), where the limit in size is 1 kilobyte (`make([]byte, 1024)`).
+This call will add the `map[string]interface{}` output of a [`trace.New(bool)` call](./log/trace/trace.go#L27), to the event's metadata element, as an object named `callstack`. This `trace` package will fetch the call stack from a [`runtime.Stack([]byte, bool)` call](https://pkg.go.dev/runtime#Stack), where the limit in size is 1 kilobyte (`make([]byte, 1024)`).
 
 This package will parse the contents of this call and build a JSON document (as a `map[string]interface{}`) with key `callstack`, as a list of objects. These objects will have three elements:
 
@@ -688,7 +688,7 @@ func (l *logger) SetOuts(outs ...io.Writer) Logger {
 	return l
 }
 ```
-> from [log/logger.go](log/logger.go#L180)
+> from [log/logger.go](./log/logger.go#L180)
 
 ```go
 func (l *logger) AddOuts(outs ...io.Writer) Logger {
@@ -698,7 +698,7 @@ func (l *logger) AddOuts(outs ...io.Writer) Logger {
 	return l
 }
 ```
-> from [log/logger.go](log/logger.go#L207)
+> from [log/logger.go](./log/logger.go#L207)
 
 ```go
 func WithOut(out ...io.Writer) LoggerConfig {
@@ -713,11 +713,11 @@ func WithOut(out ...io.Writer) LoggerConfig {
 	// (...)
 }
 ```
-> from [log/conf.go](log/conf.go#L179)
+> from [log/conf.go](./log/conf.go#L179)
 
 ...but even beyond this useful implementation, it is _mimicked_ in other pars of the code base:
 
-- as a [`LoggerConfig` merger](log/conf.go#L25):
+- as a [`LoggerConfig` merger](./log/conf.go#L25):
 
 ```go
 type LoggerConfig interface {
@@ -741,7 +741,7 @@ func MultiConf(conf ...LoggerConfig) LoggerConfig {
 }
 ```
 
--  as a [`Logger` interface merger](log/multilog.go#L11):
+-  as a [`Logger` interface merger](./log/multilog.go#L11):
 
 ```go
 type multiLogger struct {
@@ -755,7 +755,7 @@ func MultiLogger(loggers ...Logger) Logger {
 }
 ```
 
-- as a [`MultiWriteCloser`](store/db/db.go#L96) for databases:
+- as a [`MultiWriteCloser`](./store/db/db.go#L96) for databases:
 
 ```go
 func MultiWriteCloser(wc ...io.WriteCloser) io.WriteCloser {
@@ -764,7 +764,7 @@ func MultiWriteCloser(wc ...io.WriteCloser) io.WriteCloser {
 
 ```
 
-- as a [`LogClientConfig` merger](grpc/client/conf.go#L61):
+- as a [`LogClientConfig` merger](./grpc/client/conf.go#L61):
 
 ```go
 type LogClientConfig interface {
@@ -786,7 +786,7 @@ func MultiConf(conf ...LogClientConfig) LogClientConfig {
 }
 ```
 
-- as a [`LogServerConfig` merger](grpc/server/conf.go#L57):
+- as a [`LogServerConfig` merger](./grpc/server/conf.go#L57):
 
 ```go
 type LogServerConfig interface {
@@ -808,7 +808,7 @@ func MultiConf(conf ...LogServerConfig) LogServerConfig {
 }
 ```
 
--  as a [`GRPCLogger` interface (client) merger](grpc/client/multilog.go#L13):
+-  as a [`GRPCLogger` interface (client) merger](./grpc/client/multilog.go#L13):
 
 ```go
 type multiLogger struct {
@@ -822,7 +822,7 @@ func MultiLogger(loggers ...GRPCLogger) GRPCLogger {
 }
 ```
 
--  as a [`LogServer` interface merger](grpc/server/multilog.go#L13):
+-  as a [`LogServer` interface merger](./grpc/server/multilog.go#L13):
 
 ```go
 type multiLogger struct {
@@ -839,7 +839,7 @@ func MultiLogger(loggers ...LogServer) LogServer {
 
 #### Different formatters
 
-> See the [example in `examples/logger/formatted_logger/`](examples/logger/formatted_logger/formatted_logger.go)
+> See the [example in `examples/logger/formatted_logger/`](./examples/logger/formatted_logger/formatted_logger.go)
 
 The logger can output events in several different formats, listed below:
 
@@ -850,18 +850,18 @@ The logger can output events in several different formats, listed below:
 </p>
 
 
-The text formatter allows an array of options, with the text formatter sub-package exposing a builder to create a text formatter. Below is the list of methods you can expect when calling [`text.New()....Build()`](log/format/text/text.go#L87):
+The text formatter allows an array of options, with the text formatter sub-package exposing a builder to create a text formatter. Below is the list of methods you can expect when calling [`text.New()....Build()`](./log/format/text/text.go#L87):
 
 Method | Description
 :--:|:--:
-[`Time(LogTimestamp)`](log/format/text/text.go#L93) | define the timestamp format, based on the exposed [list of timestamps](#log-timestamps), from the table below
-[`LevelFirst()`](log/format/text/text.go#L100) | place the log level as the first element in the line
-[`DoubleSpace()`](log/format/text/text.go#L107) | place double-tab-spaces between elements (`\t\t`)
-[`Color()`](log/format/text/text.go#L114) | add color to log levels (it is skipped on Windows CLI, as it doesn't support it)
-[`Upper()`](log/format/text/text.go#L121) | make log level, prefix and sub-prefix uppercase
-[`NoTimestamp()`](log/format/text/text.go#L128) | skip adding the timestamp element
-[`NoHeaders()`](log/format/text/text.go#L135) | skip adding the prefix and sub-prefix elements
-[`NoLevel()`](log/format/text/text.go#L142) | skip adding the log level element
+[`Time(LogTimestamp)`](./log/format/text/text.go#L93) | define the timestamp format, based on the exposed [list of timestamps](#log-timestamps), from the table below
+[`LevelFirst()`](./log/format/text/text.go#L100) | place the log level as the first element in the line
+[`DoubleSpace()`](./log/format/text/text.go#L107) | place double-tab-spaces between elements (`\t\t`)
+[`Color()`](./log/format/text/text.go#L114) | add color to log levels (it is skipped on Windows CLI, as it doesn't support it)
+[`Upper()`](./log/format/text/text.go#L121) | make log level, prefix and sub-prefix uppercase
+[`NoTimestamp()`](./log/format/text/text.go#L128) | skip adding the timestamp element
+[`NoHeaders()`](./log/format/text/text.go#L135) | skip adding the prefix and sub-prefix elements
+[`NoLevel()`](./log/format/text/text.go#L142) | skip adding the log level element
 
 ##### Log Timestamps
 
@@ -869,15 +869,15 @@ Regarding the timestamp constraints, please note the available timestamps for th
 
 Constant | Description
 :--:|:--:
-[`LTRFC3339Nano`](log/format/text/text.go#L48) | Follows the standard in [`time.RFC3339Nano`](https://pkg.go.dev/time#pkg-constants)
-[`LTRFC3339`](log/format/text/text.go#L49) | Follows the standard in [`time.RFC3339`](https://pkg.go.dev/time#pkg-constants)
-[`LTRFC822Z`](log/format/text/text.go#L50) | Follows the standard in [`time.RFC822Z`](https://pkg.go.dev/time#pkg-constants)
-[`LTRubyDate`](log/format/text/text.go#L51) | Follows the standard in [`time.RubyDate`](https://pkg.go.dev/time#pkg-constants)
-[`LTUnixNano`](log/format/text/text.go#L52) | Displays a Unix timestamp, in nanos
-[`LTUnixMilli`](log/format/text/text.go#L53) | Displays a Unix timestamp, in millis
-[`LTUnixMicro`](log/format/text/text.go#L54) | Displays a Unix timestamp, in micros
+[`LTRFC3339Nano`](./log/format/text/text.go#L48) | Follows the standard in [`time.RFC3339Nano`](https://pkg.go.dev/time#pkg-constants)
+[`LTRFC3339`](./log/format/text/text.go#L49) | Follows the standard in [`time.RFC3339`](https://pkg.go.dev/time#pkg-constants)
+[`LTRFC822Z`](./log/format/text/text.go#L50) | Follows the standard in [`time.RFC822Z`](https://pkg.go.dev/time#pkg-constants)
+[`LTRubyDate`](./log/format/text/text.go#L51) | Follows the standard in [`time.RubyDate`](https://pkg.go.dev/time#pkg-constants)
+[`LTUnixNano`](./log/format/text/text.go#L52) | Displays a Unix timestamp, in nanos
+[`LTUnixMilli`](./log/format/text/text.go#L53) | Displays a Unix timestamp, in millis
+[`LTUnixMicro`](./log/format/text/text.go#L54) | Displays a Unix timestamp, in micros
 
-The library also exposes a few initialized preset configurations using text formatters, as in the list below. While these are [`LoggerConfig`](log/conf.go#L21) presets, they're a wrapper for [the same formatter](log/format.go#L18), which is also available by not including the `Cfg` prefix:
+The library also exposes a few initialized preset configurations using text formatters, as in the list below. While these are [`LoggerConfig`](./log/conf.go#L21) presets, they're a wrapper for [the same formatter](./log/format.go#L18), which is also available by not including the `Cfg` prefix:
 
 ```go
 var (
@@ -910,9 +910,9 @@ var (
 </p>
 
 
-The JSON formatter allow generating JSON events in different ways. These formatters are already initialized as [`LoggerConfig`](log/format.go#L69) and [`LogFormatter`](log/format.go#L39) objects.
+The JSON formatter allow generating JSON events in different ways. These formatters are already initialized as [`LoggerConfig`](./log/format.go#L69) and [`LogFormatter`](./log/format.go#L39) objects.
 
-[This formatter](log/format/json/json.go#L13) allows creating JSON events separated by newlines or not, and also to optionally add indentation:
+[This formatter](./log/format/json/json.go#L13) allows creating JSON events separated by newlines or not, and also to optionally add indentation:
 
 ```go
 type FmtJSON struct {
@@ -921,7 +921,7 @@ type FmtJSON struct {
 }
 ```
 
-Also note how the [`LoggerConfig`](log/format.go#L69) presets are exposed. While these are a wrapper for the same formatter, they are also available as [`LogFormatter`](log/format.go#L39) by not including the `Cfg` prefix:
+Also note how the [`LoggerConfig`](./log/format.go#L69) presets are exposed. While these are a wrapper for the same formatter, they are also available as [`LogFormatter`](./log/format.go#L39) by not including the `Cfg` prefix:
 
 ```go
 var (
@@ -981,15 +981,15 @@ var (
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/log_writer.png" />
 </p>
 
-> Output of the [example in `examples/logger/log_as_writer/`](examples/logger/log_as_writer/log_as_writer.go)
+> Output of the [example in `examples/logger/log_as_writer/`](./examples/logger/log_as_writer/log_as_writer.go)
 
 
-Not only [`Logger` interface](log/logger.go#L95) uses the [`io.Writer` interface](https://pkg.go.dev/io#Writer) to write to its outputs with its [`Output()` method](log/print.go#L88), it also implements it in its own [`Write()` method](log/logger.go#L307) so it can be used directly as one. This gives the logger more flexibility as it can be vastly integrated with other modules.
+Not only [`Logger` interface](./log/logger.go#L95) uses the [`io.Writer` interface](https://pkg.go.dev/io#Writer) to write to its outputs with its [`Output()` method](./log/print.go#L88), it also implements it in its own [`Write()` method](./log/logger.go#L307) so it can be used directly as one. This gives the logger more flexibility as it can be vastly integrated with other modules.
 
 
-The the input slice of bytes is decoded, in case the input is an encoded [`event.Event`](log/event/event.pb.go#L96). If the conversion is successful, the input event is logged as-is.
+The the input slice of bytes is decoded, in case the input is an encoded [`event.Event`](./log/event/event.pb.go#L96). If the conversion is successful, the input event is logged as-is.
 
-If it is not an [`event.Event`](log/event/event.pb.go#L96) (there will be an error from the [`Decode()` method](log/event/event.go#L32)), then a new message is created where:
+If it is not an [`event.Event`](./log/event/event.pb.go#L96) (there will be an error from the [`Decode()` method](./log/event/event.go#L32)), then a new message is created where:
 - Log level is set to the default value (info)
 - Prefix, sub-prefix and metadata are added from the logger's configuration, or defaults if they aren't set.
 - input byte stream is converted to a string, and that will be log event message body:
@@ -1022,9 +1022,9 @@ func (l *logger) Write(p []byte) (n int, err error) {
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_file.png" />
 </p>
 
-> See the [example in `examples/datastore/file/`](examples/datastore/file/logfile.go)
+> See the [example in `examples/datastore/file/`](./examples/datastore/file/logfile.go)
 
-This library also provides a simple [`Logfile`](store/fs/logfile.go#L18) (an actual file in the disk where log entries are written to) configuration with appealing features for simple applications.
+This library also provides a simple [`Logfile`](./store/fs/logfile.go#L18) (an actual file in the disk where log entries are written to) configuration with appealing features for simple applications.
 
 ```go
 type Logfile struct {
@@ -1035,14 +1035,14 @@ type Logfile struct {
 }
 ```
 
-The [`Logfile`](store/fs/logfile.go#L18) exposes a few methods that could be helpful to keep the events organized:
+The [`Logfile`](./store/fs/logfile.go#L18) exposes a few methods that could be helpful to keep the events organized:
 
 Method | Description
 :--:|:--:
-[`MaxSize(mb int) *Logfile`](store/fs/logfile.go#L59) | sets the rotation indicator for the Logfile, or, the target size when should the logfile be rotated (in MBs)
-[`Size() (int64, error)`](store/fs/logfile.go#L139) | a wrapper for an [`os.File.Stat()`](https://pkg.go.dev/os#File.Stat) followed by [`fs.FileInfo.Size()`](https://pkg.go.dev/io/fs#FileInfo)
-[`IsTooHeavy() bool`](store/fs/logfile.go#L151) | verify the file's size and rotate it if exceeding the set maximum weight (in the Logfile's rotate element)
-[`Write(b []byte) (n int, err error)`](store/fs/logfile.go#L174) | implement the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Logfile to be compatible with Logger as an output to be used
+[`MaxSize(mb int) *Logfile`](./store/fs/logfile.go#L59) | sets the rotation indicator for the Logfile, or, the target size when should the logfile be rotated (in MBs)
+[`Size() (int64, error)`](./store/fs/logfile.go#L139) | a wrapper for an [`os.File.Stat()`](https://pkg.go.dev/os#File.Stat) followed by [`fs.FileInfo.Size()`](https://pkg.go.dev/io/fs#FileInfo)
+[`IsTooHeavy() bool`](./store/fs/logfile.go#L151) | verify the file's size and rotate it if exceeding the set maximum weight (in the Logfile's rotate element)
+[`Write(b []byte) (n int, err error)`](./store/fs/logfile.go#L174) | implement the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Logfile to be compatible with Logger as an output to be used
 
 
 ##### Databases
@@ -1051,7 +1051,7 @@ It's perfectly possible to write log events to a database instead of the termina
 
 This library leverages an ORM to handle interactions with most of the databases, for the sake of simplicity and streamlined testing -- these should focus on using a database as a writer, and not re-testing the database connections, configurations, etc. This is why an ORM is being used. This library uses [GORM](https://gorm.io/) for this purpose.
 
-Databases are not configured to loggers as an [`io.Writer` interface](https://pkg.go.dev/io#Writer) using the [`WithOut()` method](log/conf.go#L179), but with their dedicated [`WithDatabase()` method](log/conf.go#L211). This takes an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser).
+Databases are not configured to loggers as an [`io.Writer` interface](https://pkg.go.dev/io#Writer) using the [`WithOut()` method](./log/conf.go#L179), but with their dedicated [`WithDatabase()` method](./log/conf.go#L211). This takes an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser).
 
 
 To create this [`io.WriterCloser`](https://pkg.go.dev/io#WriteCloser), either the database package's appropriate `New()` method can be used; or by using its package function for the same purpose, `WithXxx()`.
@@ -1066,15 +1066,15 @@ Note the available database writers, and their features:
 </p>
 
 
-> See the [example in `examples/datastore/db/sqlite/`](examples/datastore/db/sqlite/sqlite.go)
+> See the [example in `examples/datastore/db/sqlite/`](./examples/datastore/db/sqlite/sqlite.go)
 
 Symbol | Type | Description
 :--:|:--:|:--:
-[`New(path string) (sqldb io.WriteCloser, err error)`](store/db/sqlite/sqlite.go#L22) | function | takes in a path to a `.db` file; and create a new instance of a [`SQLite3`](store/db/sqlite/sqlite.go#L15) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
-[`*SQLite.Create(msg ...*event.Event) error`](store/db/sqlite/sqlite.go#L39) | method | will register any number of [`event.Event`](log/event/event.pb.go#L96) in the SQLite database, returning an error (exposed method, but it's mostly used internally )
-[`*SQLite.Write(p []byte) (n int, err error)`](store/db/sqlite/sqlite.go#L71) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for SQLite DBs to be used with a [`Logger` interface](log/logger.go#L95), as its writer.
-[`*SQLite.Close() error`](store/db/sqlite/sqlite.go#L97) | method | method added for compatibility with DBs that require it
-[`WithSQLite(path string) log.LoggerConfig`](store/db/sqlite/sqlite.go#L113) | function | takes in a path to a `.db` file, and a table name; and returns a [`LoggerConfig`](log/conf.go#L21) so that this type of writer is defined in a [`Logger`](log/logger.go#L95)
+[`New(path string) (sqldb io.WriteCloser, err error)`](./store/db/sqlite/sqlite.go#L22) | function | takes in a path to a `.db` file; and create a new instance of a [`SQLite3`](./store/db/sqlite/sqlite.go#L15) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
+[`*SQLite.Create(msg ...*event.Event) error`](./store/db/sqlite/sqlite.go#L39) | method | will register any number of [`event.Event`](./log/event/event.pb.go#L96) in the SQLite database, returning an error (exposed method, but it's mostly used internally )
+[`*SQLite.Write(p []byte) (n int, err error)`](./store/db/sqlite/sqlite.go#L71) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for SQLite DBs to be used with a [`Logger` interface](./log/logger.go#L95), as its writer.
+[`*SQLite.Close() error`](./store/db/sqlite/sqlite.go#L97) | method | method added for compatibility with DBs that require it
+[`WithSQLite(path string) log.LoggerConfig`](./store/db/sqlite/sqlite.go#L113) | function | takes in a path to a `.db` file, and a table name; and returns a [`LoggerConfig`](./log/conf.go#L21) so that this type of writer is defined in a [`Logger`](./log/logger.go#L95)
 
 ##### MySQL
 
@@ -1084,7 +1084,7 @@ Symbol | Type | Description
 </p>
 
 
-> See the [example in `examples/datastore/db/mysql/`](examples/datastore/db/mysql/mysql.go)
+> See the [example in `examples/datastore/db/mysql/`](./examples/datastore/db/mysql/mysql.go)
 
 > Using this package will require the following environment variables to be set:
 
@@ -1095,11 +1095,11 @@ Variable | Type | Description
 
 Symbol | Type | Description
 :--:|:--:|:--:
-[`New(address, database string) (sqldb io.WriteCloser, err error)`](store/db/mysql/mysql.go#L32) | function | takes in a MySQL DB address and database name; and create a new instance of a [`MySQL`](store/db/mysql/mysql.go#L24) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
-[`*MySQL.Create(msg ...*event.Event) error`](store/db/mysql/mysql.go#L50) | method | will register any number of [`event.Event`](log/event/event.pb.go#L96) in the MySQL database, returning an error (exposed method, but it's mostly used internally )
-[`*MySQL.Write(p []byte) (n int, err error)`](store/db/mysql/mysql.go#L82) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for MySQL DBs to be used with a [`Logger` interface](log/logger.go#L95), as its writer.
-[`*MySQL.Close() error`](store/db/mysql/mysql.go#L112) | method | method added for compatibility with DBs that require it
-[`WithMySQL(addr, database string) log.LoggerConfig`](store/db/mysql/mysql.go#L166) | function | takes in an address to a MySQL server, and a database name; and returns a [`LoggerConfig`](log/conf.go#L21) so that this type of writer is defined in a [`Logger`](log/logger.go#L95)
+[`New(address, database string) (sqldb io.WriteCloser, err error)`](./store/db/mysql/mysql.go#L32) | function | takes in a MySQL DB address and database name; and create a new instance of a [`MySQL`](./store/db/mysql/mysql.go#L24) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
+[`*MySQL.Create(msg ...*event.Event) error`](./store/db/mysql/mysql.go#L50) | method | will register any number of [`event.Event`](./log/event/event.pb.go#L96) in the MySQL database, returning an error (exposed method, but it's mostly used internally )
+[`*MySQL.Write(p []byte) (n int, err error)`](./store/db/mysql/mysql.go#L82) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for MySQL DBs to be used with a [`Logger` interface](./log/logger.go#L95), as its writer.
+[`*MySQL.Close() error`](./store/db/mysql/mysql.go#L112) | method | method added for compatibility with DBs that require it
+[`WithMySQL(addr, database string) log.LoggerConfig`](./store/db/mysql/mysql.go#L166) | function | takes in an address to a MySQL server, and a database name; and returns a [`LoggerConfig`](./log/conf.go#L21) so that this type of writer is defined in a [`Logger`](./log/logger.go#L95)
 
 
 ##### PostgreSQL
@@ -1110,7 +1110,7 @@ Symbol | Type | Description
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_postgres.png" />
 </p>
 
-> See the [example in `examples/datastore/db/postgres/`](examples/datastore/db/postgres/postgres.go)
+> See the [example in `examples/datastore/db/postgres/`](./examples/datastore/db/postgres/postgres.go)
 
 > Using this package will require the following environment variables to be set:
 
@@ -1121,11 +1121,11 @@ Variable | Type | Description
 
 Symbol | Type | Description
 :--:|:--:|:--:
-[`New(address, port, database string) (sqldb io.WriteCloser, err error)`](store/db/postgres/postgres.go#L33) | function | takes in a Postgres DB address, port and database name; and create a new instance of a [`Postgres`](store/db/postgres/postgres.go#L24) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
-[`*Postgres.Create(msg ...*event.Event) error`](store/db/postgres/postgres.go#L52) | method | will register any number of [`event.Event`](log/event/event.pb.go#L96) in the Postgres database, returning an error (exposed method, but it's mostly used internally )
-[`*Postgres.Write(p []byte) (n int, err error)`](store/db/postgres/postgres.go#L84) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Postgres DBs to be used with a [`Logger` interface](log/logger.go#L95), as its writer.
-[`*Postgres.Close() error`](store/db/postgres/postgres.go#L118) | method | method added for compatibility with DBs that require it
-[`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/postgres/postgres.go#L172) | function | takes in an address and port to a Postgres server, and a database name; and returns a [`LoggerConfig`](log/conf.go#L21) so that this type of writer is defined in a [`Logger`](log/logger.go#L95)
+[`New(address, port, database string) (sqldb io.WriteCloser, err error)`](./store/db/postgres/postgres.go#L33) | function | takes in a Postgres DB address, port and database name; and create a new instance of a [`Postgres`](./store/db/postgres/postgres.go#L24) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
+[`*Postgres.Create(msg ...*event.Event) error`](./store/db/postgres/postgres.go#L52) | method | will register any number of [`event.Event`](./log/event/event.pb.go#L96) in the Postgres database, returning an error (exposed method, but it's mostly used internally )
+[`*Postgres.Write(p []byte) (n int, err error)`](./store/db/postgres/postgres.go#L84) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Postgres DBs to be used with a [`Logger` interface](./log/logger.go#L95), as its writer.
+[`*Postgres.Close() error`](./store/db/postgres/postgres.go#L118) | method | method added for compatibility with DBs that require it
+[`WithPostgres(addr, port, database string) log.LoggerConfig`](./store/db/postgres/postgres.go#L172) | function | takes in an address and port to a Postgres server, and a database name; and returns a [`LoggerConfig`](./log/conf.go#L21) so that this type of writer is defined in a [`Logger`](./log/logger.go#L95)
 
 
 
@@ -1136,7 +1136,7 @@ Symbol | Type | Description
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/datastore_mongo.png" />
 </p>
 
-> See the [example in `examples/datastore/db/mongo/`](examples/datastore/db/mongo/mongo.go)
+> See the [example in `examples/datastore/db/mongo/`](./examples/datastore/db/mongo/mongo.go)
 
 > Using this package will require the following environment variables to be set:
 
@@ -1147,11 +1147,11 @@ Variable | Type | Description
 
 Symbol | Type | Description
 :--:|:--:|:--:
-[`New(address, database, collection string) (io.WriteCloser, error)`](store/db/mongo/mongo.go#L36) | function | takes in a MongoDB address, database and collection names; and create a new instance of a [`Mongo`](store/db/mongo/mongo.go#L26) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
-[`*Mongo.Create(msg ...*event.Event) error`](store/db/mongo/mongo.go#L85) | method | will register any number of [`event.Event`](log/event/event.pb.go#L96) in the Mongo database, returning an error (exposed method, but it's mostly used internally )
-[`*Mongo.Write(p []byte) (n int, err error)`](store/db/mongo/mongo.go#L132) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Mongo DBs to be used with a [`Logger` interface](log/logger.go#L95), as its writer.
-[`*Mongo.Close() error`](store/db/mongo/mongo.go#L79) | method | used to terminate the live connection to the MongoDB instance
-[`WithPostgres(addr, port, database string) log.LoggerConfig`](store/db/mongo/mongo.go#L163) | function | takes in the address to the mongo server, and a database and collection name; and returns a [`LoggerConfig`](log/conf.go#L21) so that this type of writer is defined in a [`Logger`](log/logger.go#L95)
+[`New(address, database, collection string) (io.WriteCloser, error)`](./store/db/mongo/mongo.go#L36) | function | takes in a MongoDB address, database and collection names; and create a new instance of a [`Mongo`](./store/db/mongo/mongo.go#L26) object; returning an [`io.WriterCloser` interface](https://pkg.go.dev/io#WriteCloser) and an error.
+[`*Mongo.Create(msg ...*event.Event) error`](./store/db/mongo/mongo.go#L85) | method | will register any number of [`event.Event`](./log/event/event.pb.go#L96) in the Mongo database, returning an error (exposed method, but it's mostly used internally )
+[`*Mongo.Write(p []byte) (n int, err error)`](./store/db/mongo/mongo.go#L132) | method | implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), for Mongo DBs to be used with a [`Logger` interface](./log/logger.go#L95), as its writer.
+[`*Mongo.Close() error`](./store/db/mongo/mongo.go#L79) | method | used to terminate the live connection to the MongoDB instance
+[`WithPostgres(addr, port, database string) log.LoggerConfig`](./store/db/mongo/mongo.go#L163) | function | takes in the address to the mongo server, and a database and collection name; and returns a [`LoggerConfig`](./log/conf.go#L21) so that this type of writer is defined in a [`Logger`](./log/logger.go#L95)
 
 #### gRPC
 
@@ -1159,11 +1159,11 @@ To provide a solution to loggers that write _over the wire_, this library implem
 
 The choice for gRPC was simple. The framework is very solid and provides both fast and secure transmission of messages over a network. This is all that it's needed, right? Nope! There are also protocol buffers which helped in shaping the structure of this library in a more organized way (in my opinion).
 
-Originally, the plan was to create the event data structures in Go (manually), and from that point integrate the logger logic as an HTTP Writer or something -- note this is already possible as the [Logger interface](log/logger.go#L95) implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer) already. But the problem there would be a repetition in defining the event data structure. If gRPC was in fact the choice, it would mean that there would be a data structure for Go and another for gRPC (with generated Go code, for the same thing).
+Originally, the plan was to create the event data structures in Go (manually), and from that point integrate the logger logic as an HTTP Writer or something -- note this is already possible as the [Logger interface](./log/logger.go#L95) implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer) already. But the problem there would be a repetition in defining the event data structure. If gRPC was in fact the choice, it would mean that there would be a data structure for Go and another for gRPC (with generated Go code, for the same thing).
 
 So, easy-peasy: scratch off the Go data structure and keep the protocol buffers, even for (local) events and loggers. This worked great, it was easy enough to switch over, and the logic remained _kinda_ the same way, in the end.
 
-The added benefit is that gRPC and protobuf will create this generated code (from [`proto/event.proto`](proto/event.proto) and [`proto/service.proto`](proto/service.proto), to [`log/event/event.pb.go`](log/event/event.pb.go) and [`proto/service/service.pb.go`](proto/service/service.pb.go) respectively); which it a huge boost to productivity.
+The added benefit is that gRPC and protobuf will create this generated code (from [`proto/event.proto`](./proto/event.proto) and [`proto/service.proto`](./proto/service.proto), to [`log/event/event.pb.go`](./log/event/event.pb.go) and [`proto/service/service.pb.go`](./proto/service/service.pb.go) respectively); which it a huge boost to productivity.
 
 An added bonus is a very lightweight encoded format of the exchanged messages, as you are able to convert the protocol buffer messages into byte slices, too.
 
@@ -1175,18 +1175,18 @@ This section will cover features that you will find in both server and client im
 
 ##### gRPC Log Service
 
-The service, defined in [`proto/service/service.go`](proto/service/service.go), is the implementation of the log server core logic, from the [gRPC generated code](proto/service/service.pb.go).
+The service, defined in [`proto/service/service.go`](./proto/service/service.go), is the implementation of the log server core logic, from the [gRPC generated code](./proto/service/service.pb.go).
 
-This file will have the implementation of the [`LogServer` struct](proto/service/service.go#L34) and its [`Log()` method](proto/service/service.go#L75) and [`LogStream()` method](proto/service/service.go#L92) -- on how the server handles the messages exchanged in either configuration, as a unary RPC logger or a stream RPC logger.
+This file will have the implementation of the [`LogServer` struct](./proto/service/service.go#L34) and its [`Log()` method](./proto/service/service.go#L75) and [`LogStream()` method](./proto/service/service.go#L92) -- on how the server handles the messages exchanged in either configuration, as a unary RPC logger or a stream RPC logger.
 
-It also contains additional methods used within the core logic of the gRPC Log Server; such as its [`Done()` method](proto/service/service.go#L321) and [`Stop` method](store/service/service.go#L247).
+It also contains additional methods used within the core logic of the gRPC Log Server; such as its [`Done()` method](./proto/service/service.go#L321) and [`Stop` method](./store/service/service.go#L247).
 
 ##### gRPC Log Server
 
 
-> See the [examples in `examples/grpc/simple_unary_client_server/server/`](examples/grpc/simple_unary_client_server/server/server.go) and [in `examples/grpc/simple_stream_client_server/server/`](examples/grpc/simple_stream_client_server/server/server.go)
+> See the [examples in `examples/grpc/simple_unary_client_server/server/`](./examples/grpc/simple_unary_client_server/server/server.go) and [in `examples/grpc/simple_stream_client_server/server/`](./examples/grpc/simple_stream_client_server/server/server.go)
 
-The [`LogServer` interface](grpc/server/server.go#L24) is found in [`grpc/server/server.go`](grpc/server/server.go), which defines how the server is initialized, how can it be configured, and other features. This should be perceived as a simple wrapper for setting up a gRPC server using the logic in [`proto/service/service.go`](proto/service/service.go), with added features to make it even more useful:
+The [`LogServer` interface](./grpc/server/server.go#L24) is found in [`grpc/server/server.go`](./grpc/server/server.go), which defines how the server is initialized, how can it be configured, and other features. This should be perceived as a simple wrapper for setting up a gRPC server using the logic in [`proto/service/service.go`](./proto/service/service.go), with added features to make it even more useful:
 
 ```go
 type LogServer interface {
@@ -1196,13 +1196,13 @@ type LogServer interface {
 }
 ```
 
-A new Log Server is created with the public function [`New(...LogServerConfig)`](grpc/server/server.go#L102), which parses any number of configurations (covered below). The resulting [`GRPCLogServer` pointer](grpc/server/server.go#L31) will expose the following methods:
+A new Log Server is created with the public function [`New(...LogServerConfig)`](./grpc/server/server.go#L102), which parses any number of configurations (covered below). The resulting [`GRPCLogServer` pointer](./grpc/server/server.go#L31) will expose the following methods:
 
 Method | Description
 :--:|:--:
-[`Serve()`](grpc/server/server.go#L241) | a long-running, blocking function which will launch the gRPC server 
-[`Stop()`](grpc/server/server.go#L277) | a wrapper for the routine involved to (gracefully) stop this gRPC Log Server.
-[`Channels() (logCh, logSvCh chan *event.Event, errCh chan error)`](grpc/server/server.go#L289) | returns channels for a Log Server's I/O. It returns a channel for log messages (for actual log event writes), a channel for the service logger (the server's own logger), and an error channel to collect Log Server errors from.
+[`Serve()`](./grpc/server/server.go#L241) | a long-running, blocking function which will launch the gRPC server 
+[`Stop()`](./grpc/server/server.go#L277) | a wrapper for the routine involved to (gracefully) stop this gRPC Log Server.
+[`Channels() (logCh, logSvCh chan *event.Event, errCh chan error)`](./grpc/server/server.go#L289) | returns channels for a Log Server's I/O. It returns a channel for log messages (for actual log event writes), a channel for the service logger (the server's own logger), and an error channel to collect Log Server errors from.
 
 ##### Log Server Configs
 
@@ -1212,13 +1212,13 @@ Here is the list of exposed functions to allow a granular configuration of your 
 
 Function | Description 
 :--:|:--:
-[`WithAddr(string)`](grpc/server/conf.go#L161) | takes one address for the gRPC Log Server to listen to. Defaults to `localhost:9099`
-[`WithLogger(...log.Logger)`](grpc/server/conf.go#L180) | defines this gRPC Log Server's logger(s)
-[`WithServiceLogger(...log.Logger)`](grpc/server/conf.go#L204) | defines this gRPC Log Server's service logger(s) (for the gRPC Log Server activity)
-[`WithServiceLoggerV(...log.Logger)`](grpc/server/conf.go#230) | defines this gRPC Log Server's service logger(s) (for the gRPC Log Server activity) in verbose mode -- by adding an interceptor that checks each transaction, if OK or not, and for errors (added overhead)
-[`WithTiming()`](grpc/server/conf.go#L254) | sets a gRPC Log Server's service logger to measure the time taken when executing RPCs, as added metadata (added overhead)
-[`WithGRPCOpts(...grpc.ServerOption)`](grpc/server/conf.go#L263) | sets a gRPC Log Server's service logger to measure the time taken when executing RPCs, as added metadata (added overhead)
-[`WithTLS(certPath, keyPath string, caPath ...string)`](grpc/server/conf.go#L288) | allows configuring TLS / mTLS for a gRPC Log Server. If only two parameters are passed (certPath, keyPath), it will run its TLS flow. If three parameters are set (certPath, keyPath, caPath), it will run its mTLS flow.
+[`WithAddr(string)`](./grpc/server/conf.go#L161) | takes one address for the gRPC Log Server to listen to. Defaults to `localhost:9099`
+[`WithLogger(...log.Logger)`](./grpc/server/conf.go#L180) | defines this gRPC Log Server's logger(s)
+[`WithServiceLogger(...log.Logger)`](./grpc/server/conf.go#L204) | defines this gRPC Log Server's service logger(s) (for the gRPC Log Server activity)
+[`WithServiceLoggerV(...log.Logger)`](./grpc/server/conf.go#230) | defines this gRPC Log Server's service logger(s) (for the gRPC Log Server activity) in verbose mode -- by adding an interceptor that checks each transaction, if OK or not, and for errors (added overhead)
+[`WithTiming()`](./grpc/server/conf.go#L254) | sets a gRPC Log Server's service logger to measure the time taken when executing RPCs, as added metadata (added overhead)
+[`WithGRPCOpts(...grpc.ServerOption)`](./grpc/server/conf.go#L263) | sets a gRPC Log Server's service logger to measure the time taken when executing RPCs, as added metadata (added overhead)
+[`WithTLS(certPath, keyPath string, caPath ...string)`](./grpc/server/conf.go#L288) | allows configuring TLS / mTLS for a gRPC Log Server. If only two parameters are passed (certPath, keyPath), it will run its TLS flow. If three parameters are set (certPath, keyPath, caPath), it will run its mTLS flow.
 
 
 Lastly, the library also exposes some preset configurations:
@@ -1247,11 +1247,11 @@ var (
 ##### gRPC Log Client
 
 
-> See the [examples in `examples/grpc/simple_unary_client_server/client/`](examples/grpc/simple_unary_client_server/client/client.go) and [in `examples/grpc/simple_stream_client_server/client/`](examples/grpc/simple_stream_client_server/client/client.go)
+> See the [examples in `examples/grpc/simple_unary_client_server/client/`](./examples/grpc/simple_unary_client_server/client/client.go) and [in `examples/grpc/simple_stream_client_server/client/`](./examples/grpc/simple_stream_client_server/client/client.go)
 
 There is a gRPC Log Client implementation in Go, for the sake of providing an out-of-the-box solution for communicating with the gRPC Log Server; although this can simply serve as a reference for you to implement your own gRPC Log Client -- in any of the gRPC-supported languages.
 
-This client will act just like a regular (channeled) [Logger interface](log/logger.go#L95), with added features (and configurations):
+This client will act just like a regular (channeled) [Logger interface](./log/logger.go#L95), with added features (and configurations):
 
 ```go
 // import (
@@ -1265,18 +1265,18 @@ type GRPCLogger interface {
 }
 ```
 
-Creating a new gRPC Log Client depends on whether you're setting up a Unary gRPC logger or a Stream gRPC one. The [`New(...LogClientConfig)` function](grpc/client/client.go#L166) will serve as a factory, where depending on the configuration it will either spawn a [Unary gRPC logger](grpc/client/client.go#L192) or a [Stream gRPC logger](grpc/client/client.go#L199). Similar to other modules, the underlying builder pattern as you create a [`GRPCLogger`](grpc/client/client.go#L62) will apply the default configuration before overwriting it with the user's configs.
+Creating a new gRPC Log Client depends on whether you're setting up a Unary gRPC logger or a Stream gRPC one. The [`New(...LogClientConfig)` function](./grpc/client/client.go#L166) will serve as a factory, where depending on the configuration it will either spawn a [Unary gRPC logger](./grpc/client/client.go#L192) or a [Stream gRPC logger](./grpc/client/client.go#L199). Similar to other modules, the underlying builder pattern as you create a [`GRPCLogger`](./grpc/client/client.go#L62) will apply the default configuration before overwriting it with the user's configs.
 
 This client will expose the public methods as per the interfaces it contains, and nothing else. There are a few things to keep in mind:
 
 Method | Description
 :--:|:--:
-[`Close()`](grpc/client/client.go#L582) | iterates through all (alive) connections in the `ConnAddr` map, and close them. After doing so, it sends the done signal to its channel, which causes all open streams to cancel their context and exit gracefully
-[`Output(*event.Event) (int, error)`](grpc/client/client.go#L622) |  pushes the incoming Log Message to the message channel, which is sent to a gRPC Log Server, either via a Unary or Stream RPC. Note that it will always return `1, nil`.
-[`SetOuts(...io.Writer) log.Logger`](grpc/client/client.go#L643) | for compatibility with the Logger interface, this method must take in io.Writers. However, this is not how the gRPC Log Client will work to register messages. Instead, the input io.Writer needs to be of type `ConnAddr`. More info on this type below. This method overwrites the configured addresses.
-[`AddOuts(...io.Writer) log.Logger`](grpc/client/client.go#L703) | for compatibility with the Logger interface, this method must take in io.Writers. However, this is not how the gRPC Log Client will work to register messages. Instead, the input io.Writer needs to be of type `ConnAddr`. More info on this type below. This method adds addresses to the configured ones.
-[`Write([]byte) (int, error)`](grpc/client/client.go#L776) | consider that `Write()` will return a call of `Output()`. This means that you should expect it to return `1, nil`.
-[`IsSkipExit() bool`](grpc/client/client.go#L859) | returns a boolean on whether the gRPC Log Client's __service logger__ is set to skip os.Exit(1) or panic() calls.
+[`Close()`](./grpc/client/client.go#L582) | iterates through all (alive) connections in the `ConnAddr` map, and close them. After doing so, it sends the done signal to its channel, which causes all open streams to cancel their context and exit gracefully
+[`Output(*event.Event) (int, error)`](./grpc/client/client.go#L622) |  pushes the incoming Log Message to the message channel, which is sent to a gRPC Log Server, either via a Unary or Stream RPC. Note that it will always return `1, nil`.
+[`SetOuts(...io.Writer) log.Logger`](./grpc/client/client.go#L643) | for compatibility with the Logger interface, this method must take in io.Writers. However, this is not how the gRPC Log Client will work to register messages. Instead, the input io.Writer needs to be of type `ConnAddr`. More info on this type below. This method overwrites the configured addresses.
+[`AddOuts(...io.Writer) log.Logger`](./grpc/client/client.go#L703) | for compatibility with the Logger interface, this method must take in io.Writers. However, this is not how the gRPC Log Client will work to register messages. Instead, the input io.Writer needs to be of type `ConnAddr`. More info on this type below. This method adds addresses to the configured ones.
+[`Write([]byte) (int, error)`](./grpc/client/client.go#L776) | consider that `Write()` will return a call of `Output()`. This means that you should expect it to return `1, nil`.
+[`IsSkipExit() bool`](./grpc/client/client.go#L859) | returns a boolean on whether the gRPC Log Client's __service logger__ is set to skip os.Exit(1) or panic() calls.
 
 
 ##### Log Client Configs
@@ -1287,16 +1287,16 @@ Here is the list of exposed functions to allow a granular configuration of your 
 
 Function | Description 
 :--:|:--:
-[`WithAddr(...string)`](grpc/client/conf.go#L176) | take in any amount of addresses, and create a [connections map](#connection-addresses) with them, for the gRPC client to connect to the server. Defaults to `localhost:9099`
-[`StreamRPC()`](grpc/client/conf.go#L199) | sets this gRPC Log Client type as Stream RPC
-[`UnaryRPC()`](grpc/client/conf.go#L208) | sets this gRPC Log Client type as Unary RPC
-[`WithLogger(...log.Logger)`](grpc/client/conf.go#L223) | defines this gRPC Log Client's service logger. This logger will register the gRPC Client transactions; and not the log messages it is handling.
-[`WithLoggerV(...log.Logger)`](grpc/client/conf.go#L265) | defines this gRPC Log Client's service logger, in verbose mode. This logger will register the gRPC Client transactions; and not the log messages it is handling. (added overhead)
-[`WithBackoff(time.Duration, BackoffFunc)`](grpc/client/conf.go#L310) | takes in a [`time.Duration`](https://pkg.go.dev/time#Duration) value to set as the exponential backoff module's retry deadline, and a [`BackoffFunc`](grpc/client/backoff.go#L33) to customize the backoff pattern. [Backoff](#log-client-backoff) is further described in the next section.
-[`WithTiming()`](grpc/client/conf.go#L340) | sets a gRPC Log Client's service logger to measure the time taken when executing RPCs. It is only an option, and is directly tied to the configured service logger. (added overhead)
-[`WithGRPCOpts(...grpc.DialOption)`](grpc/client/conf.go#L349) | allows passing in any number of grpc.DialOption, which are added to the gRPC Log Client.
-[`Insecure()`](grpc/client/conf.go#L372) | allows creating an insecure gRPC connection (maybe for testing purposes) by adding a new option for insecure transport credentials (no TLS / mTLS).
-[`WithTLS(string, ...string)`](grpc/client/conf.go#L372) | allows configuring TLS / mTLS for a gRPC Log Client. If only one parameter is passed (caPath), it will run its TLS flow. If three parameters are set (caPath, certPath, keyPath), it will run its mTLS flow.
+[`WithAddr(...string)`](./grpc/client/conf.go#L176) | take in any amount of addresses, and create a [connections map](#connection-addresses) with them, for the gRPC client to connect to the server. Defaults to `localhost:9099`
+[`StreamRPC()`](./grpc/client/conf.go#L199) | sets this gRPC Log Client type as Stream RPC
+[`UnaryRPC()`](./grpc/client/conf.go#L208) | sets this gRPC Log Client type as Unary RPC
+[`WithLogger(...log.Logger)`](./grpc/client/conf.go#L223) | defines this gRPC Log Client's service logger. This logger will register the gRPC Client transactions; and not the log messages it is handling.
+[`WithLoggerV(...log.Logger)`](./grpc/client/conf.go#L265) | defines this gRPC Log Client's service logger, in verbose mode. This logger will register the gRPC Client transactions; and not the log messages it is handling. (added overhead)
+[`WithBackoff(time.Duration, BackoffFunc)`](./grpc/client/conf.go#L310) | takes in a [`time.Duration`](https://pkg.go.dev/time#Duration) value to set as the exponential backoff module's retry deadline, and a [`BackoffFunc`](./grpc/client/backoff.go#L33) to customize the backoff pattern. [Backoff](#log-client-backoff) is further described in the next section.
+[`WithTiming()`](./grpc/client/conf.go#L340) | sets a gRPC Log Client's service logger to measure the time taken when executing RPCs. It is only an option, and is directly tied to the configured service logger. (added overhead)
+[`WithGRPCOpts(...grpc.DialOption)`](./grpc/client/conf.go#L349) | allows passing in any number of grpc.DialOption, which are added to the gRPC Log Client.
+[`Insecure()`](./grpc/client/conf.go#L372) | allows creating an insecure gRPC connection (maybe for testing purposes) by adding a new option for insecure transport credentials (no TLS / mTLS).
+[`WithTLS(string, ...string)`](./grpc/client/conf.go#L372) | allows configuring TLS / mTLS for a gRPC Log Client. If only one parameter is passed (caPath), it will run its TLS flow. If three parameters are set (caPath, certPath, keyPath), it will run its mTLS flow.
 
 Lastly, the library also exposes some preset configurations:
 
@@ -1340,15 +1340,15 @@ type Backoff struct {
 }
 ```
 
-[`BackoffFunc`](grpc/client/backoff.go#L33) takes in a(n unsigned) integer representing the attempt counter, and returns a time.Duration value of how much should the module wait before the next attempt / retry.
+[`BackoffFunc`](./grpc/client/backoff.go#L33) takes in a(n unsigned) integer representing the attempt counter, and returns a time.Duration value of how much should the module wait before the next attempt / retry.
 
-[`Backoff`](grpc/client/backoff.go#L44) struct defines the elements of a backoff module, which is configured by setting a [`BackoffFunc`](grpc/client/backoff.go#L33) to define the interval between each attempt.
+[`Backoff`](./grpc/client/backoff.go#L44) struct defines the elements of a backoff module, which is configured by setting a [`BackoffFunc`](./grpc/client/backoff.go#L33) to define the interval between each attempt.
 
 Backoff will also try to act as a message buffer in case the server connection cannot be established -- as it will attempt to flush these records to the server as soon as connected. 
 
-Implementing backoff logic is as simple as writing a function which will return a function with the same signature as [`BackoffFunc`](grpc/client/backoff.go#L33). The parameters that your function takes or how it arrives to the return [`time.Duration`](https://pkg.go.dev/time#Duration) value is completely up to you.
+Implementing backoff logic is as simple as writing a function which will return a function with the same signature as [`BackoffFunc`](./grpc/client/backoff.go#L33). The parameters that your function takes or how it arrives to the return [`time.Duration`](https://pkg.go.dev/time#Duration) value is completely up to you.
 
-Two examples below, one for [`NoBackoff()`](grpc/client/backoff.go#L58) and one for [`BackoffExponential()`](grpc/client/backoff.go#L89):
+Two examples below, one for [`NoBackoff()`](./grpc/client/backoff.go#L58) and one for [`BackoffExponential()`](./grpc/client/backoff.go#L89):
 
 ```go
 func NoBackoff() BackoffFunc {
@@ -1367,18 +1367,18 @@ func BackoffExponential() BackoffFunc {
 }
 ```
 
-With this in mind, regardless if the exposed [`BackoffFunc`](grpc/client/backoff.go#L33), you may pass a deadline and your own [`BackoffFunc`](grpc/client/backoff.go#L33) to [`WithBackoff()`](grpc/client/conf.go#L310), as you create your gRPC Log Client.
+With this in mind, regardless if the exposed [`BackoffFunc`](./grpc/client/backoff.go#L33), you may pass a deadline and your own [`BackoffFunc`](./grpc/client/backoff.go#L33) to [`WithBackoff()`](./grpc/client/conf.go#L310), as you create your gRPC Log Client.
 
-Here is a list of the preset [`BackoffFunc`](grpc/client/backoff.go#L33) factories, available in this library:
+Here is a list of the preset [`BackoffFunc`](./grpc/client/backoff.go#L33) factories, available in this library:
 
 Function | Description
 :--:|:--:
-[`NoBackoff()`](grpc/client/backoff.go#L58) | returns a [`BackoffFunc`](grpc/client/backoff.go#L33) that overrides the backoff module by setting a zero wait-between duration. This is detected as a sign that the module should be overriden.
-[`BackoffLinear(time.Duration)`](grpc/client/backoff.go#L67) | returns a [`BackoffFunc`](grpc/client/backoff.go#L33) that sets a linear backoff according to the input duration. If the input duration is 0, then the default wait-between time is set (3 seconds).
-[`BackoffIncremental(time.Duration)`](grpc/client/backoff.go#L79) | returns a [`BackoffFunc`](grpc/client/backoff.go#L33) that calculates exponential backoff according to a scalar method
-[`BackoffExponential()`](grpc/client/backoff.go#L89) | returns a [`BackoffFunc`](grpc/client/backoff.go#L33) that calculates exponential backoff [according to its standard](https://en.wikipedia.org/wiki/Exponential_backoff)
+[`NoBackoff()`](./grpc/client/backoff.go#L58) | returns a [`BackoffFunc`](./grpc/client/backoff.go#L33) that overrides the backoff module by setting a zero wait-between duration. This is detected as a sign that the module should be overriden.
+[`BackoffLinear(time.Duration)`](./grpc/client/backoff.go#L67) | returns a [`BackoffFunc`](./grpc/client/backoff.go#L33) that sets a linear backoff according to the input duration. If the input duration is 0, then the default wait-between time is set (3 seconds).
+[`BackoffIncremental(time.Duration)`](./grpc/client/backoff.go#L79) | returns a [`BackoffFunc`](./grpc/client/backoff.go#L33) that calculates exponential backoff according to a scalar method
+[`BackoffExponential()`](./grpc/client/backoff.go#L89) | returns a [`BackoffFunc`](./grpc/client/backoff.go#L33) that calculates exponential backoff [according to its standard](https://en.wikipedia.org/wiki/Exponential_backoff)
 
-Creating a new [`Backoff`](grpc/client/backoff.go#L44) instance can be manual, although not necessary considering it is embeded in the gRPC Log Client's logic:
+Creating a new [`Backoff`](./grpc/client/backoff.go#L44) instance can be manual, although not necessary considering it is embeded in the gRPC Log Client's logic:
 
 ```go
 // import "github.com/zalgonoise/zlog/grpc/client"
@@ -1389,9 +1389,9 @@ b.BackoffFunc(
 )
 ```
 
-From this point onwards, the [`Backoff`](grpc/client/backoff.go#L44) module is called on certain errors. For example:
+From this point onwards, the [`Backoff`](./grpc/client/backoff.go#L44) module is called on certain errors. For example:
 
-_From [grpc/client/client.go](grpc/client/client.go#L230)_
+_From [grpc/client/client.go](./grpc/client/client.go#L230)_
 
 ```go
 func (c *GRPCLogClient) connect() error {
@@ -1413,17 +1413,17 @@ func (c *GRPCLogClient) connect() error {
 }
 ```
 
-While this [`Backoff`](grpc/client/backoff.go#L44) logic can be taken as a reference for different implementations, it is very specific to the gRPC Log Client's logic considering its [`init()` method](grpc/client/backoff.go#L109) and [`Register()` method](grpc/client/backoff.go#L238); which are hooks for being able to work with either Unary or Stream gRPC Log Clients.
+While this [`Backoff`](./grpc/client/backoff.go#L44) logic can be taken as a reference for different implementations, it is very specific to the gRPC Log Client's logic considering its [`init()` method](./grpc/client/backoff.go#L109) and [`Register()` method](./grpc/client/backoff.go#L238); which are hooks for being able to work with either Unary or Stream gRPC Log Clients.
 
 ##### Connection Addresses
 
-Connection Addresses, or [`ConnAddr` type](grpc/address/address.go#L8) is a custom type for `map[string]`[`*grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn), that also exposes a few handy methods for this particular application. 
+Connection Addresses, or [`ConnAddr` type](./grpc/address/address.go#L8) is a custom type for `map[string]`[`*grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn), that also exposes a few handy methods for this particular application. 
 
 Considering that the Logger interface works with [`io.Writer` interfaces](https://pkg.go.dev/io#Writer) to write events, it was becoming pretty obvious that the gRPC Client / Server logic would need to either discard the `Write()`, `AddOuts()` and `SetOuts()` while adding different methods (or configs) in replacement ...or why not keep working with an [`io.Writer` interface](https://pkg.go.dev/io#Writer)?
 
-The [`ConnAddr` type](grpc/address/address.go#L8) implements this and other useful methods which will allow the gRPC client and server logic to leverage the same methods as in the [Logger interface](log/logger.go#L95) for the purposes that it needs. This, similar to the [Logger interface](log/logger.go#L95), allows one gRPC Log Client to connect to multiple gRPC Log Servers at the same time, writing the same events to different endpoints (as needed).
+The [`ConnAddr` type](./grpc/address/address.go#L8) implements this and other useful methods which will allow the gRPC client and server logic to leverage the same methods as in the [Logger interface](./log/logger.go#L95) for the purposes that it needs. This, similar to the [Logger interface](./log/logger.go#L95), allows one gRPC Log Client to connect to multiple gRPC Log Servers at the same time, writing the same events to different endpoints (as needed).
 
-There is also a careful verification if the input [`io.Writer` interface](https://pkg.go.dev/io#Writer) is actually of [`ConnAddr` type](grpc/address/address.go#L8), for example in the [client's `SetOuts()` method](grpc/client/client.go#L643):
+There is also a careful verification if the input [`io.Writer` interface](https://pkg.go.dev/io#Writer) is actually of [`ConnAddr` type](./grpc/address/address.go#L8), for example in the [client's `SetOuts()` method](./grpc/client/client.go#L643):
 
 ```go
 func (c *GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
@@ -1446,9 +1446,9 @@ func (c *GRPCLogClient) SetOuts(outs ...io.Writer) log.Logger {
 }
 ```
 
-The core of the [`ConnAddr` type](grpc/address/address.go#L8) stores addresses prior to _verifying_ them. As the gRPC Log Client starts running, it will iterate through all addresses in the map and connect to them (thus the map of strings and pointers to [`grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn)).
+The core of the [`ConnAddr` type](./grpc/address/address.go#L8) stores addresses prior to _verifying_ them. As the gRPC Log Client starts running, it will iterate through all addresses in the map and connect to them (thus the map of strings and pointers to [`grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn)).
 
-A [`ConnAddr`](grpc/address/address.go#L8) is initialized with any number of parameters (at least one, otherwise it returns nil):
+A [`ConnAddr`](./grpc/address/address.go#L8) is initialized with any number of parameters (at least one, otherwise it returns nil):
 
 ```go
 // import "github.com/zalgonoise/zlog/grpc/address"
@@ -1464,15 +1464,15 @@ This type exposes a few methods that may be useful; although keep in mind that a
 
 Method | Description
 :--:|:--:
-[`AsMap() map[string]*grpc.ClientConn`](grpc/address/address.go#L39) | returns a [`ConnAddr` type](grpc/address/address.go#L8) object in a `map[string]`[`*grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn) format
-[`Add(...string)`](grpc/address/address.go#L45) | allocates the input strings as entries in the map, with initialized pointers to [`grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn)
-[`Keys() []string`](grpc/address/address.go#L66) | returns a [`ConnAddr` type](grpc/address/address.go#L8) object's keys (its addresses) in a slice of strings
-[`Get(string) *grpc.ClientConn`](grpc/address/address.go#L76) | returns the pointer to a [`grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn), as referenced in the input address `k`
-[`Set(string, *grpc.ClientConn)`](grpc/address/address.go#L86) | allocates the input connection to the input string, within the [`ConnAddr` type](grpc/address/address.go#L8) object (overwritting it if existing)
-[`Len() int`](grpc/address/address.go#L94) | returns the size of the [`ConnAddr` type](grpc/address/address.go#L8) object
-[`Reset()`](grpc/address/address.go#L99) | overwrites the existing [`ConnAddr` type](grpc/address/address.go#L8) object with a new, empty one.
-[`Unset(...string)`](grpc/address/address.go#L110) | removes the input addr strings from the [`ConnAddr` type](grpc/address/address.go#L8) object, if existing
-[`Write(p []byte) (n int, err error)`](grpc/address/address.go#L134) | an implementation of [`io.Writer` interface](https://pkg.go.dev/io#Writer), so that the [`ConnAddr` type](grpc/address/address.go#L8) object can be used in a gRPC Log Client's [`SetOuts()`](grpc/client/client.go#L643) and [`AddOuts()`](grpc/client/client.go#L703) methods. These need to conform with the [Logger interface](log/logger.go#L95) that implements the same methods. For the same layer of compatibility to be possible in a gRPC Log Client (who will write its log entries in a remote server), it uses these methods to implement its way of altering the existing connections, instead of dismissing this part of the implementation all together. __This is not a regular [`io.Writer` interface](https://pkg.go.dev/io#Writer)__.
+[`AsMap() map[string]*grpc.ClientConn`](./grpc/address/address.go#L39) | returns a [`ConnAddr` type](./grpc/address/address.go#L8) object in a `map[string]`[`*grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn) format
+[`Add(...string)`](./grpc/address/address.go#L45) | allocates the input strings as entries in the map, with initialized pointers to [`grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn)
+[`Keys() []string`](./grpc/address/address.go#L66) | returns a [`ConnAddr` type](./grpc/address/address.go#L8) object's keys (its addresses) in a slice of strings
+[`Get(string) *grpc.ClientConn`](./grpc/address/address.go#L76) | returns the pointer to a [`grpc.ClientConn`](https://pkg.go.dev/google.golang.org/grpc#ClientConn), as referenced in the input address `k`
+[`Set(string, *grpc.ClientConn)`](./grpc/address/address.go#L86) | allocates the input connection to the input string, within the [`ConnAddr` type](./grpc/address/address.go#L8) object (overwritting it if existing)
+[`Len() int`](./grpc/address/address.go#L94) | returns the size of the [`ConnAddr` type](./grpc/address/address.go#L8) object
+[`Reset()`](./grpc/address/address.go#L99) | overwrites the existing [`ConnAddr` type](./grpc/address/address.go#L8) object with a new, empty one.
+[`Unset(...string)`](./grpc/address/address.go#L110) | removes the input addr strings from the [`ConnAddr` type](./grpc/address/address.go#L8) object, if existing
+[`Write(p []byte) (n int, err error)`](./grpc/address/address.go#L134) | an implementation of [`io.Writer` interface](https://pkg.go.dev/io#Writer), so that the [`ConnAddr` type](./grpc/address/address.go#L8) object can be used in a gRPC Log Client's [`SetOuts()`](./grpc/client/client.go#L643) and [`AddOuts()`](./grpc/client/client.go#L703) methods. These need to conform with the [Logger interface](./log/logger.go#L95) that implements the same methods. For the same layer of compatibility to be possible in a gRPC Log Client (who will write its log entries in a remote server), it uses these methods to implement its way of altering the existing connections, instead of dismissing this part of the implementation all together. __This is not a regular [`io.Writer` interface](https://pkg.go.dev/io#Writer)__.
 
 
 _______________

@@ -111,6 +111,8 @@ This section covers basic usage and typical use-cases of different modules in th
 
 #### Simple Logger - [_example_](./examples/logger/simple_logger/simple_logger.go)
 
+<details>
+
 _Snippet_
 
 ```go
@@ -150,6 +152,7 @@ exit status 2
 
 ```
 
+</details>
 
 The simplest approach to using the logger library is to call its built-in methods, as if they were `fmt.Print()`-like calls. The logger exposes methods for registering messages in [different log levels](#log-levels), defined in its [`Printer` interface](./log/print.go#L18).
 
@@ -157,6 +160,9 @@ Note that there are calls which are configured to halt the application's runtime
 
 
 #### Custom Logger - [_example_](./examples/logger/custom_logger/custom_logger.go)
+
+
+<details>
 
 _Snippet_
 
@@ -194,6 +200,9 @@ _Output_
 [info]  [2022-07-26T17:04:25.371617213Z]        [service]       [module]        message written to a new buffer
 ```
 
+</details>
+
+
 The logger is customized on creation, and any number of configuration can be passed to it. This makes it flexible for simple configurations (where only defaults are applied), and makes it granular enough for the complex ones.
 
 Furthermore, it will also expose [certain methods](#simple-api) to allow changes to the logger's configuration during runtime (with `Prefix()`, `Sub()` and `Metadata()`, as well as `AddOuts()` and `SetOuts()` methods).
@@ -204,6 +213,9 @@ _________________
 
 
 #### MultiLogger - [_example_](./examples/logger/multilogger/multilogger.go)
+
+
+<details>
 
 _Snippet_
 
@@ -283,6 +295,8 @@ _Output_
   }
 }
 ```
+
+</details>
 
 The logger on [line 21](./examples/logger/multilogger/multilogger.go#L21) is merging any loggers provided as input. In this example, the caller can leverage this functionality to write the same events to different outputs (with different formats), or with certain log level filters (`writerA` will register all events, while `writerB` will register events that are `error` and above).
 

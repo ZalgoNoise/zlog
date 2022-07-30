@@ -303,6 +303,209 @@ The logger on [line 21](./examples/logger/multilogger/multilogger.go#L21) is mer
 This approach can be taken with all kinds of loggers, provided that they they implement the same methods as [`Logger` interface](./log/logger.go#L95). By all kinds of loggers, I mean those within this library, such as having a standard-error logger, as well as a gRPC Log Client configured as one, with [`MultiLogger()`](./log/multilog.go#L11). More information on [_multi-everything_, in its own section](#multi-everything)
 
 
+
+_________________
+
+
+
+#### Logger as a Writer - [_example_](./examples/logger/log_as_writer/log_as_writer.go)
+
+
+<details>
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+)
+
+func main() {
+
+	logger := log.New()
+
+	n, err := logger.Write([]byte("Hello, world!"))
+	if err != nil {
+		fmt.Println("errored: ", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n---\nn: %v, err: %v\n---\n", n, err)
+
+	n, err = logger.Write(event.New().Message("Hi, world!").Build().Encode())
+	if err != nil {
+		fmt.Println("errored: ", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n---\nn: %v, err: %v\n---\n", n, err)
+}
+```
+
+_Output_
+
+```
+[info]  [2022-07-30T12:07:44.451547181Z]        [log]   Hello, world!
+
+---
+n: 69, err: <nil>
+---
+[info]  [2022-07-30T12:07:44.45166375Z] [log]   Hi, world!
+
+---
+n: 65, err: <nil>
+---
+```
+
+</details>
+
+Since the [`Logger` interface](./log/logger.go#L95) also implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), it can be used in a broader form. The example above shows how simply passing a (string) message as a slice of bytes replicates a `log.Info()` call, and passing an encoded event will actually read its parameters (level, prefix, etc) and register an event accordingly. More information in the [Writer Interface](#writer-interface) section.
+
+
+
+_________________
+
+
+
+#### Output formats - [_example_](./examples/logger/formatted_logger/formatted_logger.go)
+
+
+<details>
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/log/format/text"
+)
+
+func main() {
+
+	// setup a simple text logger, with custom formatting
+	custTextLogger := log.New(
+		log.WithFormat(
+			text.New().
+				Color().
+				DoubleSpace().
+				LevelFirst().
+				Upper().
+				Time(text.LTRubyDate).
+				Build(),
+		),
+	)
+
+	// setup a simple JSON logger
+	jsonLogger := log.New(log.CfgFormatJSON)
+
+	// setup a simple XML logger
+	xmlLogger := log.New(log.CfgFormatXML)
+
+	// (...)
+
+	// join all loggers
+	multiLogger := log.MultiLogger(
+		custTextLogger,
+		jsonLogger,
+		xmlLogger,
+		// (...)
+	)
+
+	// example message to print
+	var msg = event.New().Message("message from a formatted logger").Build()
+
+	// print the message to standard out, with different formats
+	multiLogger.Log(msg)
+}
+
+```
+
+_Output_
+
+```
+[INFO]          [Sat Jul 30 13:17:31 +0000 2022]                [LOG]           message from a formatted logger
+{"timestamp":"2022-07-30T13:17:31.744955941Z","service":"log","level":"info","message":"message from a formatted logger"}
+<entry><timestamp>2022-07-30T13:17:31.744955941Z</timestamp><service>log</service><level>info</level><message>message from a formatted logger</message></entry>
+```
+
+</details>
+
+When setting up the [`Logger` interface](./log/logger.go#L95), different formatters can be passed as well. There are common formats already implemented (like JSON, XML, CSV, BSON), as well as a modular text formatter. 
+
+New formatters can also be added seamlessly by complying with their corresponding interfaces. More information on all formatters in the [Different Formatters section](#different-formatters).
+
+
+
+_________________
+
+
+
+#### Modular events - [_example_](./examples/logger/modular_events/modular_events.go)
+
+
+<details>
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+)
+
+func main() {
+
+	// Events can be created and customized with a builder pattern,
+	// where each element is defined with a chained method until the
+	// Build() method is called.
+	//
+	// This last method will apply the timestamp to the event and any
+	// defaults for missing (required) fields.
+	log.Log(
+		event.New().
+			Prefix("module").
+			Sub("service").
+			Level(event.Level_warn).
+			Metadata(event.Field{
+				"data": true,
+			}).
+			Build(),
+		event.New().
+			Prefix("mod").
+			Sub("svc").
+			Level(event.Level_debug).
+			Metadata(event.Field{
+				"debug": "something something",
+			}).
+			Build(),
+	)
+}
+```
+
+_Output_
+
+```
+[warn]  [2022-07-30T13:21:14.023201168Z]        [module]        [service]               [ data = true ] 
+[debug] [2022-07-30T13:21:14.023467597Z]        [mod]   [svc]           [ debug = "something something" ]
+```
+
+</details>
+
+The events are created under-the-hood when using methods from the [Printer interface](./log/print.go#L18), but they can also be created using the exposed events builder. This allows using a clean approach when using the logger (using its [`Log()` method](#simple-api)), while keeping the events as detailed as you need. More information on events in the [Feature-rich Events section](#feature-rich-events).
+
+
+
 _________________
 
 

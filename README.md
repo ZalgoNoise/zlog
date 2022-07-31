@@ -165,6 +165,8 @@ The simplest approach to using the logger library is to call its built-in method
 
 Note that there are calls which are configured to halt the application's runtime, like `Fatal()` and `Panic()`. These exit calls can be skipped in the [logger's configuration](#highly-configurable).
 
+More information on the [`Printer` interface](./log/print.go#L18) and the Logger's methods in the [_Simple API_ section](#simple-api).
+
 
 #### Custom Logger - [_example_](./examples/logger/custom_logger/custom_logger.go)
 
@@ -212,7 +214,9 @@ _Output_
 
 The logger is customized on creation, and any number of configuration can be passed to it. This makes it flexible for simple configurations (where only defaults are applied), and makes it granular enough for the complex ones.
 
-Furthermore, it will also expose [certain methods](#simple-api) to allow changes to the logger's configuration during runtime (with `Prefix()`, `Sub()` and `Metadata()`, as well as `AddOuts()` and `SetOuts()` methods).
+Furthermore, it will also expose [certain methods](#simple-api) to allow changes to the logger's configuration during runtime (with `Prefix()`, `Sub()` and `Metadata()`, as well as `AddOuts()` and `SetOuts()` methods). Besides these and for more information on the available configuration functions for loggers, check out the [_Highly configurable_ section](#highly-configurable).
+
+
 
 
 _________________
@@ -307,7 +311,7 @@ _Output_
 
 The logger on [line 21](./examples/logger/multilogger/multilogger.go#L21) is merging any loggers provided as input. In this example, the caller can leverage this functionality to write the same events to different outputs (with different formats), or with certain log level filters (`writerA` will register all events, while `writerB` will register events that are `error` and above).
 
-This approach can be taken with all kinds of loggers, provided that they they implement the same methods as [`Logger` interface](./log/logger.go#L95). By all kinds of loggers, I mean those within this library, such as having a standard-error logger, as well as a gRPC Log Client configured as one, with [`MultiLogger()`](./log/multilog.go#L11). More information on [_multi-everything_, in its own section](#multi-everything)
+This approach can be taken with all kinds of loggers, provided that they they implement the same methods as [`Logger` interface](./log/logger.go#L95). By all kinds of loggers, I mean those within this library, such as having a standard-error logger, as well as a gRPC Log Client configured as one, with [`MultiLogger()`](./log/multilog.go#L11). More information on [_Multi-everything_, in its own section](#multi-everything)
 
 
 
@@ -372,7 +376,7 @@ n: 65, err: <nil>
 
 </details>
 
-Since the [`Logger` interface](./log/logger.go#L95) also implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), it can be used in a broader form. The example above shows how simply passing a (string) message as a slice of bytes replicates a `log.Info()` call, and passing an encoded event will actually read its parameters (level, prefix, etc) and register an event accordingly. More information in the [Writer Interface](#writer-interface) section.
+Since the [`Logger` interface](./log/logger.go#L95) also implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), it can be used in a broader form. The example above shows how simply passing a (string) message as a slice of bytes replicates a `log.Info()` call, and passing an encoded event will actually read its parameters (level, prefix, etc) and register an event accordingly. More information in the [_Writer Interface_ section](#writer-interface).
 
 
 
@@ -448,7 +452,7 @@ _Output_
 
 When setting up the [`Logger` interface](./log/logger.go#L95), different formatters can be passed as well. There are common formats already implemented (like JSON, XML, CSV, BSON), as well as a modular text formatter. 
 
-New formatters can also be added seamlessly by complying with their corresponding interfaces. More information on all formatters in the [Different Formatters section](#different-formatters).
+New formatters can also be added seamlessly by complying with their corresponding interfaces. More information on all formatters in the [_Different Formatters_ section](#different-formatters).
 
 
 
@@ -509,7 +513,7 @@ _Output_
 
 </details>
 
-The events are created under-the-hood when using methods from the [Printer interface](./log/print.go#L18), but they can also be created using the exposed events builder. This allows using a clean approach when using the logger (using its [`Log()` method](#simple-api)), while keeping the events as detailed as you need. More information on events in the [Feature-rich Events section](#feature-rich-events).
+The events are created under-the-hood when using methods from the [Printer interface](./log/print.go#L18), but they can also be created using the exposed events builder. This allows using a clean approach when using the logger (using its [`Log()` method](#simple-api)), while keeping the events as detailed as you need. More information on events in the [_Feature-rich Events_ section](#feature-rich-events).
 
 
 _________________
@@ -586,7 +590,7 @@ _Output_
 
 </details>
 
-Since loggers are usually kept running in the background (as your app handles events and writes to its logger), you are perfectly able to launch this logger as a goroutine. To simplify the process, an interface is added: ([`ChanneledLogger`](./log/logch/logch.go#L12)). The gist of it is being able to directly launch a logger in a goroutine, with useful methods to interact with it (`Log()`, `Close()` and `Channels()`). More information on this logic in the [Highly Configurable section](#highly-configurable).
+Since loggers are usually kept running in the background (as your app handles events and writes to its logger), you are perfectly able to launch this logger as a goroutine. To simplify the process, an interface is added: ([`ChanneledLogger`](./log/logch/logch.go#L12)). The gist of it is being able to directly launch a logger in a goroutine, with useful methods to interact with it (`Log()`, `Close()` and `Channels()`). More information on this logic in the [_Highly Configurable_ section](#highly-configurable).
 
 
 _________________

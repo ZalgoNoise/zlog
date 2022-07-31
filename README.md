@@ -608,7 +608,7 @@ This library provides a feature-rich structured logger, ready to write to many t
 </p>
 
 
-> See the [example in `examples/logger/simple_logger/`](./examples/logger/simple_logger/simple_logger.go)
+> See the [_Simple Logger_ example](#simple-logger---exampleexamplesloggersimpleloggersimpleloggergo)
 
 
 The [`Logger` interface](./log/logger.go#L95) in this library provides a set complete set of idiomatic methods which allow to either control the logger:
@@ -696,7 +696,7 @@ Method | Description
 </p>
 
 
-> See the [example in `examples/logger/custom_logger/`](./examples/logger/custom_logger/custom_logger.go)
+> See the [_Custom Logger_ example](#custom-logger---exampleexamplesloggercustomloggercustomloggergo)
 
 
 Creating a new logger with, for example, [`log.New()`](./log/logger.go#L134) takes any number of configurations (including none, for the default configuration). This allows added modularity to the way your logger should behave.
@@ -742,6 +742,8 @@ var (
 
 It's important to underline that the [`Logger` interface](./log/logger.go#L95) can also be launched in a goroutine without any hassle by using the [`log/logch` package](./log/logch/logch.go), for its [`ChanneledLogger` interface](./log/logch/logch.go#L12). 
 
+> See the [_Channeled Logger_ example](#channeled-logger---exampleexamplesloggerchanneledloggerchanneledloggergo)
+
 This interface provides a narrower set of methods, but instead focuses on setting up controls to interact with the logger and goroutine. Note the list of methods available:
 
 
@@ -761,7 +763,7 @@ The [`ChanneledLogger` interface](./log/logch/logch.go#L12) can be initialized w
 </p>
 
 
-> See the [example in `examples/logger/modular_events/`](./examples/logger/modular_events/modular_events.go)
+> See the [_Modular events_ example](#modular-events---exampleexamplesloggermodulareventsmodulareventsgo)
 
 
 ##### Data structure
@@ -989,6 +991,8 @@ This package will parse the contents of this call and build a JSON document (as 
 
 #### Multi-everything
 
+> See the [_Multilogger_ example](#multilogger---exampleexamplesloggermultiloggermultiloggergo)
+
 In this library, there are many implementations of `multiSomething`, following the same logic of [`io.MultiWriter()`](https://pkg.go.dev/io#MultiWriter).
 
 In the reference above, the data structure holds a slice of [`io.Writer` interface](https://pkg.go.dev/io#Writer), and implements the same methods as an [`io.Writer`](https://pkg.go.dev/io#Writer). Its implementation of the `Write()` method will involve iterating through all configured [`io.Writer`](https://pkg.go.dev/io#Writer), and calling its own `Write()` method accordingly.
@@ -1157,7 +1161,7 @@ func MultiLogger(loggers ...LogServer) LogServer {
 
 #### Different formatters
 
-> See the [example in `examples/logger/formatted_logger/`](./examples/logger/formatted_logger/formatted_logger.go)
+> See the [_Output formats_ example](#output-formats---exampleexamplesloggerformattedloggerformattedloggergo)
 
 The logger can output events in several different formats, listed below:
 
@@ -1299,7 +1303,7 @@ var (
   <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/log_writer.png" />
 </p>
 
-> Output of the [example in `examples/logger/log_as_writer/`](./examples/logger/log_as_writer/log_as_writer.go)
+> Output of the [_Logger as a Writer_ example](#logger-as-a-writer---exampleexamplesloggerlogaswriterlogaswritergo)
 
 
 Not only [`Logger` interface](./log/logger.go#L95) uses the [`io.Writer` interface](https://pkg.go.dev/io#Writer) to write to its outputs with its [`Output()` method](./log/print.go#L88), it also implements it in its own [`Write()` method](./log/logger.go#L307) so it can be used directly as one. This gives the logger more flexibility as it can be vastly integrated with other modules.

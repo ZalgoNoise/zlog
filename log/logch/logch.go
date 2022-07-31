@@ -100,7 +100,7 @@ func (c LogChannel) Log(msg ...*event.Event) {
 	}
 }
 
-// Close method will send a signal (an empty struct) to the done channel, triggering the spawned goroutine to
+// Close method will send a signal (an empty `struct{}`) to the done channel, triggering the spawned goroutine to
 // return
 //
 //     logger := log.New(log.WithPrefix("logger"), log.CfgTextFormat)

@@ -21,6 +21,7 @@ _________________________
 	1. [Logger as a Writer](#logger-as-a-writer---exampleexamplesloggerlogaswriterlogaswritergo)
 	1. [Output formats](#output-formats---exampleexamplesloggerformattedloggerformattedloggergo)
 	1. [Modular events](#modular-events---exampleexamplesloggermodulareventsmodulareventsgo)
+	1. [Channeled Logger](#channeled-logger---exampleexamplesloggerchanneledloggerchanneledloggergo)
 1. [Features](#features)
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)
@@ -511,6 +512,82 @@ _Output_
 The events are created under-the-hood when using methods from the [Printer interface](./log/print.go#L18), but they can also be created using the exposed events builder. This allows using a clean approach when using the logger (using its [`Log()` method](#simple-api)), while keeping the events as detailed as you need. More information on events in the [Feature-rich Events section](#feature-rich-events).
 
 
+_________________
+
+
+
+#### Channeled Logger - [_example_](./examples/logger/channeled_logger/channeled_logger.go)
+
+
+<details>
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"time"
+
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/log/logch"
+)
+
+func main() {
+
+	// create a new, basic logger directly as a channeled logger
+	chLogger := logch.New(log.New())
+
+	// send messages using its Log() method directly; like the simple one:
+	chLogger.Log(
+		event.New().Message("one").Build(),
+		event.New().Message("two").Build(),
+		event.New().Message("three").Build(),
+	)
+
+	// or, call its Channels() method to work with the channels directly:
+	msgCh, done := chLogger.Channels()
+
+	// send the messages in a separate goroutine, then close the logger
+	go func() {
+		msgCh <- event.New().Message("four").Build()
+		msgCh <- event.New().Message("five").Build()
+		msgCh <- event.New().Message("six").Build()
+
+		// give it a millisecond to allow the last message to be printed
+		time.Sleep(time.Millisecond)
+
+		// send done signal to stop the process
+		done <- struct{}{}
+	}()
+
+	// keep-alive until the done signal is received
+	for {
+		select {
+		case <-done:
+			return
+		}
+	}
+
+}
+```
+
+_Output_
+
+```
+[info]  [2022-07-31T12:15:40.702944256Z]        [log]   one
+[info]  [2022-07-31T12:15:40.703050024Z]        [log]   two
+[info]  [2022-07-31T12:15:40.703054422Z]        [log]   three
+[info]  [2022-07-31T12:15:40.703102802Z]        [log]   four
+[info]  [2022-07-31T12:15:40.703156352Z]        [log]   five
+[info]  [2022-07-31T12:15:40.703169196Z]        [log]   six
+```
+
+</details>
+
+Since loggers are usually kept running in the background (as your app handles events and writes to its logger), you are perfectly able to launch this logger as a goroutine. To simplify the process, an interface is added: ([`ChanneledLogger`](./log/logch/logch.go#L12)). The gist of it is being able to directly launch a logger in a goroutine, with useful methods to interact with it (`Log()`, `Close()` and `Channels()`). More information on this logic in the [Highly Configurable section](#highly-configurable).
+
 
 _________________
 
@@ -530,7 +607,7 @@ This library provides a feature-rich structured logger, ready to write to many t
 > See the [example in `examples/logger/simple_logger/`](./examples/logger/simple_logger/simple_logger.go)
 
 
-The [Logger interface](./log/logger.go#L95) in this library provides a set complete set of idiomatic methods which allow to either control the logger:
+The [`Logger` interface](./log/logger.go#L95) in this library provides a set complete set of idiomatic methods which allow to either control the logger:
 
 
 ```go
@@ -658,6 +735,20 @@ var (
 	EmptyConfig   = LoggerConfigs[12] // empty / nil LoggerConfig
 )
 ```
+
+It's important to underline that the [`Logger` interface](./log/logger.go#L95) can also be launched in a goroutine without any hassle by using the [`log/logch` package](./log/logch/logch.go), for its [`ChanneledLogger` interface](./log/logch/logch.go#L12). 
+
+This interface provides a narrower set of methods, but instead focuses on setting up controls to interact with the logger and goroutine. Note the list of methods available:
+
+
+Method | Description
+:--:|:--:
+[`Log(msg ...*event.Event)`](./log/logch/logch.go#L91) | takes in any number of pointers to event.Event, and iterating through each of them, pushing them to the LogMessage channel.
+[`Close()`](./log/logch/logch.go#L116) | sends a signal (an empty `struct{}`) to the done channel, triggering the spawned goroutine to return
+[`Channels() (logCh chan *event.Event, done chan struct{})`](./log/logch/logch.go#L132) | returns the LogMessage channel and the done channel, so that they can be used directly with the same channel messaging patterns
+
+The [`ChanneledLogger` interface](./log/logch/logch.go#L12) can be initialized with the [`New(log.Logger)`](./log/logch/logch.go#L48) function, which creates both message and done channels, and then kicks off the goroutine with the input logger listening to messages in it. Note that if you require multiple loggers to be converted to a [`ChanneledLogger`](./log/logch/logch.go#L12), then you should merge them with [`log.Multilogger(...log.Logger)`](#multi-everything), first.
+
 
 #### Feature-rich events
 
@@ -1382,7 +1473,7 @@ To provide a solution to loggers that write _over the wire_, this library implem
 
 The choice for gRPC was simple. The framework is very solid and provides both fast and secure transmission of messages over a network. This is all that it's needed, right? Nope! There are also protocol buffers which helped in shaping the structure of this library in a more organized way (in my opinion).
 
-Originally, the plan was to create the event data structures in Go (manually), and from that point integrate the logger logic as an HTTP Writer or something -- note this is already possible as the [Logger interface](./log/logger.go#L95) implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer) already. But the problem there would be a repetition in defining the event data structure. If gRPC was in fact the choice, it would mean that there would be a data structure for Go and another for gRPC (with generated Go code, for the same thing).
+Originally, the plan was to create the event data structures in Go (manually), and from that point integrate the logger logic as an HTTP Writer or something -- note this is already possible as the [`Logger` interface](./log/logger.go#L95) implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer) already. But the problem there would be a repetition in defining the event data structure. If gRPC was in fact the choice, it would mean that there would be a data structure for Go and another for gRPC (with generated Go code, for the same thing).
 
 So, easy-peasy: scratch off the Go data structure and keep the protocol buffers, even for (local) events and loggers. This worked great, it was easy enough to switch over, and the logic remained _kinda_ the same way, in the end.
 
@@ -1474,7 +1565,7 @@ var (
 
 There is a gRPC Log Client implementation in Go, for the sake of providing an out-of-the-box solution for communicating with the gRPC Log Server; although this can simply serve as a reference for you to implement your own gRPC Log Client -- in any of the gRPC-supported languages.
 
-This client will act just like a regular (channeled) [Logger interface](./log/logger.go#L95), with added features (and configurations):
+This client will act just like a regular (channeled) [`Logger` interface](./log/logger.go#L95), with added features (and configurations):
 
 ```go
 // import (
@@ -1644,7 +1735,7 @@ Connection Addresses, or [`ConnAddr` type](./grpc/address/address.go#L8) is a cu
 
 Considering that the Logger interface works with [`io.Writer` interfaces](https://pkg.go.dev/io#Writer) to write events, it was becoming pretty obvious that the gRPC Client / Server logic would need to either discard the `Write()`, `AddOuts()` and `SetOuts()` while adding different methods (or configs) in replacement ...or why not keep working with an [`io.Writer` interface](https://pkg.go.dev/io#Writer)?
 
-The [`ConnAddr` type](./grpc/address/address.go#L8) implements this and other useful methods which will allow the gRPC client and server logic to leverage the same methods as in the [Logger interface](./log/logger.go#L95) for the purposes that it needs. This, similar to the [Logger interface](./log/logger.go#L95), allows one gRPC Log Client to connect to multiple gRPC Log Servers at the same time, writing the same events to different endpoints (as needed).
+The [`ConnAddr` type](./grpc/address/address.go#L8) implements this and other useful methods which will allow the gRPC client and server logic to leverage the same methods as in the [`Logger` interface](./log/logger.go#L95) for the purposes that it needs. This, similar to the [`Logger` interface](./log/logger.go#L95), allows one gRPC Log Client to connect to multiple gRPC Log Servers at the same time, writing the same events to different endpoints (as needed).
 
 There is also a careful verification if the input [`io.Writer` interface](https://pkg.go.dev/io#Writer) is actually of [`ConnAddr` type](./grpc/address/address.go#L8), for example in the [client's `SetOuts()` method](./grpc/client/client.go#L643):
 
@@ -1695,7 +1786,7 @@ Method | Description
 [`Len() int`](./grpc/address/address.go#L94) | returns the size of the [`ConnAddr` type](./grpc/address/address.go#L8) object
 [`Reset()`](./grpc/address/address.go#L99) | overwrites the existing [`ConnAddr` type](./grpc/address/address.go#L8) object with a new, empty one.
 [`Unset(...string)`](./grpc/address/address.go#L110) | removes the input addr strings from the [`ConnAddr` type](./grpc/address/address.go#L8) object, if existing
-[`Write(p []byte) (n int, err error)`](./grpc/address/address.go#L134) | an implementation of [`io.Writer` interface](https://pkg.go.dev/io#Writer), so that the [`ConnAddr` type](./grpc/address/address.go#L8) object can be used in a gRPC Log Client's [`SetOuts()`](./grpc/client/client.go#L643) and [`AddOuts()`](./grpc/client/client.go#L703) methods. These need to conform with the [Logger interface](./log/logger.go#L95) that implements the same methods. For the same layer of compatibility to be possible in a gRPC Log Client (who will write its log entries in a remote server), it uses these methods to implement its way of altering the existing connections, instead of dismissing this part of the implementation all together. __This is not a regular [`io.Writer` interface](https://pkg.go.dev/io#Writer)__.
+[`Write(p []byte) (n int, err error)`](./grpc/address/address.go#L134) | an implementation of [`io.Writer` interface](https://pkg.go.dev/io#Writer), so that the [`ConnAddr` type](./grpc/address/address.go#L8) object can be used in a gRPC Log Client's [`SetOuts()`](./grpc/client/client.go#L643) and [`AddOuts()`](./grpc/client/client.go#L703) methods. These need to conform with the [`Logger` interface](./log/logger.go#L95) that implements the same methods. For the same layer of compatibility to be possible in a gRPC Log Client (who will write its log entries in a remote server), it uses these methods to implement its way of altering the existing connections, instead of dismissing this part of the implementation all together. __This is not a regular [`io.Writer` interface](https://pkg.go.dev/io#Writer)__.
 
 
 _______________

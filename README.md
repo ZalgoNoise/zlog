@@ -23,6 +23,10 @@ _________________________
 	1. [Modular events](#modular-events---exampleexamplesloggermodulareventsmodulareventsgo)
 	1. [Channeled Logger](#channeled-logger---exampleexamplesloggerchanneledloggerchanneledloggergo)
 	1. [Callstack in Metadata](#callstack-in-metadata---exampleexamplesloggercallstackinmetadatacallstackmdgo)
+	<!-- 
+	1. [Storing Log events]()
+	1. [Setting up a gRPC Log Server]()
+	-->
 1. [Features](#features)
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)

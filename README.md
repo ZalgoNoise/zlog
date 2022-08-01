@@ -22,6 +22,7 @@ _________________________
 	1. [Output formats](#output-formats---exampleexamplesloggerformattedloggerformattedloggergo)
 	1. [Modular events](#modular-events---exampleexamplesloggermodulareventsmodulareventsgo)
 	1. [Channeled Logger](#channeled-logger---exampleexamplesloggerchanneledloggerchanneledloggergo)
+	1. [Callstack in Metadata](#callstack-in-metadata---exampleexamplesloggercallstackinmetadatacallstackmdgo)
 1. [Features](#features)
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)
@@ -597,6 +598,121 @@ _________________
 
 
 
+#### Callstack in Metadata - [_example_](./examples/logger/callstack_in_metadata/callstack_md.go)
+
+
+<details>
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+)
+
+// set up an indented JSON logger; package-level as an example
+//
+// you'd set this up within your logic however it's convenient
+var logger = log.New(log.CfgFormatJSONIndent)
+
+// placeholder operation for visibility in the callstack
+func operation(value int) bool {
+	return subOperation(value)
+}
+
+// placeholder sub-operation for visibility in the callstack
+//
+// error is printed whenever input is zero
+func subOperation(value int) bool {
+	if value == 0 {
+		logger.Log(
+			event.New().
+				Level(event.Level_error).
+				Message("operation failed").
+				Metadata(event.Field{
+					"error": "input cannot be zero", // custom metadata
+					"input": value,                  // custom metadata
+				}).
+				CallStack(true). // add (complete) callstack to metadata
+				Build(),
+		)
+		return false
+	}
+	return true
+}
+
+func main() {
+	// all goes well until something happens within your application
+	for a := 5; a >= 0; a-- {
+		if operation(a) {
+			continue
+		}
+		break
+	}
+}
+```
+
+_Output_
+
+```json
+{
+  "timestamp": "2022-08-01T16:06:46.162355505Z",
+  "service": "log",
+  "level": "error",
+  "message": "operation failed",
+  "metadata": {
+    "callstack": {
+      "goroutine-1": {
+        "id": "1",
+        "stack": [
+          {
+            "method": "github.com/zalgonoise/zlog/log/trace.(*stacktrace).getCallStack(...)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/log/trace/trace.go:54"
+          },
+          {
+            "method": "github.com/zalgonoise/zlog/log/trace.New(0x30?)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/log/trace/trace.go:41 +0x7f"
+          },
+          {
+            "method": "github.com/zalgonoise/zlog/log/event.(*EventBuilder).CallStack(0xc000077fc0, 0x30?)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/log/event/builder.go:99 +0x6b"
+          },
+          {
+            "method": "main.subOperation(0x0)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/examples/logger/callstack_in_metadata/callstack_md.go:31 +0x34b"
+          },
+          {
+            "method": "main.operation(...)",
+            "reference": "/go/src/github.com/zalgonoise/zlog/examples/logger/callstack_in_metadata/callstack_md.go:15"
+          },
+          {
+            "method": "main.main()",
+            "reference": "/go/src/github.com/zalgonoise/zlog/examples/logger/callstack_in_metadata/callstack_md.go:42 +0x33"
+          }
+        ],
+        "status": "running"
+      }
+    },
+    "error": "input cannot be zero",
+    "input": 0
+  }
+}
+```
+
+</details>
+
+When creating an event, you're able to chain the `Callstack(all bool)` method to it, before building the event. The `bool` value it takes represents whether you want a full or trimmed callstack. 
+
+More information on event building in [the _Feature-rich Events_ section](#feature-rich-events), and the [_Callstack in metadata_ section in particular](#callstack-in-metadata).
+
+
+_________________
+
+
+
 ### Features
 
 This library provides a feature-rich structured logger, ready to write to many types of outputs (standard out / error, to buffers, to files and databases) and over-the-wire (via gRPC).
@@ -975,7 +1091,7 @@ func (f Field) Encode() *structpb.Struct {}
 }
 ```
 
-> Output of the [example in `examples/logger/callstack_in_metadata/`](./examples/logger/callstack_in_metadata/callstack_md.go)
+> See the [_Callstack in Metadata_ example](#callstack-in-metadata---exampleexamplesloggercallstackinmetadatacallstackmdgo)
 
 It's also possible to include the current callstack (at the time of the log event being built / created) as metadata to the log entry, by calling the event's [`Callstack(all bool)`](./log/event/builder.go#L94/) method.
 

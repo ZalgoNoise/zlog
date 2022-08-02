@@ -31,7 +31,6 @@ func setupMethodOne(dbAddr, dbPort, dbName string) log.Logger {
 	db, err := mysql.New(dbAddr+":"+dbPort, dbName)
 
 	if err != nil {
-		// zlog's standard logger exit
 		log.Fatalf("unexpected error: %v", err)
 	}
 
@@ -53,23 +52,17 @@ func setupMethodTwo(dbAddr, dbPort, dbName string) log.Logger {
 func main() {
 	// load mysql db details from environment variables
 	mysqlAddr, ok := getEnv(dbAddrEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("MySQL database address not provided, from env variable %s", dbAddrEnv)
 	}
 
 	mysqlPort, ok := getEnv(dbPortEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("MySQL database port not provided, from env variable %s", dbPortEnv)
 	}
 
 	mysqlDB, ok := getEnv(dbNameEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("MySQL database name not provided, from env variable %s", dbNameEnv)
 	}
 

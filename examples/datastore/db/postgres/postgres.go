@@ -31,7 +31,6 @@ func setupMethodOne(dbAddr, dbPort, dbName string) log.Logger {
 	db, err := postgres.New(dbAddr, dbPort, dbName)
 
 	if err != nil {
-		// zlog's standard logger exit
 		log.Fatalf("unexpected error: %v", err)
 	}
 
@@ -53,23 +52,17 @@ func setupMethodTwo(dbAddr, dbPort, dbName string) log.Logger {
 func main() {
 	// load postgres db details from environment variables
 	postgresAddr, ok := getEnv(dbAddrEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("Postgres database address not provided, from env variable %s", dbAddrEnv)
 	}
 
 	postgresPort, ok := getEnv(dbPortEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("Postgres database port not provided, from env variable %s", dbPortEnv)
 	}
 
 	postgresDB, ok := getEnv(dbNameEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("Postgres database name not provided, from env variable %s", dbNameEnv)
 	}
 

@@ -15,16 +15,19 @@ _________________________
 1. [Overview](#overview)
 1. [Installation](#installation)
 1. [Usage](#usage)
-	1. [Simple Logger](#simple-logger---example)
-	1. [Custom Logger](#custom-logger---example)
-	1. [Multilogger](#multilogger---example)
-	1. [Logger as a Writer](#logger-as-a-writer---example)
-	1. [Output formats](#output-formats---example)
-	1. [Modular events](#modular-events---example)
-	1. [Channeled Logger](#channeled-logger---example)
-	1. [Callstack in Metadata](#callstack-in-metadata---example)
+	1. [Loggers usage](#loggers-usage)
+		1. [Simple Logger](#simple-logger---example)
+		1. [Custom Logger](#custom-logger---example)
+		1. [Multilogger](#multilogger---example)
+		1. [Output formats](#output-formats---example)
+		1. [Modular events](#modular-events---example)
+		1. [Channeled Logger](#channeled-logger---example)
+		1. [Callstack in Metadata](#callstack-in-metadata---example)
+	1. [Storing log events](#storing-log-events)
+		1. [Logger as a Writer](#logger-as-a-writer---example)
+		1. [Writing events to a file](#writing-events-to-a-file---example)
+		1. [Writing events to a database](#writing-events-to-a-database)
 	<!-- 
-	1. [Storing Log events]()
 	1. [Setting up a gRPC Log Server]()
 	-->
 1. [Features](#features)
@@ -120,8 +123,9 @@ _________________
 
 This section covers basic usage and typical use-cases of different modules in this library. There are several [individual examples](./examples/) to provide direct context, as well as the [Features](#features) section, which goes in-depth on each module and its functionality. In here you will find reference to certain actions, a snippet from the respective example and a brief explanation of what's happening.
 
+#### Loggers usage
 
-#### Simple Logger - [_example_](./examples/logger/simple_logger/simple_logger.go)
+##### Simple Logger - [_example_](./examples/logger/simple_logger/simple_logger.go)
 
 <details>
 
@@ -173,7 +177,7 @@ Note that there are calls which are configured to halt the application's runtime
 More information on the [`Printer` interface](./log/print.go#L18) and the Logger's methods in the [_Simple API_ section](#simple-api).
 
 
-#### Custom Logger - [_example_](./examples/logger/custom_logger/custom_logger.go)
+##### Custom Logger - [_example_](./examples/logger/custom_logger/custom_logger.go)
 
 
 <details>
@@ -228,7 +232,7 @@ _________________
 
 
 
-#### MultiLogger - [_example_](./examples/logger/multilogger/multilogger.go)
+##### MultiLogger - [_example_](./examples/logger/multilogger/multilogger.go)
 
 
 <details>
@@ -324,72 +328,7 @@ _________________
 
 
 
-#### Logger as a Writer - [_example_](./examples/logger/log_as_writer/log_as_writer.go)
-
-
-<details>
-
-_Snippet_
-
-```go
-package main
-
-import (
-	"fmt"
-	"os"
-
-	"github.com/zalgonoise/zlog/log"
-	"github.com/zalgonoise/zlog/log/event"
-)
-
-func main() {
-
-	logger := log.New()
-
-	n, err := logger.Write([]byte("Hello, world!"))
-	if err != nil {
-		fmt.Println("errored: ", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("\n---\nn: %v, err: %v\n---\n", n, err)
-
-	n, err = logger.Write(event.New().Message("Hi, world!").Build().Encode())
-	if err != nil {
-		fmt.Println("errored: ", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("\n---\nn: %v, err: %v\n---\n", n, err)
-}
-```
-
-_Output_
-
-```
-[info]  [2022-07-30T12:07:44.451547181Z]        [log]   Hello, world!
-
----
-n: 69, err: <nil>
----
-[info]  [2022-07-30T12:07:44.45166375Z] [log]   Hi, world!
-
----
-n: 65, err: <nil>
----
-```
-
-</details>
-
-Since the [`Logger` interface](./log/logger.go#L95) also implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), it can be used in a broader form. The example above shows how simply passing a (string) message as a slice of bytes replicates a `log.Info()` call, and passing an encoded event will actually read its parameters (level, prefix, etc) and register an event accordingly. More information in the [_Writer Interface_ section](#writer-interface).
-
-
-
-_________________
-
-
-
-#### Output formats - [_example_](./examples/logger/formatted_logger/formatted_logger.go)
+##### Output formats - [_example_](./examples/logger/formatted_logger/formatted_logger.go)
 
 
 <details>
@@ -465,7 +404,7 @@ _________________
 
 
 
-#### Modular events - [_example_](./examples/logger/modular_events/modular_events.go)
+##### Modular events - [_example_](./examples/logger/modular_events/modular_events.go)
 
 
 <details>
@@ -525,7 +464,7 @@ _________________
 
 
 
-#### Channeled Logger - [_example_](./examples/logger/channeled_logger/channeled_logger.go)
+##### Channeled Logger - [_example_](./examples/logger/channeled_logger/channeled_logger.go)
 
 
 <details>
@@ -602,7 +541,7 @@ _________________
 
 
 
-#### Callstack in Metadata - [_example_](./examples/logger/callstack_in_metadata/callstack_md.go)
+##### Callstack in Metadata - [_example_](./examples/logger/callstack_in_metadata/callstack_md.go)
 
 
 <details>
@@ -716,6 +655,563 @@ More information on event building in [the _Feature-rich Events_ section](#featu
 _________________
 
 
+#### Storing log events
+
+##### Logger as a Writer - [_example_](./examples/logger/log_as_writer/log_as_writer.go)
+
+
+<details>
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+)
+
+func main() {
+
+	logger := log.New()
+
+	n, err := logger.Write([]byte("Hello, world!"))
+	if err != nil {
+		fmt.Println("errored: ", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n---\nn: %v, err: %v\n---\n", n, err)
+
+	n, err = logger.Write(event.New().Message("Hi, world!").Build().Encode())
+	if err != nil {
+		fmt.Println("errored: ", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\n---\nn: %v, err: %v\n---\n", n, err)
+}
+```
+
+_Output_
+
+```
+[info]  [2022-07-30T12:07:44.451547181Z]        [log]   Hello, world!
+
+---
+n: 69, err: <nil>
+---
+[info]  [2022-07-30T12:07:44.45166375Z] [log]   Hi, world!
+
+---
+n: 65, err: <nil>
+---
+```
+
+</details>
+
+Since the [`Logger` interface](./log/logger.go#L95) also implements the [`io.Writer` interface](https://pkg.go.dev/io#Writer), it can be used in a broader form. The example above shows how simply passing a (string) message as a slice of bytes replicates a `log.Info()` call, and passing an encoded event will actually read its parameters (level, prefix, etc) and register an event accordingly. More information in the [_Writer Interface_ section](#writer-interface).
+
+
+_________________
+
+
+
+##### Writing events to a file - [_example_](./examples/datastore/file/logfile.go)
+
+<details>
+
+_Snippet_
+
+```go
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/store/fs"
+)
+
+func main() {
+	// create a new temporary file in /tmp
+	tempF, err := ioutil.TempFile("/tmp", "zlog_test_fs-")
+
+	if err != nil {
+		log.Fatalf("unexpected error creating temp file: %v", err)
+	}
+	defer os.Remove(tempF.Name())
+
+	// use the temp file as a LogFile
+	logF, err := fs.New(
+		tempF.Name(),
+	)
+	if err != nil {
+		log.Fatalf("unexpected error creating logfile: %v", err)
+	}
+
+	// set up a max size in MB, to auto-rotate
+	logF.MaxSize(50)
+
+	// create a simple logger using the logfile as output, log messages to it
+	var logger = log.New(
+		log.WithOut(logF),
+	)
+	logger.Log(
+		event.New().Message("log entry written to file").Build(),
+	)
+
+	// print out file's's content
+	b, err := os.ReadFile(tempF.Name())
+	if err != nil {
+		log.Fatalf("unexpected error reading logfile's data: %v", err)
+	}
+
+	fmt.Println(string(b))
+}
+```
+
+_Output_
+
+```
+[info]  [2022-08-02T16:28:07.523156566Z]        [log]   log entry written to file
+```
+
+</details>
+
+This logger also exposes a package to simplify writing log events to a file. [This package](./store/fs/logfile.go) exposes methods that may be helpful, like max-size limits and auto-rotate features. 
+
+More information on this topic in [the _Logfile_ section](#logfile).
+
+
+_________________
+
+
+
+##### Writing events to a database
+
+<details>
+
+
+_SQLite Snippet_ - [_example_](./examples/datastore/db/sqlite/sqlite.go)
+
+
+<details>
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/store/db/sqlite"
+
+	"os"
+)
+
+const (
+	dbPathEnv string = "SQLITE_PATH"
+)
+
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
+func setupMethodOne(dbPath string) log.Logger {
+	// create a new DB writer
+	db, err := sqlite.New(dbPath)
+
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	// create a new logger with the general DB config
+	logger := log.New(
+		log.WithDatabase(db),
+	)
+
+	return logger
+}
+
+func setupMethodTwo(dbPath string) log.Logger {
+	// create one with the package function
+	return log.New(
+		sqlite.WithSQLite(dbPath),
+	)
+}
+
+func main() {
+	// load sqlite db path from environment variable
+	sqlitePath, ok := getEnv(dbPathEnv)
+	if !ok {
+		log.Fatalf("SQLite database path not provided, from env variable %s", dbPathEnv)
+	}
+
+	// setup a logger by preparing the DB writer
+	loggerOne := setupMethodOne(sqlitePath)
+
+	// write a message to the DB
+	loggerOne.Log(
+		event.New().Message("log entry #1 written to sqlite db writer #1").Build(),
+		event.New().Message("log entry #2 written to sqlite db writer #1").Build(),
+		event.New().Message("log entry #3 written to sqlite db writer #1").Build(),
+	)
+
+	// setup a logger directly as a DB writer
+	loggerTwo := setupMethodTwo(sqlitePath)
+
+	// write a message to the DB
+	loggerTwo.Log(
+		event.New().Message("log entry #1 written to sqlite db writer #2").Build(),
+		event.New().Message("log entry #2 written to sqlite db writer #2").Build(),
+		event.New().Message("log entry #3 written to sqlite db writer #2").Build(),
+	)
+}
+
+```
+
+</details>
+
+
+
+_MySQL Snippet_ - [_example_](./examples/datastore/db/mysql/mysql.go)
+
+
+
+<details>
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/store/db/mysql"
+
+	"os"
+)
+
+const (
+	_         string = "MYSQL_USER"     // account for these env variables
+	_         string = "MYSQL_PASSWORD" // account for these env variables
+	dbAddrEnv string = "MYSQL_HOST"
+	dbPortEnv string = "MYSQL_PORT"
+	dbNameEnv string = "MYSQL_DATABASE"
+)
+
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
+func setupMethodOne(dbAddr, dbPort, dbName string) log.Logger {
+	// create a new DB writer
+	db, err := mysql.New(dbAddr+":"+dbPort, dbName)
+
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	// create a new logger with the general DB config
+	logger := log.New(
+		log.WithDatabase(db),
+	)
+
+	return logger
+}
+
+func setupMethodTwo(dbAddr, dbPort, dbName string) log.Logger {
+	// create one with the package function
+	return log.New(
+		mysql.WithMySQL(dbAddr+":"+dbPort, dbName),
+	)
+}
+
+func main() {
+	// load mysql db details from environment variables
+	mysqlAddr, ok := getEnv(dbAddrEnv)
+	if !ok {
+		log.Fatalf("MySQL database address not provided, from env variable %s", dbAddrEnv)
+	}
+
+	mysqlPort, ok := getEnv(dbPortEnv)
+	if !ok {
+		log.Fatalf("MySQL database port not provided, from env variable %s", dbPortEnv)
+	}
+
+	mysqlDB, ok := getEnv(dbNameEnv)
+	if !ok {
+		log.Fatalf("MySQL database name not provided, from env variable %s", dbNameEnv)
+	}
+
+	// setup a logger by preparing the DB writer
+	loggerOne := setupMethodOne(mysqlAddr, mysqlPort, mysqlDB)
+
+	// write a message to the DB
+	loggerOne.Log(
+		event.New().Message("log entry #1 written to sqlite db writer #1").Build(),
+		event.New().Message("log entry #2 written to sqlite db writer #1").Build(),
+		event.New().Message("log entry #3 written to sqlite db writer #1").Build(),
+	)
+
+	// setup a logger directly as a DB writer
+	loggerTwo := setupMethodTwo(mysqlAddr, mysqlPort, mysqlDB)
+
+	// write a message to the DB
+	loggerTwo.Log(
+		event.New().Message("log entry #1 written to sqlite db writer #2").Build(),
+		event.New().Message("log entry #2 written to sqlite db writer #2").Build(),
+		event.New().Message("log entry #3 written to sqlite db writer #2").Build(),
+	)
+}
+```
+
+</details>
+
+
+
+_PostgreSQL Snippet_ - [_example_](./examples/datastore/db/postgres/postgres.go)
+
+
+<details>
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/store/db/postgres"
+
+	"os"
+)
+
+const (
+	_         string = "POSTGRES_USER"     // account for these env variables
+	_         string = "POSTGRES_PASSWORD" // account for these env variables
+	dbAddrEnv string = "POSTGRES_HOST"
+	dbPortEnv string = "POSTGRES_PORT"
+	dbNameEnv string = "POSTGRES_DATABASE"
+)
+
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
+func setupMethodOne(dbAddr, dbPort, dbName string) log.Logger {
+	// create a new DB writer
+	db, err := postgres.New(dbAddr, dbPort, dbName)
+
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	// create a new logger with the general DB config
+	logger := log.New(
+		log.WithDatabase(db),
+	)
+
+	return logger
+}
+
+func setupMethodTwo(dbAddr, dbPort, dbName string) log.Logger {
+	// create one with the package function
+	return log.New(
+		postgres.WithPostgres(dbAddr, dbPort, dbName),
+	)
+}
+
+func main() {
+	// load postgres db details from environment variables
+	postgresAddr, ok := getEnv(dbAddrEnv)
+	if !ok {
+		log.Fatalf("Postgres database address not provided, from env variable %s", dbAddrEnv)
+	}
+
+	postgresPort, ok := getEnv(dbPortEnv)
+	if !ok {
+		log.Fatalf("Postgres database port not provided, from env variable %s", dbPortEnv)
+	}
+
+	postgresDB, ok := getEnv(dbNameEnv)
+	if !ok {
+		log.Fatalf("Postgres database name not provided, from env variable %s", dbNameEnv)
+	}
+
+	// setup a logger by preparing the DB writer
+	loggerOne := setupMethodOne(postgresAddr, postgresPort, postgresDB)
+
+	// write a message to the DB
+	loggerOne.Log(
+		event.New().Message("log entry #1 written to sqlite db writer #1").Build(),
+		event.New().Message("log entry #2 written to sqlite db writer #1").Build(),
+		event.New().Message("log entry #3 written to sqlite db writer #1").Build(),
+	)
+
+	// setup a logger directly as a DB writer
+	loggerTwo := setupMethodTwo(postgresAddr, postgresPort, postgresDB)
+
+	// write a message to the DB
+	loggerTwo.Log(
+		event.New().Message("log entry #1 written to sqlite db writer #2").Build(),
+		event.New().Message("log entry #2 written to sqlite db writer #2").Build(),
+		event.New().Message("log entry #3 written to sqlite db writer #2").Build(),
+	)
+}
+```
+
+</details>
+
+
+
+
+_MongoDB Snippet_  - [_example_](./examples/datastore/db/mongo/mongo.go)
+
+
+<details>
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+	"github.com/zalgonoise/zlog/store/db/mongo"
+
+	"os"
+)
+
+const (
+	_         string = "MONGO_USER"     // account for these env variables
+	_         string = "MONGO_PASSWORD" // account for these env variables
+	dbAddrEnv string = "MONGO_HOST"
+	dbPortEnv string = "MONGO_PORT"
+	dbNameEnv string = "MONGO_DATABASE"
+	dbCollEnv string = "MONGO_COLLECTION"
+)
+
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
+func setupMethodOne(dbAddr, dbPort, dbName, dbColl string) (log.Logger, func()) {
+	// create a new DB writer
+	db, err := mongo.New(dbAddr+":"+dbPort, dbName, dbColl)
+
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	// create a new logger with the general DB config
+	logger := log.New(
+		log.WithDatabase(db),
+	)
+
+	return logger, func() {
+		db.Close()
+	}
+}
+
+func setupMethodTwo(dbAddr, dbPort, dbName, dbColl string) log.Logger {
+	// create one with the package function
+	return log.New(
+		mongo.WithMongo(dbAddr+":"+dbPort, dbName, dbColl),
+	)
+}
+
+func main() {
+	// load mongo db details from environment variables
+	mongoAddr, ok := getEnv(dbAddrEnv)
+	if !ok {
+		log.Fatalf("Mongo database address not provided, from env variable %s", dbAddrEnv)
+	}
+
+	mongoPort, ok := getEnv(dbPortEnv)
+	if !ok {
+		log.Fatalf("Mongo database port not provided, from env variable %s", dbPortEnv)
+	}
+
+	mongoDB, ok := getEnv(dbNameEnv)
+	if !ok {
+		log.Fatalf("Mongo database name not provided, from env variable %s", dbNameEnv)
+	}
+
+	mongoColl, ok := getEnv(dbCollEnv)
+	if !ok {
+		log.Fatalf("Mongo collection name not provided, from env variable %s", dbCollEnv)
+	}
+
+	// setup a logger by preparing the DB writer
+	loggerOne, close := setupMethodOne(mongoAddr, mongoPort, mongoDB, mongoColl)
+	defer close()
+
+	// write a message to the DB
+	loggerOne.Log(
+		event.New().Message("log entry written to sqlite db writer #1").Build(),
+	)
+
+	// setup a logger directly as a DB writer
+	loggerTwo := setupMethodTwo(mongoAddr, mongoPort, mongoDB, mongoColl)
+
+	// write a message to the DB
+	n, err := loggerTwo.Output(
+		event.New().Message("log entry written to sqlite db writer #2").Build(),
+	)
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+	if n == 0 {
+		log.Fatalf("zero bytes written")
+	}
+
+	log.Info("event written to DB writer #2 successfully")
+}
+```
+
+</details>
+
+
+</details>
+
+There are packages available in [`store/db`](./store/db) which will allow for a simple setup when preferring to write log events to a database (instead of a file or a buffer).
+
+For this, most DBs leverage GORM to make it seamless to use different databases. Here is the list of supported database types:
+- [SQLite](#sqlite)
+- [MySQL](#mysql)
+- [PostgreSQL](#postgresql)
+- [MongoDB](#mongodb)
+
+More information on this topic in [the _Databases_ section](#databases).
 
 ### Features
 

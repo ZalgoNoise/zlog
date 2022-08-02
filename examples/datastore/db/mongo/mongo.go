@@ -32,7 +32,6 @@ func setupMethodOne(dbAddr, dbPort, dbName, dbColl string) (log.Logger, func()) 
 	db, err := mongo.New(dbAddr+":"+dbPort, dbName, dbColl)
 
 	if err != nil {
-		// zlog's standard logger exit
 		log.Fatalf("unexpected error: %v", err)
 	}
 
@@ -56,30 +55,22 @@ func setupMethodTwo(dbAddr, dbPort, dbName, dbColl string) log.Logger {
 func main() {
 	// load mongo db details from environment variables
 	mongoAddr, ok := getEnv(dbAddrEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("Mongo database address not provided, from env variable %s", dbAddrEnv)
 	}
 
 	mongoPort, ok := getEnv(dbPortEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("Mongo database port not provided, from env variable %s", dbPortEnv)
 	}
 
 	mongoDB, ok := getEnv(dbNameEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("Mongo database name not provided, from env variable %s", dbNameEnv)
 	}
 
 	mongoColl, ok := getEnv(dbCollEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("Mongo collection name not provided, from env variable %s", dbCollEnv)
 	}
 
@@ -88,40 +79,23 @@ func main() {
 	defer close()
 
 	// write a message to the DB
-	n, err := loggerOne.Output(
+	loggerOne.Log(
 		event.New().Message("log entry written to sqlite db writer #1").Build(),
 	)
-
-	if err != nil {
-		// zlog's standard logger exit
-		log.Fatalf("unexpected error: %v", err)
-	}
-
-	if n == 0 {
-		// zlog's standard logger exit
-		log.Fatalf("zero bytes written")
-	}
-
-	log.Info("event written to DB writer #1 successfully")
 
 	// setup a logger directly as a DB writer
 	loggerTwo := setupMethodTwo(mongoAddr, mongoPort, mongoDB, mongoColl)
 
 	// write a message to the DB
-	n, err = loggerTwo.Output(
+	n, err := loggerTwo.Output(
 		event.New().Message("log entry written to sqlite db writer #2").Build(),
 	)
-
 	if err != nil {
-		// zlog's standard logger exit
 		log.Fatalf("unexpected error: %v", err)
 	}
-
 	if n == 0 {
-		// zlog's standard logger exit
 		log.Fatalf("zero bytes written")
 	}
 
 	log.Info("event written to DB writer #2 successfully")
-
 }

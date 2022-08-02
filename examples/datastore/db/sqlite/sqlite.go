@@ -27,7 +27,6 @@ func setupMethodOne(dbPath string) log.Logger {
 	db, err := sqlite.New(dbPath)
 
 	if err != nil {
-		// zlog's standard logger exit
 		log.Fatalf("unexpected error: %v", err)
 	}
 
@@ -49,9 +48,7 @@ func setupMethodTwo(dbPath string) log.Logger {
 func main() {
 	// load sqlite db path from environment variable
 	sqlitePath, ok := getEnv(dbPathEnv)
-
 	if !ok {
-		// zlog's standard logger exit
 		log.Fatalf("SQLite database path not provided, from env variable %s", dbPathEnv)
 	}
 

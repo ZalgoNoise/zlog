@@ -26,19 +26,16 @@ func getTLSConf() server.LogServerConfig {
 	var withCA bool
 
 	certPath, ok := getEnv("TLS_SERVER_CERT")
-
 	if ok {
 		withCert = true
 	}
 
 	keyPath, ok := getEnv("TLS_SERVER_KEY")
-
 	if ok {
 		withKey = true
 	}
 
 	caPath, ok := getEnv("TLS_CA_CERT")
-
 	if ok {
 		withCA = true
 	}
@@ -72,5 +69,4 @@ func main() {
 		getTLSConf(),
 	)
 	grpcLogger.Serve()
-
 }

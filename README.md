@@ -27,9 +27,8 @@ _________________________
 		1. [Logger as a Writer](#logger-as-a-writer---example)
 		1. [Writing events to a file](#writing-events-to-a-file---example)
 		1. [Writing events to a database](#writing-events-to-a-database)
-	<!-- 
-	1. [Setting up a gRPC Log Server]()
-	-->
+	1. [Logging events remotely](#logging-events-remotely)
+		1. [gRPC server / client](#unary-grpc-server--client---example)
 1. [Features](#features)
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)
@@ -1212,6 +1211,248 @@ For this, most DBs leverage GORM to make it seamless to use different databases.
 - [MongoDB](#mongodb)
 
 More information on this topic in [the _Databases_ section](#databases).
+
+
+_________________
+
+
+#### Logging events remotely
+
+##### gRPC server / client - [_example_](./examples/grpc/simple_unary_client_server/)
+
+
+<details>
+
+_Server Snippet_
+
+```go
+package main
+
+import (
+	"os"
+
+	"github.com/zalgonoise/zlog/log"
+
+	"github.com/zalgonoise/zlog/grpc/server"
+)
+
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
+func getTLSConf() server.LogServerConfig {
+	var tlsConf server.LogServerConfig
+
+	var withCert bool
+	var withKey bool
+	var withCA bool
+
+	certPath, ok := getEnv("TLS_SERVER_CERT")
+	if ok {
+		withCert = true
+	}
+
+	keyPath, ok := getEnv("TLS_SERVER_KEY")
+	if ok {
+		withKey = true
+	}
+
+	caPath, ok := getEnv("TLS_CA_CERT")
+	if ok {
+		withCA = true
+	}
+
+	if withCert && withKey {
+		if withCA {
+			tlsConf = server.WithTLS(certPath, keyPath, caPath)
+		} else {
+			tlsConf = server.WithTLS(certPath, keyPath)
+		}
+	}
+
+	return tlsConf
+}
+
+func main() {
+
+	grpcLogger := server.New(
+		server.WithLogger(
+			log.New(
+				log.WithFormat(log.TextColorLevelFirstSpaced),
+			),
+		),
+		server.WithServiceLogger(
+			log.New(
+				log.WithFormat(log.TextColorLevelFirstSpaced),
+			),
+		),
+		server.WithAddr("127.0.0.1:9099"),
+		server.WithGRPCOpts(),
+		getTLSConf(),
+	)
+	grpcLogger.Serve()
+}
+```
+
+_Output_
+
+```
+[info]          [2022-08-04T11:16:29.624287477Z]                [gRPC]          [listen]                gRPC server is listening to connections         [ addr = "127.0.0.1:9099" ] 
+[debug]         [2022-08-04T11:16:29.624489336Z]                [gRPC]          [serve]         gRPC server is running          [ addr = "127.0.0.1:9099" ] 
+[debug]         [2022-08-04T11:16:29.624530116Z]                [gRPC]          [handler]               message handler is running
+[trace]         [2022-08-04T11:16:29.624588293Z]                [gRPC]          [Done]          listening to done signal
+```
+
+_Client snippet_
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/zalgonoise/zlog/grpc/client"
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+)
+
+func getEnv(env string) (val string, ok bool) {
+	v := os.Getenv(env)
+
+	if v == "" {
+		return v, false
+	}
+
+	return v, true
+}
+
+func getTLSConf() client.LogClientConfig {
+	var tlsConf client.LogClientConfig
+
+	var withCert bool
+	var withKey bool
+	var withCA bool
+
+	certPath, ok := getEnv("TLS_CLIENT_CERT")
+	if ok {
+		withCert = true
+	}
+
+	keyPath, ok := getEnv("TLS_CLIENT_KEY")
+	if ok {
+		withKey = true
+	}
+
+	caPath, ok := getEnv("TLS_CA_CERT")
+	if ok {
+		withCA = true
+	}
+
+	if withCA {
+		if withCert && withKey {
+			tlsConf = client.WithTLS(caPath, certPath, keyPath)
+		} else {
+			tlsConf = client.WithTLS(caPath)
+		}
+	}
+
+	return tlsConf
+}
+
+func main() {
+	logger := log.New(
+		log.WithFormat(log.TextColorLevelFirst),
+	)
+
+	grpcLogger, errCh := client.New(
+		client.WithAddr("127.0.0.1:9099"),
+		client.UnaryRPC(),
+		client.WithLogger(
+			logger,
+		),
+		client.WithGRPCOpts(),
+		getTLSConf(),
+	)
+	_, done := grpcLogger.Channels()
+
+	grpcLogger.Log(event.New().Message("hello from client").Build())
+
+	for i := 0; i < 3; i++ {
+		grpcLogger.Log(event.New().Level(event.Level_warn).Message(fmt.Sprintf("warning #%v", i)).Build())
+		time.Sleep(time.Millisecond * 50)
+	}
+
+	for {
+		select {
+		case err := <-errCh:
+			panic(err)
+		case <-done:
+			return
+		}
+	}
+}
+```
+
+_Client output_
+
+```
+[debug] [2022-08-04T11:21:11.36101206Z] [gRPC]  [init]  setting up Unary gRPC client
+[debug] [2022-08-04T11:21:11.361184863Z]        [gRPC]  [conn]  connecting to remote    [ addr = "127.0.0.1:9099" ; index = 0 ] 
+[debug] [2022-08-04T11:21:11.361299493Z]        [gRPC]  [conn]  connecting to remote    [ index = 0 ; addr = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.361876301Z]        [gRPC]  [conn]  dialed the address successfully [ addr = "127.0.0.1:9099" ; index = 0 ] 
+[debug] [2022-08-04T11:21:11.361995075Z]        [gRPC]  [log]   setting up log service with connection  [ remote = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.362029197Z]        [gRPC]  [log]   received a new log message to register  [ timeout = 30 ; remote = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.362151576Z]        [gRPC]  [conn]  dialed the address successfully [ addr = "127.0.0.1:9099" ; index = 0 ] 
+[debug] [2022-08-04T11:21:11.36221311Z] [gRPC]  [log]   setting up log service with connection  [ remote = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.362242582Z]        [gRPC]  [log]   received a new log message to register  [ remote = "127.0.0.1:9099" ; timeout = 30 ] 
+[debug] [2022-08-04T11:21:11.414202683Z]        [gRPC]  [conn]  connecting to remote    [ addr = "127.0.0.1:9099" ; index = 0 ] 
+[debug] [2022-08-04T11:21:11.415095627Z]        [gRPC]  [conn]  dialed the address successfully [ index = 0 ; addr = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.415162552Z]        [gRPC]  [log]   setting up log service with connection  [ remote = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.415192529Z]        [gRPC]  [log]   received a new log message to register  [ timeout = 30 ; remote = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.464857675Z]        [gRPC]  [conn]  connecting to remote    [ index = 0 ; addr = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.465455812Z]        [gRPC]  [conn]  dialed the address successfully [ addr = "127.0.0.1:9099" ; index = 0 ] 
+[debug] [2022-08-04T11:21:11.465509873Z]        [gRPC]  [log]   setting up log service with connection  [ remote = "127.0.0.1:9099" ] 
+[debug] [2022-08-04T11:21:11.465537439Z]        [gRPC]  [log]   received a new log message to register  [ remote = "127.0.0.1:9099" ; timeout = 30 ]
+```
+
+_Server output_
+
+```
+(...)
+[trace]         [2022-08-04T11:16:29.624588293Z]                [gRPC]          [Done]          listening to done signal
+[warn]          [2022-08-04T11:21:11.361248552Z]                [log]           warning #0
+[info]          [2022-08-04T11:21:11.361160675Z]                [log]           hello from client
+[debug]         [2022-08-04T11:21:11.362648438Z]                [gRPC]          [handler]               input log message parsed and registered
+[debug]         [2022-08-04T11:21:11.362701641Z]                [gRPC]          [handler]               input log message parsed and registered
+[warn]          [2022-08-04T11:21:11.414114247Z]                [log]           warning #1
+[debug]         [2022-08-04T11:21:11.415435299Z]                [gRPC]          [handler]               input log message parsed and registered
+[warn]          [2022-08-04T11:21:11.464787592Z]                [log]           warning #2
+[debug]         [2022-08-04T11:21:11.465792823Z]                [gRPC]          [handler]               input log message parsed and registered
+```
+
+
+</details>
+
+Setting up a Log Server to register events over a network is made possible with the [gRPC](https://grpc.io/) implementation of both client and server logic. This is to make it both fast and simple to configure (remote) logging when it should not be a center-piece of your application; merely a debugging / development feature.
+
+The [gRPC](https://grpc.io/) framework allows a quick and secure means of exchanging messages as remote procedure calls, leveraging protocol buffers to generate source code on-the-fly. As such, protocol buffers have a huge weight on this library, having the event data structure defined as one.
+
+Not only is it simple to setup and kick off a gRPC Log server, with either unary and stream RPCs and many other neat features -- it's also extensible by using the same service and message `.proto` files and integrate the Logger in your own application, by generating the Log Client code for your environment.
+
+More information on gRPC service / server / client implementations, in [the _gRPC_ section](#grpc).
+
+
+_________________
+
+
 
 ### Features
 

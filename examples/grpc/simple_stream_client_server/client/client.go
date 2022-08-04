@@ -28,19 +28,16 @@ func getTLSConf() client.LogClientConfig {
 	var withCA bool
 
 	certPath, ok := getEnv("TLS_CLIENT_CERT")
-
 	if ok {
 		withCert = true
 	}
 
 	keyPath, ok := getEnv("TLS_CLIENT_KEY")
-
 	if ok {
 		withKey = true
 	}
 
 	caPath, ok := getEnv("TLS_CA_CERT")
-
 	if ok {
 		withCA = true
 	}
@@ -72,15 +69,10 @@ func main() {
 	)
 	_, done := grpcLogger.Channels()
 
-	msg1 := event.New().Message("all the way").Build()
+	grpcLogger.Log(event.New().Message("hello from client").Build())
 
-	grpcLogger.Log(msg1)
-	grpcLogger.Log(msg1)
-	grpcLogger.Log(msg1)
-	grpcLogger.Log(msg1)
-
-	for i := 0; i < 10; i++ {
-		grpcLogger.Log(event.New().Level(event.Level_warn).Message(fmt.Sprintf("#%v", i)).Build())
+	for i := 0; i < 3; i++ {
+		grpcLogger.Log(event.New().Level(event.Level_warn).Message(fmt.Sprintf("warning #%v", i)).Build())
 		time.Sleep(time.Millisecond * 50)
 	}
 

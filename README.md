@@ -65,6 +65,7 @@ _________________________
 			1. [Log Client Backoff](#log-client-backoff)
 		1. [Connection Addresses](#connection-addresses)
 1. [Integration](#integration)
+	1. [Protobuf code generation](#protobuf-code-generation)
 1. [Benchmarks](#benchmarks)
 1. [Contributing](#contributing)
 
@@ -2657,6 +2658,87 @@ Method | Description
 _______________
 
 ### Integration
+
+This section will cover general procedures when performing changes or general concerns when integrating a certain package or module to work with this logger. Generally there are interfaces defined so you can adapt the feature to your own needs (like the formatters); but may not be as clear as day for other parts of the code base.
+
+#### Protobuf code generation
+
+When making changes to the `.proto` files within the [`proto/` directory](./proto/), such as when adding new log levels or a new element to the Event data structure, you will need to run the appropriate code generation command.
+
+The commands referenced below refer to [Go's GitHub repo for `protoc-gen-go`](https://github.com/golang/protobuf/protoc-gen-go), and not the one from the instructions in the [gRPC Quick Start guide](https://grpc.io/docs/languages/go/quickstart/). It is important to review this document; but the decision to go with Go's `protoc` release is only due to compatibility with (built-in) gRPC code generation. This may change in the future, in adoption of Google's official release versions.
+
+Then, you can regenerate the code by running a command appropriate to your target:
+
+Target | Command
+:--:|:--:
+[`proto/event.proto`](./proto/event.proto)|`protoc  --go_out=.  proto/event.proto`
+[`proto/service.proto`](./proto/event.proto)|`protoc --go_out=plugins=grpc:proto proto/service.proto`
+
+<details>
+
+_Example of editing the `proto/event.proto` file_
+
+1. Make changes to [the `.proto` file](./proto/event.proto), for example changing the default prefix or adding a new field:
+
+```proto
+message Event {
+    optional google.protobuf.Timestamp time = 1;
+    optional string prefix = 2 [ default = "system" ];
+    optional string sub = 3;
+    optional Level level = 4 [ default = info ];
+    required string msg = 5;
+    optional google.protobuf.Struct meta = 6;
+	required bool breaking = 7;
+}
+```
+
+2. Execute the appropriate `protoc` command to regenerate the code:
+
+```shell
+protoc  --go_out=.  proto/event.proto
+```
+
+3. Review changes in the diff. These changes would be reflected in the target `.pb.go` file, in [`log/event/event.pb.go`](./log/event/event.pb.go):
+
+
+```go
+// (...)
+const (
+	Default_Event_Prefix = string("system")
+	Default_Event_Level  = Level_info
+)
+// (...)
+func (x *Event) GetBreaking() bool {
+	if x != nil && x.Breaking != nil {
+		return *x.Breaking
+	}
+	return false
+}
+```
+
+4. Use the new logic within the context of your application
+
+```go
+// (...)
+if event.GetBreaking() {
+	// handle the special type of event
+}
+```
+
+</details>
+
+> **NOTE**: When performing changes to [`proto/service.proto`](./proto/service.proto) and regenerating the code, you will notice that the [`proto/service/service.pb.go` file](./proto/service/service.pb.go) will have an invalid import for `event`.
+>
+> To correct this, simply change this import from:
+>
+>     event "./log/event"
+>
+> ...to:
+>
+>     event "github.com/zalgonoise/zlog/log/event"
+>
+> For your convenience, [the shell script in [`proto/gen_pbgo.sh`](./proto/gen_pbgo.sh) is a simple wrapper for these actions.
+
 
 _______________
 

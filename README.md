@@ -66,6 +66,7 @@ _________________________
 		1. [Connection Addresses](#connection-addresses)
 1. [Integration](#integration)
 	1. [Protobuf code generation](#protobuf-code-generation)
+	1. [Adding your own configuration settings](#adding-your-own-configuration-settings)
 1. [Benchmarks](#benchmarks)
 1. [Contributing](#contributing)
 
@@ -2739,7 +2740,149 @@ if event.GetBreaking() {
 >
 > For your convenience, [the shell script in [`proto/gen_pbgo.sh`](./proto/gen_pbgo.sh) is a simple wrapper for these actions.
 
+___________
 
+
+#### Adding your own configuration settings
+
+Most of the modules will be configured with a function that takes a variadic parameter for its configuration, which is an interface -- meaning that you can implement it too. This section will cover an example of both adding a new formatter and a new Logger configuration.
+
+
+_Example of adding a new Formatter_
+
+<details>
+
+1. Inspect the flow of configuring a formatter for a Logger. This is done in [`log/format.go`](./log/format.go) by calling the [`WithFormat(LogFormatter)`](./log/format.go#L33) function, which returns a `LoggerConfig`. This means that to add a new formatter, a new [`LogFormatter` type](./log/format.go#L18) needs to be created, so it can be passed into this function when creating a Logger.
+
+2. Create your own type and implement the `Format(*event.Event) ([]byte, error)` method. This is an example with a compact text formatter:
+
+```go
+package compact
+
+import (
+	"strings"
+	"time"
+
+	"github.com/zalgonoise/zlog/log/event"
+)
+
+type Text struct {}
+
+func (Text) Format(log *event.Event) (buf []byte, err error) {
+	// uses hypen as separator, no square brackets, simple info only
+	var sb strings.Builder
+
+	sb.WriteString(log.GetTime().AsTime().Format(time.RFC3339))
+	sb.WriteString(" - ")
+	sb.WriteString(log.GetLevel().String())
+	sb.WriteString(" - ")
+	sb.WriteString(log.GetMsg())
+	sb.WriteString("\n")
+
+	buf = []byte(sb.String())
+	return
+}
+```
+
+3. When configuring the Logger in your application, import your package and use it to configure the Logger:
+
+```go
+package main 
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+
+	"github.com/myuser/myrepo/mypkg/compact" // your package here
+)
+
+func main() {
+	logger := log.New(
+		log.WithFormat(compact.Text{})	
+	)
+
+	logger.Info("hi from custom formatter!")
+}
+```
+
+4. Test it out:
+
+```
+2022-08-06T18:02:34Z - info - hi from custom formatter!
+```
+
+</details>
+
+
+_Example of adding a new LoggerConfig_
+
+<details>
+
+1. Inspect the flow of configuring a Logger. This is done in [`log/conf.go`](./log/conf.go) by calling a function implementing the [`LoggerConfig` interface](./log/conf.go#L21), which applies your changes (from the builder object) to the resulting object. This means that to add a new configuration, a new [`LoggerConfig` type](./log/conf.go#21) needs to be created, so it can be passed as a parameter when creating the Logger.
+
+2. Create your own type and implement the `Apply(lb *LoggerBuilder)` method, and optionally a helper function. This is an example with a combo of prefix and subprefix config:
+
+```go
+package id
+
+import (
+	"github.com/zalgonoise/zlog/log"
+)
+
+type id struct {
+	prefix string
+	sub    string
+}
+
+func (i *id) Apply(lb *log.LoggerBuilder) {
+	// apply settings to prefix and subprefix
+	lb.Prefix = i.prefix
+	lb.Sub = i.sub
+}
+
+func WithID(prefix, sub string) log.LoggerConfig {
+	return &id{
+		prefix: prefix,
+		sub:    sub,
+	}
+}
+
+```
+
+3. When configuring the Logger in your application, import your package and use it to configure the Logger:
+
+```go
+package main 
+
+import (
+	"github.com/zalgonoise/zlog/log"
+	"github.com/zalgonoise/zlog/log/event"
+
+	"github.com/myuser/myrepo/mypkg/id" // your package here
+)
+
+func main() {
+	logger := log.New(
+		id.WithID("http", "handlers")
+	)
+
+	logger.Info("hi from custom formatter logger!")
+}
+```
+
+4. Test it out:
+
+```
+[info]  [2022-08-06T18:25:07.581200505Z]        [http]  [handlers]      hi from custom formatter logger!
+```
+
+</details>
+
+
+<!--
+	Add builder pattern section
+	Add gRPC interceptors section
+-->
 _______________
 
 

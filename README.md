@@ -2894,7 +2894,7 @@ _Example of adding a new method to the Event building process_
 
 1. Inspect the flow of creating an Event. This is done in [`log/event/builder.go`](./log/event/builder.go) by calling a function to initialize the builder object, and then chaining any number of methods (at least `Message()`) until it is closed with the `Build()` call, that outputs an event (with timestamp). This is a very strict and linear pattern but you're able to create your own custom chains by wrapping the builder object. The only concern is to at a certain point returning the (original) [`EventBuilder` type](./log/event/builder.go#L14) to gain access to its helper methods.
 
-2. Create your own builder type and implement the chaining methods you need, and optionally a helper function to initialize this object. This is an example with a combo of prefix and subprefix in a single method:
+2. Create your own builder type and implement the chaining methods you need, and optionally a helper function to initialize this object. The new builder type will only be a wrapper for the original one. This is an example with a combo of prefix and subprefix in a single method:
 
 ```go
 package newbuilder

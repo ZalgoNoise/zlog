@@ -12,12 +12,12 @@ import (
 // be the target of different changes until its `Build()` method is called -- returning
 // then a pointer to an Events object
 type EventBuilder struct {
-	time     *time.Time
-	prefix   *string
-	sub      *string
-	level    *Level
-	msg      string
-	metadata *map[string]interface{}
+	BTime     *time.Time
+	BPrefix   *string
+	BSub      *string
+	BLevel    *Level
+	BMsg      string
+	BMetadata *map[string]interface{}
 }
 
 // New function is the initializer of an EventBuilder. From this call, further
@@ -35,38 +35,38 @@ func New() *EventBuilder {
 	)
 
 	return &EventBuilder{
-		prefix:   &prefix,
-		sub:      &sub,
-		level:    &level,
-		metadata: &metadata,
+		BPrefix:   &prefix,
+		BSub:      &sub,
+		BLevel:    &level,
+		BMetadata: &metadata,
 	}
 }
 
 // Prefix method will set the prefix element in the EventBuilder with string p, and
 // return the builder
 func (b *EventBuilder) Prefix(p string) *EventBuilder {
-	*b.prefix = p
+	*b.BPrefix = p
 	return b
 }
 
 // Sub method will set the sub-prefix element in the EventBuilder with string s, and
 // return the builder
 func (b *EventBuilder) Sub(s string) *EventBuilder {
-	*b.sub = s
+	*b.BSub = s
 	return b
 }
 
 // Message method will set the message element in the EventBuilder with string m, and
 // return the builder
 func (b *EventBuilder) Message(m string) *EventBuilder {
-	b.msg = m
+	b.BMsg = m
 	return b
 }
 
 // Level method will set the level element in the EventBuilder with LogLevel l, and
 // return the builder
 func (b *EventBuilder) Level(l Level) *EventBuilder {
-	*b.level = l
+	*b.BLevel = l
 	return b
 }
 
@@ -77,14 +77,14 @@ func (b *EventBuilder) Metadata(m map[string]interface{}) *EventBuilder {
 		return b
 	}
 
-	if b.metadata == nil || len(*b.metadata) == 0 {
-		b.metadata = &m
+	if b.BMetadata == nil || len(*b.BMetadata) == 0 {
+		b.BMetadata = &m
 	} else {
-		mcopy := *b.metadata
+		mcopy := *b.BMetadata
 		for k, v := range m {
 			mcopy[k] = v
 		}
-		b.metadata = &mcopy
+		b.BMetadata = &mcopy
 	}
 	return b
 }
@@ -92,12 +92,12 @@ func (b *EventBuilder) Metadata(m map[string]interface{}) *EventBuilder {
 // CallStack method will grab the current call stack, and add it as a "callstack" object
 // in the EventBuilder's metadata.
 func (b *EventBuilder) CallStack(all bool) *EventBuilder {
-	if *b.metadata == nil {
-		*b.metadata = map[string]interface{}{}
+	if *b.BMetadata == nil {
+		*b.BMetadata = map[string]interface{}{}
 	}
-	mcopy := *b.metadata
+	mcopy := *b.BMetadata
 	mcopy["callstack"] = trace.New(all)
-	*b.metadata = mcopy
+	*b.BMetadata = mcopy
 
 	return b
 }
@@ -108,34 +108,34 @@ func (b *EventBuilder) Build() *Event {
 	var timestamp *timestamppb.Timestamp = timestamppb.Now()
 	var meta *structpb.Struct
 
-	if b.level == nil {
-		b.level = new(Level)
-		*b.level = Default_Event_Level
+	if b.BLevel == nil {
+		b.BLevel = new(Level)
+		*b.BLevel = Default_Event_Level
 	}
 
-	if b.prefix == nil {
-		b.prefix = new(string)
-		*b.prefix = Default_Event_Prefix
+	if b.BPrefix == nil {
+		b.BPrefix = new(string)
+		*b.BPrefix = Default_Event_Prefix
 	}
 
-	if b.sub == nil {
-		b.sub = new(string)
-		*b.sub = ""
+	if b.BSub == nil {
+		b.BSub = new(string)
+		*b.BSub = ""
 	}
 
-	if b.metadata == nil {
+	if b.BMetadata == nil {
 		meta = new(structpb.Struct)
 	} else {
-		f := Field(*b.metadata)
+		f := Field(*b.BMetadata)
 		meta = f.Encode()
 	}
 
 	return &Event{
 		Time:   timestamp,
-		Prefix: b.prefix,
-		Sub:    b.sub,
-		Level:  b.level,
-		Msg:    &b.msg,
+		Prefix: b.BPrefix,
+		Sub:    b.BSub,
+		Level:  b.BLevel,
+		Msg:    &b.BMsg,
 		Meta:   meta,
 	}
 }

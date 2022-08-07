@@ -32,33 +32,33 @@ func TestNew(t *testing.T) {
 
 	var verify = func(idx int, test test, e *EventBuilder) {
 
-		if *e.prefix != test.prefix {
+		if *e.BPrefix != test.prefix {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] default prefix mismatch: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				test.prefix,
-				*e.prefix,
+				*e.BPrefix,
 				test.name,
 			)
 			return
 		}
 
-		if *e.sub != test.sub {
+		if *e.BSub != test.sub {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] default sub-prefix mismatch: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				test.sub,
-				*e.sub,
+				*e.BSub,
 				test.name,
 			)
 			return
 		}
 
-		level := *e.level
+		level := *e.BLevel
 
 		if level.String() != test.level {
 			t.Errorf(
@@ -73,27 +73,27 @@ func TestNew(t *testing.T) {
 			return
 		}
 
-		if e.msg != test.msg {
+		if e.BMsg != test.msg {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] default message mismatch: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				test.msg,
-				e.msg,
+				e.BMsg,
 				test.name,
 			)
 			return
 		}
 
-		if *e.metadata != nil {
+		if *e.BMetadata != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [%s] [%s] default metadata is not nil: wanted %v ; got %v -- action: %s",
 				idx,
 				module,
 				funcname,
 				nil,
-				*e.metadata,
+				*e.BMetadata,
 				test.name,
 			)
 			return

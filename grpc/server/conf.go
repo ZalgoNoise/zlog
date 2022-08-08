@@ -114,6 +114,18 @@ type LSOpts struct {
 // LSTiming struct is a custom LogServerConfig to add a timing module to exchanged RPCs
 type LSTiming struct{}
 
+// LSUnaryInterceptor struct is a custom LogServerConfig to define a custom interceptor
+type LSUnaryInterceptor struct {
+	name string
+	itcp grpc.UnaryServerInterceptor
+}
+
+// LSStreamInterceptor struct is a custom LogServerConfig to define a custom interceptor
+type LSStreamInterceptor struct {
+	name string
+	itcp grpc.StreamServerInterceptor
+}
+
 // Apply method will set this option's address as the input GRPCLogServer's
 func (l LSAddr) Apply(ls *gRPCLogServerBuilder) {
 	ls.addr = l.addr
@@ -153,6 +165,17 @@ func (l LSTiming) Apply(ls *gRPCLogServerBuilder) {
 	// otherwise, if there is no logging interceptor, add a new independent timing interceptor
 	ls.interceptors.streamItcp["timing"] = StreamServerTiming(ls.svcLogger)
 	ls.interceptors.unaryItcp["timing"] = UnaryServerTiming(ls.svcLogger)
+}
+
+// Apply method will set this option's Unary interceptor on the gRPCLogClientBuilder
+func (l LSUnaryInterceptor) Apply(ls *gRPCLogServerBuilder) {
+	ls.interceptors.unaryItcp[l.name] = l.itcp
+
+}
+
+// Apply method will set this option's Stream interceptor on the gRPCLogServerBuilder
+func (l LSStreamInterceptor) Apply(ls *gRPCLogServerBuilder) {
+	ls.interceptors.streamItcp[l.name] = l.itcp
 }
 
 // WithAddr function will take one address for the gRPC Log Server to listen to.
@@ -352,4 +375,24 @@ func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials
 	}
 
 	return credentials.NewTLS(config), nil
+}
+
+// WithUnaryInterceptor function creates a new Unary interceptor config, based on the
+// input interceptor, mapped to the input name. Note that depending of the order of the
+// chanining and naming, this may overwrite other existing interceptors.
+func WithUnaryInterceptor(name string, itcp grpc.UnaryServerInterceptor) LogServerConfig {
+	return &LSUnaryInterceptor{
+		name: name,
+		itcp: itcp,
+	}
+}
+
+// WithStreamInterceptor function creates a new Stream interceptor config, based on the
+// input interceptor, mapped to the input name. Note that depending of the order of the
+// chanining and naming, this may overwrite other existing interceptors.
+func WithStreamInterceptor(name string, itcp grpc.StreamServerInterceptor) LogServerConfig {
+	return &LSStreamInterceptor{
+		name: name,
+		itcp: itcp,
+	}
 }

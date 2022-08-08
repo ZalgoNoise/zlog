@@ -120,6 +120,18 @@ type LSExpBackoff struct {
 	backoff *Backoff
 }
 
+// LSUnaryInterceptor struct is a custom LogClientConfig to define a custom interceptor
+type LSUnaryInterceptor struct {
+	name string
+	itcp grpc.UnaryClientInterceptor
+}
+
+// LSStreamInterceptor struct is a custom LogClientConfig to define a custom interceptor
+type LSStreamInterceptor struct {
+	name string
+	itcp grpc.StreamClientInterceptor
+}
+
 // LSTiming struct is a custom LogClientConfig to add (debug) information on time taken to execute RPCs.
 type LSTiming struct{}
 
@@ -167,6 +179,17 @@ func (l LSTiming) Apply(ls *gRPCLogClientBuilder) {
 	// otherwise, if there is no logging interceptor, add a new independent timing interceptor
 	ls.interceptors.streamItcp["timing"] = StreamClientTiming(ls.svcLogger)
 	ls.interceptors.unaryItcp["timing"] = UnaryClientTiming(ls.svcLogger)
+}
+
+// Apply method will set this option's Unary interceptor on the gRPCLogClientBuilder
+func (l LSUnaryInterceptor) Apply(ls *gRPCLogClientBuilder) {
+	ls.interceptors.unaryItcp[l.name] = l.itcp
+
+}
+
+// Apply method will set this option's Stream interceptor on the gRPCLogClientBuilder
+func (l LSStreamInterceptor) Apply(ls *gRPCLogClientBuilder) {
+	ls.interceptors.streamItcp[l.name] = l.itcp
 }
 
 // WithAddr function will take in any amount of addresses, and create a connections
@@ -478,4 +501,24 @@ func loadCreds(caCert string) (credentials.TransportCredentials, error) {
 	}
 
 	return credentials.NewTLS(config), nil
+}
+
+// WithUnaryInterceptor function creates a new Unary interceptor config, based on the
+// input interceptor, mapped to the input name. Note that depending of the order of the
+// chanining and naming, this may overwrite other existing interceptors.
+func WithUnaryInterceptor(name string, itcp grpc.UnaryClientInterceptor) LogClientConfig {
+	return &LSUnaryInterceptor{
+		name: name,
+		itcp: itcp,
+	}
+}
+
+// WithStreamInterceptor function creates a new Stream interceptor config, based on the
+// input interceptor, mapped to the input name. Note that depending of the order of the
+// chanining and naming, this may overwrite other existing interceptors.
+func WithStreamInterceptor(name string, itcp grpc.StreamClientInterceptor) LogClientConfig {
+	return &LSStreamInterceptor{
+		name: name,
+		itcp: itcp,
+	}
 }

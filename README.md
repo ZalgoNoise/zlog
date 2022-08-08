@@ -66,6 +66,7 @@ _________________________
 	1. [Protobuf code generation](#protobuf-code-generation)
 	1. [Adding your own configuration settings](#adding-your-own-configuration-settings)
 	1. [Adding methods to a Builder pattern](#adding-methods-to-a-builder-pattern)
+	1. [Adding interceptors to gRPC server / client](#adding-interceptors-to-grpc-server--client)
 1. [Benchmarks](#benchmarks)
 1. [Contributing](#contributing)
 
@@ -2961,9 +2962,143 @@ func main() {
 </details>
 
 
-<!--
-	Add gRPC interceptors section
--->
+______________
+
+#### Adding interceptors to gRPC server / client
+
+gRPC allows very granular middleware to be added to either client or server implementations, to suit your most peculiar needs. This is simply a means to execute a function before (or after) a message is sent or received by either end.
+
+To add multiple interceptors, this library uses the [`go-grpc-middleware`](https://github.com/grpc-ecosystem/go-grpc-middleware) library, which allows easy chaining of multiple interceptors (not being limited to just one). This library is very interesting and provides a number of useful examples that could suit your logger's needs -- and basically it is an interceptor capable of registering (and calling) other interceptors you need to configure.
+
+
+_Example of adding a simple server interceptor to add a UUID_
+
+<details>
+
+1. Inspect the flow of an existing interceptor, such as [the server logging interceptor](./grpc/server/logging.go). This consists of implementing two wrapper functions that return other functions, with the following signature:
+
+Purpose | Signature
+:--:|:--:
+Unary RPCs | `func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error)`
+Stream RPCs | `func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error`
+
+These functions are executed on the corresponding action, take an example of a stripped version (no actions taken) of these functions:
+
+__Unary RPC -- stripped__
+
+```go
+func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	res, err := handler(ctx, req)
+
+	return res, err
+}
+```
+
+__Stream RPC -- stripped__
+
+```go
+func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	err := handler(srv, wStream)
+
+	return err
+}
+```
+
+> __NOTE__: while the approach for Unary RPCs is usually very simple (one message, one interceptor call), the stream RPCs are persistent connections. This means that if you want to handle the underlying messages being exchanged, you need to implement a wrapper for the stream, as shown below in the context of this example.
+
+2. Create your own interceptor(s) (for your use-case's type of RPCs) by wrapping the functions in the table above. This example will add UUIDs to log events as the server replies back to the client. This is already implemented by default but serves as an example. Both Unary and Stream RPC interceptors are implemented, note how the Stream wraps up the stream handler:
+
+```go
+
+// UnaryServerIDModifier sets a preset UUID to log responses
+func UnaryServerIDModifier(id string) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// regular flow
+		res, err := handler(ctx, req)
+		
+		// modify response's ID
+		res.(*pb.LogResponse).ReqID = id
+
+		// continue as normal
+		return res, err
+	}
+}
+
+// StreamServerIDModifier sets a preset UUID to log responses
+func StreamServerIDModifier(id string) grpc.StreamServerInterceptor {
+	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		// wrap the stream 
+		wStream := modIDStream{
+			id: id,
+		}
+
+		// handle the messages using the wrapped stream
+		err := handler(srv, wStream)
+		return err
+	}
+}
+
+// modIDStream is a wrapper for grpc.ServerStream, that will replace
+// the response's ID with the preset `id` string value
+type modIDStream struct {
+	id string
+}
+
+
+// Header method is a wrapper for the grpc.ServerStream.Header() method
+func (w loggingStream) SetHeader(m metadata.MD) error { return w.stream.SetHeader(m) }
+
+// Trailer method is a wrapper for the grpc.ServerStream.Trailer() method
+func (w loggingStream) SendHeader(m metadata.MD) error { return w.stream.SendHeader(m) }
+
+// CloseSend method is a wrapper for the grpc.ServerStream.CloseSend() method
+func (w loggingStream) SetTrailer(m metadata.MD) { w.stream.SetTrailer(m) }
+
+// Context method is a wrapper for the grpc.ServerStream.Context() method
+func (w loggingStream) Context() context.Context { return w.stream.Context() }
+
+// SendMsg method is a wrapper for the grpc.ServerStream.SendMsg(m) method, for which the
+// configured logger will set a predefined ID
+func (w loggingStream) SendMsg(m interface{}) error {
+	// set the custom ID 
+	m.(*pb.LogResponse).ReqID = w.id
+
+	// continue as normal
+	return w.stream.SendMsg(m)
+}
+
+// RecvMsg method is a wrapper for the grpc.ServerStream.RecvMsg(m) method
+func (w loggingStream) RecvMsg(m interface{}) error { return w.stream.RecvMsg(m) }
+```
+
+3. When configuring the Logger in your application, import your package and use it to configure the Logger:
+
+```go
+package main
+
+import (
+	"github.com/zalgonoise/zlog/log/grpc/server"
+
+	"github.com/myuser/myrepo/mypkg/fixedid" // your package here
+)
+
+func main() {
+	grpcLogger := server.New(
+		server.WithAddr("example.com:9099"),
+		server.WithGRPCOpts(),
+		server.WithStreamInterceptor(
+			"fixed-id",
+			fixedid.StreamServerIDModifier("staging")
+		)
+	)
+	grpcLogger.Serve()
+}
+```
+
+4. Launch a client, and send some messages back to the server. The response in the client should contain the fixed ID in its metadata.
+
+</details>
+
 _______________
 
 

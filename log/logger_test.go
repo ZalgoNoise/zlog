@@ -681,7 +681,6 @@ func TestLoggerWrite(t *testing.T) {
 	for idx, test := range tests {
 		verify(idx, test)
 	}
-
 }
 
 func TestNilLoggerSetOuts(t *testing.T) {
@@ -1013,4 +1012,271 @@ func TestNilLoggerWrite(t *testing.T) {
 	for idx, test := range tests {
 		verify(idx, test)
 	}
+}
+
+func BenchmarkLogger(b *testing.B) {
+	const (
+		prefix = "benchmark"
+		sub    = "test"
+		msg    = "benchmark test log event"
+	)
+
+	var (
+		meta = map[string]interface{}{
+			"complex":  true,
+			"id":       1234567890,
+			"content":  map[string]interface{}{"data": true},
+			"affected": []string{"none", "nothing", "nada"},
+		}
+		logEventByte    = event.New().Message(msg).Build().Encode()
+		logEvent        = event.New().Message(msg).Build()
+		logEventComplex = event.New().Prefix(prefix).Sub(sub).Message(msg).Metadata(meta).Build()
+		msgByte         = []byte(msg)
+		buf             = &bytes.Buffer{}
+		reset           = func() {
+			buf.Reset()
+		}
+		logger        = New(WithOut(buf))
+		loggerComplex = New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced))
+		ml            = MultiLogger(
+			New(WithOut(buf)), New(WithOut(buf)), New(WithOut(buf)),
+			New(WithOut(buf)), New(WithOut(buf)), New(WithOut(buf)),
+			New(WithOut(buf)), New(WithOut(buf)), New(WithOut(buf)),
+			New(WithOut(buf)),
+		)
+		mlc = MultiLogger(
+			New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)), New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)), New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)),
+			New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)), New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)), New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)),
+			New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)), New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)), New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)),
+			New(WithOut(buf), WithPrefix(prefix), WithSub(sub), WithFormat(TextColorLevelFirstSpaced)),
+		)
+	)
+
+	loggerComplex.Fields(meta)
+
+	// run benchmarks
+	b.Run("Logger", func(b *testing.B) {
+		b.Run("Init", func(b *testing.B) {
+			b.Run("NewDefaultLogger", func(b *testing.B) {
+				for n := 0; n < b.N; n++ {
+					New()
+				}
+			})
+
+			reset()
+
+			b.Run("NewLoggerWithConfig", func(b *testing.B) {
+				for n := 0; n < b.N; n++ {
+					New(
+						WithPrefix(prefix),
+						WithSub(sub),
+						WithFilter(event.Level_warn),
+						WithFormat(TextColor),
+						WithOut(buf),
+					)
+				}
+			})
+
+			reset()
+		})
+
+		b.Run("Writing", func(b *testing.B) {
+			b.Run("Write", func(b *testing.B) {
+				b.Run("ByteStreamAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						logger.Write(msgByte)
+					}
+				})
+
+				reset()
+
+				b.Run("EncodedEventAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						logger.Write(logEventByte)
+					}
+				})
+
+				reset()
+
+				b.Run("RawEventAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						logger.Write(logEvent.Encode())
+					}
+				})
+
+				reset()
+			})
+
+			b.Run("Output", func(b *testing.B) {
+				b.Run("SimpleEvent", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						logger.Output(logEvent)
+					}
+				})
+
+				reset()
+
+				b.Run("ComplexEvent", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						logger.Output(logEventComplex)
+					}
+				})
+
+				reset()
+			})
+
+			b.Run("Print", func(b *testing.B) {
+				b.Run("SimpleLogger", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						logger.Print(msg)
+					}
+				})
+
+				reset()
+
+				b.Run("ComplexLogger", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						loggerComplex.Print(msg)
+					}
+				})
+
+				reset()
+			})
+		})
+	})
+
+	b.Run("MultiloggerX10", func(b *testing.B) {
+		b.Run("Init", func(b *testing.B) {
+			b.Run("NewDefaultLogger", func(b *testing.B) {
+				for n := 0; n < b.N; n++ {
+					MultiLogger(
+						New(), New(), New(),
+						New(), New(), New(),
+						New(), New(), New(),
+						New(),
+					)
+				}
+			})
+
+			reset()
+
+			b.Run("NewLoggerWithConfig", func(b *testing.B) {
+				for n := 0; n < b.N; n++ {
+					MultiLogger(
+						New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)), New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)), New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)),
+						New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)), New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)), New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)),
+						New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)), New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)), New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)),
+						New(WithPrefix(prefix), WithSub(sub), WithFilter(event.Level_warn), WithFormat(TextColor), WithOut(buf)),
+					)
+				}
+			})
+
+			reset()
+		})
+
+		b.Run("Writing", func(b *testing.B) {
+			b.Run("Write", func(b *testing.B) {
+				b.Run("ByteStreamAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						ml.Write(msgByte)
+					}
+				})
+
+				reset()
+
+				b.Run("EncodedEventAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						ml.Write(logEventByte)
+					}
+				})
+
+				reset()
+
+				b.Run("RawEventAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						ml.Write(logEvent.Encode())
+					}
+				})
+
+				reset()
+
+				b.Run("ComplexByteStreamAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						mlc.Write(msgByte)
+					}
+				})
+
+				reset()
+
+				b.Run("ComplexEncodedEventAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						mlc.Write(logEventByte)
+					}
+				})
+
+				reset()
+
+				b.Run("ComplexRawEventAsInput", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						mlc.Write(logEvent.Encode())
+					}
+				})
+
+				reset()
+			})
+
+			b.Run("Output", func(b *testing.B) {
+				b.Run("SimpleEvent", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						ml.Output(logEvent)
+					}
+				})
+
+				reset()
+
+				b.Run("ComplexEvent", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						ml.Output(logEventComplex)
+					}
+				})
+
+				reset()
+
+				b.Run("ComplexLoggerSimpleEvent", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						mlc.Output(logEvent)
+					}
+				})
+
+				reset()
+
+				b.Run("ComplexLoggerComplexEvent", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						mlc.Output(logEventComplex)
+					}
+				})
+
+				reset()
+			})
+
+			b.Run("Print", func(b *testing.B) {
+				b.Run("Simple", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						ml.Print(msg)
+					}
+				})
+
+				reset()
+
+				b.Run("Complex", func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						mlc.Print(msg)
+					}
+				})
+
+				reset()
+			})
+		})
+	})
+
 }

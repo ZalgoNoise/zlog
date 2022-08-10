@@ -28,22 +28,26 @@ func BenchmarkLogger(b *testing.B) {
 		logEventComplex = event.New().Prefix(prefix).Sub(sub).Message(msg).Metadata(meta).Build()
 		msgByte         = []byte(msg)
 		buf             = &bytes.Buffer{}
+		bufs            = []*bytes.Buffer{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}}
 		reset           = func() {
 			buf.Reset()
+			for _, b := range bufs {
+				b.Reset()
+			}
 		}
 		logger        = log.New(log.WithOut(buf))
 		loggerComplex = log.New(log.WithOut(buf), log.WithPrefix(prefix), log.WithSub(sub), log.WithFormat(log.TextColorLevelFirstSpaced), log.WithFilter(event.Level_trace))
 		ml            = log.MultiLogger(
-			log.New(log.WithOut(buf)), log.New(log.WithOut(buf)), log.New(log.WithOut(buf)),
-			log.New(log.WithOut(buf)), log.New(log.WithOut(buf)), log.New(log.WithOut(buf)),
-			log.New(log.WithOut(buf)), log.New(log.WithOut(buf)), log.New(log.WithOut(buf)),
-			log.New(log.WithOut(buf)),
+			log.New(log.WithOut(bufs[0])), log.New(log.WithOut(bufs[1])), log.New(log.WithOut(bufs[2])),
+			log.New(log.WithOut(bufs[3])), log.New(log.WithOut(bufs[4])), log.New(log.WithOut(bufs[5])),
+			log.New(log.WithOut(bufs[6])), log.New(log.WithOut(bufs[7])), log.New(log.WithOut(bufs[8])),
+			log.New(log.WithOut(bufs[9])),
 		)
 		mlc = log.MultiLogger(
-			log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)),
-			log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)),
-			log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)),
-			log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)),
+			log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[0])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[1])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[2])),
+			log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[3])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[4])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[5])),
+			log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[6])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[7])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[8])),
+			log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[9])),
 		)
 	)
 
@@ -272,10 +276,10 @@ func BenchmarkLogger(b *testing.B) {
 			b.Run("NewLoggerWithConfig", func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 					log.MultiLogger(
-						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)),
-						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)),
-						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)),
-						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_warn), log.WithFormat(log.TextColor), log.WithOut(buf)),
+						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[0])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[1])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[2])),
+						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[3])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[4])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[5])),
+						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[6])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[7])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[8])),
+						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[9])),
 					)
 				}
 			})

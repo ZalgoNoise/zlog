@@ -40,6 +40,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
 				localLogger := zerolog.New(buf)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Info().Msg(msg)
 				}
@@ -48,6 +49,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			b.Run("StdLibLogger", func(b *testing.B) {
 				localPrefix := prefix + " " // avoid sticking prefix to message
 				localLogger := log.New(buf, localPrefix, log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Print(msg)
 				}
@@ -67,6 +69,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 					zap.WithCaller(false),
 				)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Info(msg)
 				}
@@ -80,6 +83,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 						text.New().NoLevel().Time(text.LTRFC822Z).Build(),
 					),
 				)
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Log(logEvent)
 				}
@@ -96,6 +100,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				localLogger.SetReportCaller(false)
 				localLogger.SetLevel(logrus.InfoLevel)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Print(msg)
 				}
@@ -106,6 +111,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
 				localLogger := zerolog.New(buf)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Info().Msg(msg)
 				}
@@ -125,6 +131,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 					zap.WithCaller(false),
 				)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Info(msg)
 				}
@@ -136,6 +143,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 					zlog.WithPrefix(prefix),
 					zlog.CfgFormatJSONSkipNewline,
 				)
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Log(logEvent)
 				}
@@ -149,6 +157,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				localLogger.SetReportCaller(false)
 				localLogger.SetLevel(logrus.InfoLevel)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Print(msg)
 				}
@@ -160,6 +169,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
 				localLogger := zerolog.New(buf)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Info().Fields(meta).Msg(longMsg)
 				}
@@ -179,6 +189,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 					zap.WithCaller(false),
 				)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Info(longMsg, zap.Any("metadata", meta))
 				}
@@ -193,6 +204,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 						text.New().Time(text.LTRFC822Z).Build(),
 					),
 				)
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Log(logEventComplex)
 				}
@@ -209,6 +221,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				localLogger.SetReportCaller(false)
 				localLogger.SetLevel(logrus.InfoLevel)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.WithField("metadata", meta).Print(longMsg)
 				}
@@ -219,6 +232,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
 				localLogger := zerolog.New(buf)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Info().Fields(meta).Msg(longMsg)
 				}
@@ -238,6 +252,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 					zap.WithCaller(false),
 				)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Info(longMsg, zap.Any("metadata", meta))
 				}
@@ -250,6 +265,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 					zlog.WithSub(sub),
 					zlog.CfgFormatJSONSkipNewline,
 				)
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.Log(logEventComplex)
 				}
@@ -263,6 +279,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				localLogger.SetReportCaller(false)
 				localLogger.SetLevel(logrus.InfoLevel)
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger.WithField("metadata", meta).Print(longMsg)
 				}
@@ -274,6 +291,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 	b.Run("Init", func(b *testing.B) {
 		b.Run("SimpleText", func(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					l := zerolog.New(buf)
 					_ = l
@@ -281,6 +299,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("StdLibLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localPrefix := prefix + " " // avoid sticking prefix to message
 					l := log.New(buf, localPrefix, log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
@@ -289,6 +308,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZapLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					conf := zap.NewProductionEncoderConfig()
 					conf.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -307,6 +327,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZlogLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					l := zlog.New(
 						zlog.WithOut(buf),
@@ -321,6 +342,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			})
 			b.Run("LogrusLogger", func(b *testing.B) {
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := logrus.New()
 
@@ -337,6 +359,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 		})
 		b.Run("SimpleJSON", func(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					l := zerolog.New(buf)
 					_ = l
@@ -345,6 +368,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			})
 			b.Run("ZapLogger", func(b *testing.B) {
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					conf := zap.NewProductionEncoderConfig()
 					conf.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -363,6 +387,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZlogLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					l := zlog.New(
 						zlog.WithOut(buf),
@@ -374,6 +399,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("LogrusLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := logrus.New()
 
@@ -388,6 +414,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 
 		b.Run("ComplexText", func(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					l := zerolog.New(buf)
 					_ = l
@@ -395,6 +422,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZapLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					conf := zap.NewProductionEncoderConfig()
 					conf.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -413,6 +441,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZlogLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					l := zlog.New(
 						zlog.WithOut(buf),
@@ -427,6 +456,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("LogrusLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := logrus.New()
 
@@ -443,6 +473,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 		})
 		b.Run("ComplexJSON", func(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					l := zerolog.New(buf)
 					_ = l
@@ -450,6 +481,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZapLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					conf := zap.NewProductionEncoderConfig()
 					conf.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -468,6 +500,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZlogLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					l := zlog.New(
 						zlog.WithOut(buf),
@@ -480,6 +513,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("LogrusLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := logrus.New()
 
@@ -496,6 +530,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 	b.Run("Runtime", func(b *testing.B) {
 		b.Run("SimpleText", func(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := zerolog.New(buf)
 					localLogger.Info().Msg(msg)
@@ -503,6 +538,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("StdLibLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localPrefix := prefix + " " // avoid sticking prefix to message
 					localLogger := log.New(buf, localPrefix, log.Ltime|log.Lmicroseconds|log.Lmsgprefix)
@@ -511,6 +547,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZapLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					conf := zap.NewProductionEncoderConfig()
 					conf.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -529,6 +566,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZlogLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := zlog.New(
 						zlog.WithOut(buf),
@@ -543,6 +581,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			})
 			b.Run("LogrusLogger", func(b *testing.B) {
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := logrus.New()
 
@@ -561,6 +600,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 		})
 		b.Run("SimpleJSON", func(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := zerolog.New(buf)
 					localLogger.Info().Msg(msg)
@@ -569,6 +609,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 			})
 			b.Run("ZapLogger", func(b *testing.B) {
 
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					conf := zap.NewProductionEncoderConfig()
 					conf.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -587,6 +628,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZlogLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := zlog.New(
 						zlog.WithOut(buf),
@@ -598,6 +640,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("LogrusLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := logrus.New()
 
@@ -613,6 +656,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 
 		b.Run("ComplexText", func(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := zerolog.New(buf)
 					localLogger.Info().Fields(meta).Msg(longMsg)
@@ -620,6 +664,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZapLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					conf := zap.NewProductionEncoderConfig()
 					conf.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -638,6 +683,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZlogLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := zlog.New(
 						zlog.WithOut(buf),
@@ -652,6 +698,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("LogrusLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := logrus.New()
 
@@ -669,6 +716,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 		})
 		b.Run("ComplexJSON", func(b *testing.B) {
 			b.Run("ZeroLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := zerolog.New(buf)
 					localLogger.Info().Fields(meta).Msg(longMsg)
@@ -676,6 +724,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZapLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					conf := zap.NewProductionEncoderConfig()
 					conf.EncodeTime = zapcore.RFC3339TimeEncoder
@@ -694,6 +743,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("ZlogLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := zlog.New(
 						zlog.WithOut(buf),
@@ -706,6 +756,7 @@ func BenchmarkVendorLoggers(b *testing.B) {
 				buf.Reset()
 			})
 			b.Run("LogrusLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					localLogger := logrus.New()
 

@@ -54,21 +54,25 @@ func BenchmarkLogger(b *testing.B) {
 	// run benchmarks
 	b.Run("Events", func(b *testing.B) {
 		b.Run("NewSimpleEvent", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				event.New().Message(msg).Build()
 			}
 		})
 		b.Run("NewSimpleEventWithLevel", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				event.New().Level(event.Level_warn).Message(msg).Build()
 			}
 		})
 		b.Run("NewComplexEvent", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				event.New().Prefix(prefix).Sub(sub).Level(event.Level_warn).Message(msg).Metadata(meta).Build()
 			}
 		})
 		b.Run("NewComplexEventWithCallStack", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				event.New().Prefix(prefix).Sub(sub).Level(event.Level_warn).Message(msg).Metadata(meta).CallStack(true).Build()
 			}
@@ -81,6 +85,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(text.New().NoHeaders().Time(text.LTUnixMilli).Build()),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -91,6 +96,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(text.New().Color().DoubleSpace().Upper().Time(text.LTRFC3339Nano).Build()),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -101,6 +107,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(log.FormatJSONSkipNewline),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -111,6 +118,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(log.FormatJSONIndent),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -121,6 +129,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(log.FormatBSON),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -131,6 +140,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(log.FormatCSV),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -141,6 +151,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(log.FormatXML),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -151,6 +162,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(log.FormatGob),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -161,6 +173,7 @@ func BenchmarkLogger(b *testing.B) {
 				log.WithOut(buf),
 				log.WithFormat(log.FormatProtobuf),
 			)
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger.Log(event.New().Message(msg).Build())
 			}
@@ -171,6 +184,7 @@ func BenchmarkLogger(b *testing.B) {
 	b.Run("Logger", func(b *testing.B) {
 		b.Run("Init", func(b *testing.B) {
 			b.Run("NewDefaultLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					log.New()
 				}
@@ -179,6 +193,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 
 			b.Run("NewLoggerWithConfig", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					log.New(
 						log.WithPrefix(prefix),
@@ -196,6 +211,7 @@ func BenchmarkLogger(b *testing.B) {
 		b.Run("Writing", func(b *testing.B) {
 			b.Run("Write", func(b *testing.B) {
 				b.Run("ByteStreamAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						logger.Write(msgByte)
 					}
@@ -204,6 +220,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("EncodedEventAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						logger.Write(logEventByte)
 					}
@@ -212,6 +229,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("RawEventAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						logger.Write(logEvent.Encode())
 					}
@@ -222,6 +240,7 @@ func BenchmarkLogger(b *testing.B) {
 
 			b.Run("Output", func(b *testing.B) {
 				b.Run("SimpleEvent", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						logger.Output(logEvent)
 					}
@@ -230,6 +249,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("ComplexEvent", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						logger.Output(logEventComplex)
 					}
@@ -240,6 +260,7 @@ func BenchmarkLogger(b *testing.B) {
 
 			b.Run("Print", func(b *testing.B) {
 				b.Run("SimpleLogger", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						logger.Print(msg)
 					}
@@ -248,6 +269,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("ComplexLogger", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						loggerComplex.Print(msg)
 					}
@@ -261,6 +283,7 @@ func BenchmarkLogger(b *testing.B) {
 	b.Run("MultiloggerX10", func(b *testing.B) {
 		b.Run("Init", func(b *testing.B) {
 			b.Run("NewDefaultLogger", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					log.MultiLogger(
 						log.New(), log.New(), log.New(),
@@ -274,6 +297,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 
 			b.Run("NewLoggerWithConfig", func(b *testing.B) {
+				b.ResetTimer()
 				for n := 0; n < b.N; n++ {
 					log.MultiLogger(
 						log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[0])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[1])), log.New(log.WithPrefix(prefix), log.WithSub(sub), log.WithFilter(event.Level_trace), log.WithFormat(log.TextColor), log.WithOut(bufs[2])),
@@ -290,6 +314,7 @@ func BenchmarkLogger(b *testing.B) {
 		b.Run("Writing", func(b *testing.B) {
 			b.Run("Write", func(b *testing.B) {
 				b.Run("ByteStreamAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						ml.Write(msgByte)
 					}
@@ -298,6 +323,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("EncodedEventAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						ml.Write(logEventByte)
 					}
@@ -306,6 +332,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("RawEventAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						ml.Write(logEvent.Encode())
 					}
@@ -314,6 +341,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("ComplexByteStreamAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						mlc.Write(msgByte)
 					}
@@ -322,6 +350,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("ComplexEncodedEventAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						mlc.Write(logEventByte)
 					}
@@ -330,6 +359,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("ComplexRawEventAsInput", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						mlc.Write(logEvent.Encode())
 					}
@@ -340,6 +370,7 @@ func BenchmarkLogger(b *testing.B) {
 
 			b.Run("Output", func(b *testing.B) {
 				b.Run("SimpleEvent", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						ml.Output(logEvent)
 					}
@@ -348,6 +379,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("ComplexEvent", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						ml.Output(logEventComplex)
 					}
@@ -356,6 +388,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("ComplexLoggerSimpleEvent", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						mlc.Output(logEvent)
 					}
@@ -364,6 +397,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("ComplexLoggerComplexEvent", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						mlc.Output(logEventComplex)
 					}
@@ -374,6 +408,7 @@ func BenchmarkLogger(b *testing.B) {
 
 			b.Run("Print", func(b *testing.B) {
 				b.Run("Simple", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						ml.Print(msg)
 					}
@@ -382,6 +417,7 @@ func BenchmarkLogger(b *testing.B) {
 				reset()
 
 				b.Run("Complex", func(b *testing.B) {
+					b.ResetTimer()
 					for n := 0; n < b.N; n++ {
 						mlc.Print(msg)
 					}
@@ -394,6 +430,7 @@ func BenchmarkLogger(b *testing.B) {
 
 	b.Run("Runtime", func(b *testing.B) {
 		b.Run("SimpleLoggerPrintCall", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger := log.New(log.WithOut(buf))
 				localLogger.Print(msg)
@@ -401,6 +438,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 		})
 		b.Run("SimpleLoggerLogCall", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger := log.New(log.WithOut(buf))
 				localLogger.Log(event.New().Message(msg).Build())
@@ -408,6 +446,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 		})
 		b.Run("SimpleLoggerWriteString", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger := log.New(log.WithOut(buf))
 				localLogger.Write([]byte(msg))
@@ -415,6 +454,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 		})
 		b.Run("SimpleLoggerWriteEvent", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger := log.New(log.WithOut(buf))
 				localLogger.Write(event.New().Message(msg).Build().Encode())
@@ -422,6 +462,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 		})
 		b.Run("ComplexLoggerPrintCall", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger := log.New(log.WithOut(buf), log.WithPrefix(prefix), log.WithSub(sub), log.WithFormat(log.TextColorLevelFirstSpaced), log.WithFilter(event.Level_trace))
 				localLogger.Print(msg)
@@ -429,6 +470,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 		})
 		b.Run("ComplexLoggerLogCall", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger := log.New(log.WithOut(buf), log.WithPrefix(prefix), log.WithSub(sub), log.WithFormat(log.TextColorLevelFirstSpaced), log.WithFilter(event.Level_trace))
 				localLogger.Log(event.New().Message(msg).Build())
@@ -436,6 +478,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 		})
 		b.Run("ComplexLoggerWriteString", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger := log.New(log.WithOut(buf), log.WithPrefix(prefix), log.WithSub(sub), log.WithFormat(log.TextColorLevelFirstSpaced), log.WithFilter(event.Level_trace))
 				localLogger.Write([]byte(msg))
@@ -443,6 +486,7 @@ func BenchmarkLogger(b *testing.B) {
 			reset()
 		})
 		b.Run("ComplexLoggerWriteEvent", func(b *testing.B) {
+			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				localLogger := log.New(log.WithOut(buf), log.WithPrefix(prefix), log.WithSub(sub), log.WithFormat(log.TextColorLevelFirstSpaced), log.WithFilter(event.Level_trace))
 				localLogger.Write(event.New().Message(msg).Build().Encode())

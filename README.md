@@ -27,6 +27,7 @@ _________________________
 		1. [Writing events to a database](#writing-events-to-a-database)
 	1. [Logging events remotely](#logging-events-remotely)
 		1. [gRPC server / client](#unary-grpc-server--client---example)
+	1. [Building the library](#building-the-library)
 1. [Features](#features)
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)
@@ -1452,6 +1453,118 @@ Not only is it simple to setup and kick off a gRPC Log server, with either unary
 More information on gRPC service / server / client implementations, in [the _gRPC_ section](#grpc).
 
 
+_________________
+
+
+#### Building the library
+
+This library uses [Bazel](https://bazel.build/) as a build system. Bazel is an amazing tool that promises a hermetic build -- one that will *always* output the same results. While this is the greatest feature of Bazel (which may not be achievable in other build tools that are dependent on your local environment), it is also very extensible in terms of integration, support for multiple languages, and clear _recipes_ of the dependencies of a particular library or binary.
+
+Bazel also has a dozen features like remote execution, [like with BuildBuddy](https://www.buildbuddy.io/) and [remote caching](https://bazel.build/docs/remote-caching) (with a Docker container in another machine, for instance).
+
+To install [Bazel](https://bazel.build/) on a machine, I prefer to use the [`bazelisk` tool](https://github.com/bazelbuild/bazelisk) which ensures that Bazel is both up-to-date and will not raise any sort of version issue later on. To install it, you can use your system's package manager, or the following Go command:
+
+```shell
+go install github.com/bazelbuild/bazelisk@latest
+```
+
+Bazel is the build tool of choice for this library as (for me, personally) it becomes very easy to configure a new build target when required; you simply need to setup the `WORKSPACE` file from presets provided by the tools used ([Go rules](https://github.com/bazelbuild/rules_go/releases), [`gazelle`](https://github.com/bazelbuild/bazel-gazelle/releases) and [`buildifier`](https://github.com/bazelbuild/buildtools/releases)); by adding the corresponding `WORKSPACE` code to your repo's file. 
+
+Once the `WORKSPACE` file is configured, you're able to use `gazelle` to auto-generate the build files for your Go code. This is done by executing these commands:
+
+Command | Purpose
+:--:|:--:
+`bazel run //:gazelle --` | Generate the `BUILD.bazel` files for this and all subdirectories. It must be called at the root of the repository, where the `WORKSPACE` file is located.
+`bazel run //:gazelle -- update-repos -from_file=go.mod` | Update the `WORKSPACE` file with the new dependencies, when they are added to Go code. It must be called at the root of the repository, where the `WORKSPACE` file is located.
+
+##### Targets
+
+__Go Binary__
+
+If you have a binary (`main.go` file), it will be listed as a binary target in a `BUILD.bazel` file, such as:
+
+```bzl
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_binary(
+    name = "zlog",
+    embed = [":zlog_lib"],
+    visibility = ["//visibility:public"],
+)
+```
+
+These targets can be called with Bazel with a command such as:
+
+```shell
+bazel run //:zlog --
+```
+
+...Or if they are in some deeper directory, call the command from the repo's root:
+
+```shell
+bazel run //examples/logger/simple_logger:simple_logger
+```
+
+__Go Library__
+
+Libraries are non-executable packages of (Go) code which will provide functionality to a binary, as referenced in its imports:
+
+```bzl
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "simple_logger_lib",
+    srcs = ["simple_logger.go"],
+    importpath = "github.com/zalgonoise/zlog/examples/logger/simple_logger",
+    visibility = ["//visibility:private"],
+    deps = ["//log"],
+)
+
+go_binary(
+    name = "simple_logger",
+    embed = [":simple_logger_lib"], # uses the lib above
+    visibility = ["//visibility:public"],
+)
+```
+
+__Gazelle__
+
+Used to generate Go build files for Bazel, it's declared in the `WORSKAPCE` file and referenced in the main `BUILD.bazel` (at the root of the repository):
+
+```bzl
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/zalgonoise/zlog
+gazelle(name = "gazelle")
+```
+
+Usage of `gazelle` just above this section, with both commands used to update Go build files and their dependencies for Bazel.
+
+__Buildifier__
+
+Used to verify (and fix) build files that you may have created or modified. Similar to `go fmt` but for Bazel. it's declared in the `WORSKAPCE` file and referenced in the main `BUILD.bazel` (at the root of the repository), with two targets available:
+
+```bzl
+load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
+
+buildifier(
+    name = "buildifier-check",
+    lint_mode = "warn",
+    mode = "check",
+    multi_diff = True,
+)
+
+buildifier(
+    name = "buildifier-fix",
+    lint_mode = "fix",
+    mode = "fix",
+    multi_diff = True,
+)
+```
+
+These can be called by their name value as they are intuitive -- one warns you of potential issues / formatting bad practices; the other directly applies corrections to the files:
+- `bazel run //:buildifier-fix`
+- `bazel run //:buildifier-check`
 _________________
 
 

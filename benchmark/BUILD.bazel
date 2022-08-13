@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+go_test(
+    name = "benchmark_test",
+    srcs = [
+        "logger_test.go",
+        "vendor_test.go",
+    ],
+    deps = [
+        "//log",
+        "//log/event",
+        "//log/format/text",
+        "@com_github_rs_zerolog//:zerolog",
+        "@com_github_sirupsen_logrus//:logrus",
+        "@org_uber_go_zap//:zap",
+        "@org_uber_go_zap//zapcore",
+    ],
+)

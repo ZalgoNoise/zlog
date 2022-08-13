@@ -416,15 +416,15 @@ go_repository(
 go_repository(
     name = "com_github_mattn_go_colorable",
     importpath = "github.com/mattn/go-colorable",
-    sum = "h1:6Su7aK7lXmJ/U79bYtBjLNaha4Fs1Rg9plHpcH+vvnE=",
-    version = "v0.1.6",
+    sum = "h1:jF+Du6AlPIjs2BiUiQlKOX0rt3SujHxPnksPKZbaA40=",
+    version = "v0.1.12",
 )
 
 go_repository(
     name = "com_github_mattn_go_isatty",
     importpath = "github.com/mattn/go-isatty",
-    sum = "h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHXY=",
-    version = "v0.0.12",
+    sum = "h1:yVuAays6BHfxijgZPzw+3Zlu5yQgKGP2/hcQbHb7S9Y=",
+    version = "v0.0.14",
 )
 
 go_repository(
@@ -486,15 +486,15 @@ go_repository(
 go_repository(
     name = "com_github_rs_xid",
     importpath = "github.com/rs/xid",
-    sum = "h1:mhH9Nq+C1fY2l1XIpgxIiUOfNpRBYH1kKcr+qfKgjRc=",
-    version = "v1.2.1",
+    sum = "h1:6NjYksEUlhurdVehpc7S7dk6DAmcKv8V9gG0FsVN2U4=",
+    version = "v1.3.0",
 )
 
 go_repository(
     name = "com_github_rs_zerolog",
     importpath = "github.com/rs/zerolog",
-    sum = "h1:uPRuwkWF4J6fGsJ2R0Gn2jB1EQiav9k3S6CSdygQJXY=",
-    version = "v1.15.0",
+    sum = "h1:1T7qCieN22GVc8S4Q2yuexzBb1EqjbgjSH9RohbMjKs=",
+    version = "v1.27.0",
 )
 
 go_repository(
@@ -514,8 +514,8 @@ go_repository(
 go_repository(
     name = "com_github_sirupsen_logrus",
     importpath = "github.com/sirupsen/logrus",
-    sum = "h1:SPIRibHv4MatM3XXNO2BJeFLZwZ2LvZgfQ5+UNI2im4=",
-    version = "v1.4.2",
+    sum = "h1:trlNQbNUG3OdDrDil03MCb1H2o9nJ1x4/5LYw7byDE0=",
+    version = "v1.9.0",
 )
 
 go_repository(
@@ -619,8 +619,8 @@ go_repository(
 go_repository(
     name = "in_gopkg_yaml_v3",
     importpath = "gopkg.in/yaml.v3",
-    sum = "h1:hjy8E9ON/egN1tAYqKb61G10WtihqetD4sz2H+8nIeA=",
-    version = "v3.0.0",
+    sum = "h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=",
+    version = "v3.0.1",
 )
 
 go_repository(
@@ -738,8 +738,8 @@ go_repository(
 go_repository(
     name = "org_golang_x_sys",
     importpath = "golang.org/x/sys",
-    sum = "h1:y/woIyUBFbpQGKS0u1aHF/40WUDnek3fPOyD08H5Vng=",
-    version = "v0.0.0-20220310020820-b874c991c1a5",
+    sum = "h1:2QkjZIsXupsJbJIdSjjUOgWK3aEtzyuh2mPt3l/CkeU=",
+    version = "v0.0.0-20220811171246-fbc7d0a398ab",
 )
 
 go_repository(
@@ -780,15 +780,15 @@ go_repository(
 go_repository(
     name = "org_uber_go_atomic",
     importpath = "go.uber.org/atomic",
-    sum = "h1:Ezj3JGmsOnG1MoRWQkPBsKLe9DwWD9QeXzTRzzldNVk=",
-    version = "v1.6.0",
+    sum = "h1:ECmE8Bn/WFTYwEW/bpKD3M8VtR/zQVbavAoalC1PYyE=",
+    version = "v1.9.0",
 )
 
 go_repository(
     name = "org_uber_go_multierr",
     importpath = "go.uber.org/multierr",
-    sum = "h1:KCa4XfM8CWFCpxXRGok+Q0SS/0XBhMDbHHGABQLvD2A=",
-    version = "v1.5.0",
+    sum = "h1:dg6GjLku4EH+249NNmoIciG9N/jURbDG+pFlTkhzIC8=",
+    version = "v1.8.0",
 )
 
 go_repository(
@@ -801,8 +801,8 @@ go_repository(
 go_repository(
     name = "org_uber_go_zap",
     importpath = "go.uber.org/zap",
-    sum = "h1:nR6NoDBgAf67s68NhaXbsojM+2gxp3S1hWkHDl27pVU=",
-    version = "v1.13.0",
+    sum = "h1:Zcye5DUgBloQ9BaT4qc9BnjOFog5TvBSAGkJ3Nf70c0=",
+    version = "v1.22.0",
 )
 
 ## rules_proto
@@ -817,6 +817,34 @@ http_archive(
 )
 
 load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
+
+go_repository(
+    name = "com_github_benbjohnson_clock",
+    importpath = "github.com/benbjohnson/clock",
+    sum = "h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=",
+    version = "v1.1.0",
+)
+
+go_repository(
+    name = "com_github_coreos_go_systemd_v22",
+    importpath = "github.com/coreos/go-systemd/v22",
+    sum = "h1:rtAn27wIbmOGUs7RIbVgPEjb31ehTVniDwPGXyMxm5U=",
+    version = "v22.3.3-0.20220203105225-a9a7ef127534",
+)
+
+go_repository(
+    name = "com_github_godbus_dbus_v5",
+    importpath = "github.com/godbus/dbus/v5",
+    sum = "h1:9349emZab16e7zQvpmsbtjc18ykshndd8y2PG3sgJbA=",
+    version = "v5.0.4",
+)
+
+go_repository(
+    name = "org_uber_go_goleak",
+    importpath = "go.uber.org/goleak",
+    sum = "h1:wy28qYRKZgnJTxGxvye5/wgWr1EKjmUDGYox5mGlRlI=",
+    version = "v1.1.11",
+)
 
 rules_proto_dependencies()
 

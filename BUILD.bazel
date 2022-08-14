@@ -5,6 +5,8 @@ load("@com_github_bazelbuild_buildtools//buildifier:def.bzl", "buildifier")
 # gazelle:prefix github.com/zalgonoise/zlog
 gazelle(name = "gazelle")
 
+buildifier(name = "buildifier")
+
 buildifier(
     name = "buildifier-check",
     lint_mode = "warn",

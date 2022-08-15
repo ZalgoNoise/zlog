@@ -28,6 +28,8 @@ _________________________
 	1. [Logging events remotely](#logging-events-remotely)
 		1. [gRPC server / client](#unary-grpc-server--client---example)
 	1. [Building the library](#building-the-library)
+		1. [Targets](#targets)
+		1. [Target types](#target-types)
 1. [Features](#features)
 	1. [Simple API](#simple-api)
 	1. [Highly configurable](#highly-configurable)
@@ -1470,14 +1472,23 @@ go install github.com/bazelbuild/bazelisk@latest
 
 Bazel is the build tool of choice for this library as (for me, personally) it becomes very easy to configure a new build target when required; you simply need to setup the `WORKSPACE` file from presets provided by the tools used ([Go rules](https://github.com/bazelbuild/rules_go/releases), [`gazelle`](https://github.com/bazelbuild/bazel-gazelle/releases) and [`buildifier`](https://github.com/bazelbuild/buildtools/releases)); by adding the corresponding `WORKSPACE` code to your repo's file. 
 
-Once the `WORKSPACE` file is configured, you're able to use `gazelle` to auto-generate the build files for your Go code. This is done by executing these commands:
-
-Command | Purpose
-:--:|:--:
-`bazel run //:gazelle --` | Generate the `BUILD.bazel` files for this and all subdirectories. It must be called at the root of the repository, where the `WORKSPACE` file is located.
-`bazel run //:gazelle -- update-repos -from_file=go.mod` | Update the `WORKSPACE` file with the new dependencies, when they are added to Go code. It must be called at the root of the repository, where the `WORKSPACE` file is located.
+Once the `WORKSPACE` file is configured, you're able to use `gazelle` to auto-generate the build files for your Go code. This is done by running the `//:gazelle` targets listed in the section below:
 
 ##### Targets
+
+Command | Description
+:--:|:--:
+`bazel run //:gazelle --` | Generate the `BUILD.bazel` files for this and all subdirectories. It must be called at the root of the repository, where the `WORKSPACE` file is located
+`bazel run //:gazelle -- update-repos -from_file=go.mod` | Update the `WORKSPACE` file with the new dependencies, when they are added to Go code. It must be called at the root of the repository, where the `WORKSPACE` file is located
+`bazel build //log/...` | Builds the `log` package and all subpackages
+`bazel test //...` | Tests the entire library
+`bazel test //log/event:event_test` | Tests the `event` package, in the form of `//path/to:target`
+`bazel run //:zlog` | Executes the `:zlog` (`/main.go`) target
+`bazel run //examples/logger/simple_logger:simple_logger` | Executes the `simple_logger.go` example, in the form of `//path/to:target`
+`bazel run //:buildifier-check` | Executes the `buildifier` target in lint-checking mode for build files
+`bazel run //:buildifier-fix` | Executes the `buildifier` target and corrects any build file lint issues
+
+##### Target types
 
 __Go Binary__
 
@@ -1562,9 +1573,7 @@ buildifier(
 )
 ```
 
-These can be called by their name value as they are intuitive -- one warns you of potential issues / formatting bad practices; the other directly applies corrections to the files:
-- `bazel run //:buildifier-fix`
-- `bazel run //:buildifier-check`
+
 _________________
 
 
@@ -3216,6 +3225,15 @@ _______________
 
 
 ### Benchmarks
+
+
+_In progress_
+
+Tests for speed and performance are done with benchmark tests, where different approaches to the many loggers is measured so it's clear where the library excels and lacks. This is done with multiple configs of individual features and as well a comparison with other Go loggers.
+
+Benchmark tests are added and posted under the [`/benchmark` directory](./benchmark/), to ensure that its imports is separate from the rest of the library. If by any means this approach still makes it _bloated_, it can be moved to an entirely separate branch, at any point.
+
+As changes are made, the benchmarks' raw results are posted in [the `/benchmark/README.md` file](./benchmark/README.md).
 
 ______________
 

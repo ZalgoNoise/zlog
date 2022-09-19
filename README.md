@@ -3226,9 +3226,6 @@ _______________
 
 ### Benchmarks
 
-
-_In progress_
-
 Tests for speed and performance are done with benchmark tests, where different approaches to the many loggers is measured so it's clear where the library excels and lacks. This is done with multiple configs of individual features and as well a comparison with other Go loggers.
 
 Benchmark tests are added and posted under the [`/benchmark` directory](./benchmark/), to ensure that its imports is separate from the rest of the library. If by any means this approach still makes it _bloated_, it can be moved to an entirely separate branch, at any point.

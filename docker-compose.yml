@@ -1,0 +1,11 @@
+version: '3.7'
+services:
+
+  zlog:
+    container_name: zlog
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./:/go/src/github.com/zalgonoise/zlog
+    working_dir: /go/src/github.com/zalgonoise/zlog

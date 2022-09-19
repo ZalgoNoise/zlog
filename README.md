@@ -4,7 +4,7 @@ A lightweight Golang library to handle logging
 _________________________
 
 <p align="center">
-  <img src="https://github.com/ZalgoNoise/zlog/raw/media/img/LoggerGopher-small.png" />
+  <img src="https://github.com/zalgonoise/zlog/raw/media/img/LoggerGopher-small.png" />
 </p>
 
 
@@ -3239,7 +3239,4 @@ ______________
 
 ### Contributing
 
-_____________
-
-
-_WIP: this repository is in a beta stage and is not yet usable for production_
+To contribute to this repository, open an issue in GitHub's Issues section to kick off a discussion with your proposal. It's best that proposals are complete with a (brief) description, current and expected behavior, proposed solution (if any), as well as your view on the impact it causes. In time there will be a preset for both bugs, feature requests, and anything in between.

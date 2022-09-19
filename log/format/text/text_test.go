@@ -154,9 +154,9 @@ func TestFormat(t *testing.T) {
 			regex: `\[info\]\s+\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+Z\]\s+\[test\]\s+\[testing\]\s+null\s+\[ a = true \]`,
 		},
 		{
-			name: "complete event; color, uppercase",
-			e:    event.New().Prefix("test").Sub("testing").Message("null").Metadata(event.Field{"a": true}).Build(),
-			f:    New().Color().Upper().Build(),
+			name:  "complete event; color, uppercase",
+			e:     event.New().Prefix("test").Sub("testing").Message("null").Metadata(event.Field{"a": true}).Build(),
+			f:     New().Color().Upper().Build(),
 			regex: `\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d+Z\]\s+\[\\[36mINFO\\[0m\]\s+\[TEST\]\s+\[TESTING\]\s+null\s+\[ a = true \]`,
 		},
 	}
@@ -214,12 +214,12 @@ func TestFmtTime(t *testing.T) {
 		{
 			name:  "RFC3339Nano",
 			time:  LTRFC3339Nano,
-			regex: `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+\+\d{2}:\d{2}`,
+			regex: `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.+`, // 2022-09-19T18:36:43.454942597Z
 		},
 		{
 			name:  "RFC3339",
 			time:  LTRFC3339,
-			regex: `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:\d{2}`,
+			regex: `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.+`, //2022-09-19T18:36:43Z
 		},
 		{
 			name:  "RFC822Z",

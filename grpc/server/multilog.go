@@ -26,8 +26,6 @@ func (ml *multiLogger) addLogger(l LogServer) {
 	}
 
 	ml.loggers = append(ml.loggers, l)
-	return
-
 }
 
 func (ml *multiLogger) build() LogServer {
@@ -48,7 +46,7 @@ func (ml *multiLogger) build() LogServer {
 // This is a LogServer multiplexer.
 func MultiLogger(loggers ...LogServer) LogServer {
 
-	if loggers == nil || len(loggers) == 0 {
+	if len(loggers) == 0 {
 		return nil
 	}
 
@@ -105,7 +103,8 @@ func (l *multiLogger) Stop() {
 //
 // The error channel (a read one) works the opposite way: all error channels are iterated through
 // and a goroutine is launched for each of them. On _any_ error received, a copy is sent to the
-//  output error channel
+//
+//	output error channel
 func (l *multiLogger) Channels() (logCh, logSvCh chan *event.Event, errCh chan error) {
 
 	// make output channels
@@ -130,12 +129,9 @@ func (l *multiLogger) Channels() (logCh, logSvCh chan *event.Event, errCh chan e
 	// kick off goroutine for log channel
 	// any message received on the returned channel will be fanned out to all loggers
 	go func(ch chan *event.Event, chSet []chan *event.Event) {
-		for {
-			select {
-			case msg := <-ch:
-				for _, c := range chSet {
-					c <- msg
-				}
+		for msg := range ch {
+			for _, c := range chSet {
+				c <- msg
 			}
 		}
 	}(logCh, logChSet)
@@ -143,12 +139,9 @@ func (l *multiLogger) Channels() (logCh, logSvCh chan *event.Event, errCh chan e
 	// kick off goroutine for service logger channel
 	// any message received on the returned channel will be fanned out to all loggers
 	go func(ch chan *event.Event, chSet []chan *event.Event) {
-		for {
-			select {
-			case msg := <-ch:
-				for _, c := range chSet {
-					c <- msg
-				}
+		for msg := range ch {
+			for _, c := range chSet {
+				c <- msg
 			}
 		}
 	}(logSvCh, logSvChSet)

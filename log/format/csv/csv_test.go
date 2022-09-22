@@ -177,14 +177,14 @@ func TestFormat(t *testing.T) {
 				return
 			}
 
-			if !reflect.DeepEqual(*new, *e) {
+			if !reflect.DeepEqual(new, e) {
 				t.Errorf(
 					"#%v -- FAILED -- [%s] [%s] output mismatch error: wanted %v ; got %v -- action: %s",
 					idx,
 					module,
 					funcname,
-					*e,
-					*new,
+					e,
+					new,
 					test.name,
 				)
 				return

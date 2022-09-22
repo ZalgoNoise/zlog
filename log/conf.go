@@ -209,7 +209,7 @@ func WithFilter(level event.Level) LoggerConfig {
 // WithDatabase function creates a Logger config to use a database as a writer, while protobuf encoding
 // events, to transmit to writers
 func WithDatabase(dbs ...io.WriteCloser) LoggerConfig {
-	if dbs == nil || len(dbs) == 0 {
+	if len(dbs) == 0 {
 		return nil
 	}
 

@@ -81,7 +81,7 @@ func (l *logger) checkDefaults(m *event.Event) {
 // Output method will take in a pointer to an event.Event, apply defaults to any unset elements
 // (or add its metadata to the message), format it -- and lastly to write it in the output io.Writer
 //
-// The `Output()` method is the the placeholder action to write a generic message to the logger's io.Writer
+// # The `Output()` method is the the placeholder action to write a generic message to the logger's io.Writer
 //
 // All printing messages are either applying a `Logger.Log()` action or a `Logger.Output` one; while the former
 // is simply calling the latter.
@@ -118,7 +118,7 @@ func (l *logger) Print(v ...interface{}) {
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Println method (similar to fmt.Println) will print a message using an fmt.Sprintln(v...) pattern
@@ -131,7 +131,7 @@ func (l *logger) Println(v ...interface{}) {
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Printf method (similar to fmt.Printf) will print a message using an fmt.Sprintf(format, v...) pattern
@@ -143,7 +143,7 @@ func (l *logger) Printf(format string, v ...interface{}) {
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Log method will take in a pointer to one or more event.Events, and write it to the Logger's
@@ -162,7 +162,7 @@ func (l *logger) Log(m ...*event.Event) {
 		}
 
 		s := msg.GetMsg()
-		l.Output(msg)
+		_, _ = l.Output(msg) // deliberately ignore error in this method call
 		if !l.IsSkipExit() && *msg.Level == event.Level_panic {
 			panic(s)
 		} else if !l.IsSkipExit() && *msg.Level == event.Level_fatal {
@@ -183,7 +183,7 @@ func (l *logger) Panic(v ...interface{}) {
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 
 	if !l.IsSkipExit() {
 		panic(log.GetMsg())
@@ -201,7 +201,7 @@ func (l *logger) Panicln(v ...interface{}) {
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 
 	if !l.IsSkipExit() {
 		panic(log.GetMsg())
@@ -220,7 +220,7 @@ func (l *logger) Panicf(format string, v ...interface{}) {
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 
 	if !l.IsSkipExit() {
 		panic(log.GetMsg())
@@ -238,7 +238,7 @@ func (l *logger) Fatal(v ...interface{}) {
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 
 	if !l.IsSkipExit() {
 		os.Exit(1)
@@ -255,7 +255,7 @@ func (l *logger) Fatalln(v ...interface{}) {
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 
 	if !l.IsSkipExit() {
 		os.Exit(1)
@@ -272,7 +272,7 @@ func (l *logger) Fatalf(format string, v ...interface{}) {
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 
 	if !l.IsSkipExit() {
 		os.Exit(1)
@@ -287,7 +287,7 @@ func (l *logger) Error(v ...interface{}) {
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Errorln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
@@ -298,7 +298,7 @@ func (l *logger) Errorln(v ...interface{}) {
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Errorf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
@@ -309,7 +309,7 @@ func (l *logger) Errorf(format string, v ...interface{}) {
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Warn method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
@@ -320,7 +320,7 @@ func (l *logger) Warn(v ...interface{}) {
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 
 }
 
@@ -332,7 +332,7 @@ func (l *logger) Warnln(v ...interface{}) {
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Warnf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
@@ -344,7 +344,7 @@ func (l *logger) Warnf(format string, v ...interface{}) {
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Info method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
@@ -355,7 +355,7 @@ func (l *logger) Info(v ...interface{}) {
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Infoln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
@@ -366,7 +366,7 @@ func (l *logger) Infoln(v ...interface{}) {
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Infof method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
@@ -377,7 +377,7 @@ func (l *logger) Infof(format string, v ...interface{}) {
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Debug method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
@@ -388,7 +388,7 @@ func (l *logger) Debug(v ...interface{}) {
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Debugln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
@@ -399,7 +399,7 @@ func (l *logger) Debugln(v ...interface{}) {
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Debugf method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
@@ -410,7 +410,7 @@ func (l *logger) Debugf(format string, v ...interface{}) {
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Trace method (similar to fmt.Print) will print a message using an fmt.Sprint(v...) pattern, while
@@ -421,7 +421,7 @@ func (l *logger) Trace(v ...interface{}) {
 		fmt.Sprint(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Traceln method (similar to fmt.Print) will print a message using an fmt.Sprintln(v...) pattern, while
@@ -432,7 +432,7 @@ func (l *logger) Traceln(v ...interface{}) {
 		fmt.Sprintln(v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Tracef method (similar to fmt.Print) will print a message using an fmt.Sprintf(format, v...) pattern, while
@@ -443,7 +443,7 @@ func (l *logger) Tracef(format string, v ...interface{}) {
 		fmt.Sprintf(format, v...),
 	).Metadata(l.meta).Build()
 
-	l.Output(log)
+	_, _ = l.Output(log) // deliberately ignore error in this method call
 }
 
 // Output method is similar to a Logger.Output() method, however the multiLogger will
@@ -517,7 +517,7 @@ func (l *multiLogger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(
+		_, _ = logger.Output( // deliberately ignore error in this method call
 			event.New().
 				Level(event.Level_panic).
 				Message(s).
@@ -539,7 +539,7 @@ func (l *multiLogger) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_panic).Message(s).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_panic).Message(s).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {
@@ -556,7 +556,7 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_panic).Message(s).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_panic).Message(s).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {
@@ -570,7 +570,7 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 // This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatal(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprint(v...)).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprint(v...)).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {
@@ -584,7 +584,7 @@ func (l *multiLogger) Fatal(v ...interface{}) {
 // This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatalln(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintln(v...)).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintln(v...)).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {
@@ -598,7 +598,7 @@ func (l *multiLogger) Fatalln(v ...interface{}) {
 // This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatalf(format string, v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintf(format, v...)).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintf(format, v...)).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {

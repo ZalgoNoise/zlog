@@ -27,16 +27,6 @@ CREATE DATABASE IF NOT EXISTS zlog;
 
 */
 
-func getEnv(env string) (val string, ok bool) {
-	v := os.Getenv(env)
-
-	if v == "" {
-		return v, false
-	}
-
-	return v, true
-}
-
 type testDB struct {
 	host     string
 	port     string

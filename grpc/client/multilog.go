@@ -34,8 +34,6 @@ func (ml *multiLogger) addLogger(l GRPCLogger) {
 	}
 
 	ml.loggers = append(ml.loggers, l)
-	return
-
 }
 
 func (ml *multiLogger) build() GRPCLogger {
@@ -59,7 +57,7 @@ func (ml *multiLogger) build() GRPCLogger {
 // and output addresses, while still registering the same log message.
 func MultiLogger(loggers ...GRPCLogger) GRPCLogger {
 
-	if loggers == nil || len(loggers) == 0 {
+	if len(loggers) == 0 {
 		return nil
 	}
 
@@ -214,23 +212,17 @@ func (l *multiLogger) Channels() (chan *event.Event, chan struct{}) {
 	}
 
 	go func(logCh chan *event.Event, logChSet []chan *event.Event) {
-		for {
-			select {
-			case msg := <-logCh:
-				for _, ch := range logChSet {
-					ch <- msg
-				}
+		for msg := range logCh {
+			for _, ch := range logChSet {
+				ch <- msg
 			}
 		}
 	}(logCh, logChSet)
 
 	go func(done chan struct{}, doneSet []chan struct{}) {
-		for {
-			select {
-			case <-done:
-				for _, ch := range doneSet {
-					ch <- struct{}{}
-				}
+		for range done {
+			for _, ch := range doneSet {
+				ch <- struct{}{}
 			}
 		}
 	}(done, doneSet)
@@ -309,7 +301,7 @@ func (l *multiLogger) Panic(v ...interface{}) {
 	s := fmt.Sprint(v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(
+		_, _ = logger.Output( // deliberately ignore error in this method call
 			event.New().
 				Level(event.Level_panic).
 				Message(s).
@@ -331,7 +323,7 @@ func (l *multiLogger) Panicln(v ...interface{}) {
 	s := fmt.Sprintln(v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_panic).Message(s).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_panic).Message(s).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {
@@ -348,7 +340,7 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 	s := fmt.Sprintf(format, v...)
 
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_panic).Message(s).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_panic).Message(s).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {
@@ -362,7 +354,7 @@ func (l *multiLogger) Panicf(format string, v ...interface{}) {
 // This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatal(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprint(v...)).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprint(v...)).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {
@@ -376,7 +368,7 @@ func (l *multiLogger) Fatal(v ...interface{}) {
 // This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatalln(v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintln(v...)).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintln(v...)).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {
@@ -390,7 +382,7 @@ func (l *multiLogger) Fatalln(v ...interface{}) {
 // This method will end calling `os.Exit(1)`, if the logger is not set to skip exit calls.
 func (l *multiLogger) Fatalf(format string, v ...interface{}) {
 	for _, logger := range l.loggers {
-		logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintf(format, v...)).Build())
+		_, _ = logger.Output(event.New().Level(event.Level_fatal).Message(fmt.Sprintf(format, v...)).Build()) // deliberately ignore error in this method call
 	}
 
 	if !l.IsSkipExit() {

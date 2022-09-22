@@ -24,7 +24,7 @@ func (e *Event) Encode() []byte {
 
 // Decode method is similar to Event.Unmarshal, but it does not return any errors
 func (e *Event) Decode(b []byte) {
-	proto.Unmarshal(b, e)
+	_ = proto.Unmarshal(b, e) // deliberately ignore error in this method call
 }
 
 // Decode function will take in a slice of bytes and convert it to an Event protobuf,

@@ -44,7 +44,17 @@ func TestNilClient(t *testing.T) {
 			c.Channels()
 
 			// io.Writer impl
-			c.Write(event.New().Message("null").Build().Encode())
+			_, err := c.Write(event.New().Message("null").Build().Encode())
+			if err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] Write(): unexpected error: %v -- action %s",
+					idx,
+					module,
+					funcname,
+					err,
+					test.name,
+				)
+			}
 
 			// log.Logger impl
 			c.SetOuts(&bytes.Buffer{})
@@ -55,7 +65,18 @@ func TestNilClient(t *testing.T) {
 			c.IsSkipExit()
 
 			// log.Printer impl
-			c.Output(event.New().Message("null").Build())
+			_, err = c.Output(event.New().Message("null").Build())
+			if err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] Output(): unexpected error: %v -- action %s",
+					idx,
+					module,
+					funcname,
+					err,
+					test.name,
+				)
+			}
+
 			c.Log(event.New().Message("null").Build())
 			c.Print("null")
 			c.Println("null")

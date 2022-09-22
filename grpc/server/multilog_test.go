@@ -12,16 +12,16 @@ type testLogServer struct{}
 func (testLogServer) Serve() {}
 func (testLogServer) Stop()  {}
 func (testLogServer) Channels() (logCh, logSvCh chan *event.Event, errCh chan error) {
-	logCh = make(chan *event.Event, 0)
-	logSvCh = make(chan *event.Event, 0)
-	errCh = make(chan error, 0)
+	logCh = make(chan *event.Event)
+	logSvCh = make(chan *event.Event)
+	errCh = make(chan error)
 
 	go func() {
 		for {
 			select {
-			case _ = <-logCh:
+			case <-logCh:
 				continue // test goes on, first
-			case _ = <-logSvCh:
+			case <-logSvCh:
 				return // then it stops, on the second (svLogger) call
 			}
 		}

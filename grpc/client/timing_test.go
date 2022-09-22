@@ -20,11 +20,6 @@ func TestUnaryClientTiming(t *testing.T) {
 	_ = module
 	_ = funcname
 
-	type testGRPCLogger struct {
-		l GRPCLogger
-		e chan error
-	}
-
 	type test struct {
 		name    string
 		ok      bool
@@ -132,11 +127,6 @@ func TestStreamClientTiming(t *testing.T) {
 
 	_ = module
 	_ = funcname
-
-	type testGRPCLogger struct {
-		l GRPCLogger
-		e chan error
-	}
 
 	type test struct {
 		name   string

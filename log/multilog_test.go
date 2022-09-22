@@ -713,7 +713,6 @@ func TestMultiLoggerWrite(t *testing.T) {
 			errs,
 			test.name,
 		)
-		return
 	}
 
 	for idx, test := range tests {

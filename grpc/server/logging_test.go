@@ -26,7 +26,6 @@ type testServerStream struct {
 	hMD        metadata.MD
 	sentHeader bool
 	tMD        metadata.MD
-	err        error
 	ctx        context.Context // for DeepEqual tests
 }
 

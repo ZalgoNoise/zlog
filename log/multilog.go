@@ -32,8 +32,6 @@ func (ml *multiLogger) addLogger(l Logger) {
 	}
 
 	ml.loggers = append(ml.loggers, l)
-	return
-
 }
 
 func (ml *multiLogger) build() Logger {
@@ -57,7 +55,7 @@ func (ml *multiLogger) build() Logger {
 // output files, while still registering the same log message.
 func MultiLogger(loggers ...Logger) Logger {
 
-	if loggers == nil || len(loggers) == 0 {
+	if len(loggers) == 0 {
 		return nil
 	}
 
@@ -80,7 +78,7 @@ func MultiLogger(loggers ...Logger) Logger {
 // considering if there are different formats or more than one logger, it will result in
 // different types of messages and / or repeated ones, respectively.
 func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
-	if outs == nil || len(outs) == 0 {
+	if len(outs) == 0 {
 		return l
 	}
 
@@ -120,7 +118,7 @@ func (l *multiLogger) SetOuts(outs ...io.Writer) Logger {
 // the best action considering if there are different formats or more than one logger, it will
 // result in different types of messages and / or repeated ones, respectively.
 func (l *multiLogger) AddOuts(outs ...io.Writer) Logger {
-	if outs == nil || len(outs) == 0 {
+	if len(outs) == 0 {
 		return l
 	}
 

@@ -8,73 +8,72 @@
 //
 // The log package implements the following interfaces:
 //
-//     type Logger interface {
-//         io.Writer
-//         Printer
+//	type Logger interface {
+//	    io.Writer
+//	    Printer
 //
-//         SetOuts(outs ...io.Writer) Logger
-//         AddOuts(outs ...io.Writer) Logger
-//         Prefix(prefix string) Logger
-//         Sub(sub string) Logger
-//         Fields(fields map[string]interface{}) Logger
-//         IsSkipExit() bool
-//     }
+//	    SetOuts(outs ...io.Writer) Logger
+//	    AddOuts(outs ...io.Writer) Logger
+//	    Prefix(prefix string) Logger
+//	    Sub(sub string) Logger
+//	    Fields(fields map[string]interface{}) Logger
+//	    IsSkipExit() bool
+//	}
 //
-//     type Printer interface {
-//         Output(m *event.Event) (n int, err error)
-//         Log(m ...*event.Event)
+//	type Printer interface {
+//	    Output(m *event.Event) (n int, err error)
+//	    Log(m ...*event.Event)
 //
-//         Print(v ...interface{})
-//         Println(v ...interface{})
-//         Printf(format string, v ...interface{})
+//	    Print(v ...interface{})
+//	    Println(v ...interface{})
+//	    Printf(format string, v ...interface{})
 //
-//         Panic(v ...interface{})
-//         Panicln(v ...interface{})
-//         Panicf(format string, v ...interface{})
+//	    Panic(v ...interface{})
+//	    Panicln(v ...interface{})
+//	    Panicf(format string, v ...interface{})
 //
-//         Fatal(v ...interface{})
-//         Fatalln(v ...interface{})
-//         Fatalf(format string, v ...interface{})
+//	    Fatal(v ...interface{})
+//	    Fatalln(v ...interface{})
+//	    Fatalf(format string, v ...interface{})
 //
-//         Error(v ...interface{})
-//         Errorln(v ...interface{})
-//         Errorf(format string, v ...interface{})
+//	    Error(v ...interface{})
+//	    Errorln(v ...interface{})
+//	    Errorf(format string, v ...interface{})
 //
-//         Warn(v ...interface{})
-//         Warnln(v ...interface{})
-//         Warnf(format string, v ...interface{})
+//	    Warn(v ...interface{})
+//	    Warnln(v ...interface{})
+//	    Warnf(format string, v ...interface{})
 //
-//         Info(v ...interface{})
-//         Infoln(v ...interface{})
-//         Infof(format string, v ...interface{})
+//	    Info(v ...interface{})
+//	    Infoln(v ...interface{})
+//	    Infof(format string, v ...interface{})
 //
-//         Debug(v ...interface{})
-//         Debugln(v ...interface{})
-//         Debugf(format string, v ...interface{})
+//	    Debug(v ...interface{})
+//	    Debugln(v ...interface{})
+//	    Debugf(format string, v ...interface{})
 //
-//         Trace(v ...interface{})
-//         Traceln(v ...interface{})
-//         Tracef(format string, v ...interface{})
-//     }
+//	    Trace(v ...interface{})
+//	    Traceln(v ...interface{})
+//	    Tracef(format string, v ...interface{})
+//	}
 //
-//     type ChanneledLogger interface {
-//         Log(msg ...*event.Event)
-//         Close()
-//         Channels() (logCh chan *event.Event, done chan struct{})
-//     }
+//	type ChanneledLogger interface {
+//	    Log(msg ...*event.Event)
+//	    Close()
+//	    Channels() (logCh chan *event.Event, done chan struct{})
+//	}
 //
 // The remaining interfaces found in this package (LoggerConfig interface, LogFormatter interface)
 // are merely for configuring the logger, so these will be mostly useful for extensibility / new features
 //
-//     type LoggerConfig interface {
-//         Apply(lb *LoggerBuilder)
-//     }
+//	type LoggerConfig interface {
+//	    Apply(lb *LoggerBuilder)
+//	}
 //
-//     type LogFormatter interface {
-//         Format(log *LogMessage) (buf []byte, err error)
-//         LoggerConfig
-//     }
-//
+//	type LogFormatter interface {
+//	    Format(log *LogMessage) (buf []byte, err error)
+//	    LoggerConfig
+//	}
 package log
 
 import (
@@ -133,7 +132,7 @@ type LoggerBuilder struct {
 // in the input configuration.
 func New(confs ...LoggerConfig) Logger {
 	// short-circuit if confs is nil, as a default config logger
-	if confs == nil || len(confs) == 0 {
+	if len(confs) == 0 {
 		return New(DefaultCfg)
 	}
 
@@ -250,7 +249,6 @@ func (l *logger) Prefix(prefix string) Logger {
 
 // Sub method will set a Logger-scoped (as opposed to message-scoped) sub-prefix string to the logger
 //
-//
 // Logger-scoped sub-prefix strings can be set in order to avoid calling the `event.New().Sub()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function
 //
@@ -276,7 +274,7 @@ func (l *logger) Fields(fields map[string]interface{}) Logger {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if fields == nil || len(fields) == 0 {
+	if len(fields) == 0 {
 		l.meta = map[string]interface{}{}
 		return l
 	}

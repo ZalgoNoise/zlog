@@ -116,7 +116,7 @@ func (f *FmtCSV) Format(log *event.Event) (buf []byte, err error) {
 
 }
 
-func Decode(buf []byte) (*event.Event, error) {
+func Decode(buf []byte) (e *event.Event, err error) {
 	b := bytes.NewBuffer(buf)
 	r := csv.NewReader(b)
 
@@ -135,7 +135,7 @@ func Decode(buf []byte) (*event.Event, error) {
 
 	timestamp, err := convTime(record[0])
 
-	e := event.New().
+	e = event.New().
 		Level(event.Level(event.Level_value[record[1]])).
 		Prefix(record[2]).
 		Sub(record[3]).
@@ -145,7 +145,7 @@ func Decode(buf []byte) (*event.Event, error) {
 
 	e.Time = timestamppb.New(timestamp)
 
-	return e, nil
+	return e, err
 }
 
 func convTime(in string) (out time.Time, err error) {
@@ -157,8 +157,7 @@ func convTime(in string) (out time.Time, err error) {
 		unixTime, uErr := convUnix(in)
 
 		if uErr != nil {
-			uerr := fmt.Errorf("unix timestamp conversion failed: %w", uErr)
-			err = fmt.Errorf("failed to convert timestamp with either method -- %w", uerr)
+			err = fmt.Errorf("unix timestamp conversion failed: %v; %w", uErr, err)
 			return
 		}
 

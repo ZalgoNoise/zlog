@@ -10,6 +10,7 @@ import (
 
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func getEnv(env string) (val string, ok bool) {
@@ -535,7 +536,7 @@ func TestWithGRPCOpts(t *testing.T) {
 	}
 
 	opt := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.FailOnNonTempDialError(true),
 	}
 

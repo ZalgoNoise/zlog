@@ -591,8 +591,6 @@ func TestLoggerIsSkipExit(t *testing.T) {
 			funcname,
 			test.name,
 		)
-		return
-
 	}
 
 	for idx, test := range tests {
@@ -674,8 +672,6 @@ func TestLoggerWrite(t *testing.T) {
 			funcname,
 			test.name,
 		)
-		return
-
 	}
 
 	for idx, test := range tests {

@@ -12,8 +12,6 @@ import (
 	"github.com/zalgonoise/zlog/log/event"
 )
 
-var emptyLogFunc logFunc = func(*event.Event) {}
-
 const maxWait time.Duration = time.Millisecond * 50
 
 func TestNoBackoff(t *testing.T) {
@@ -659,7 +657,6 @@ func TestWaitContext(t *testing.T) {
 			go func() {
 				time.Sleep(time.Millisecond)
 				cancel()
-				return
 			}()
 		} else {
 			defer cancel()
@@ -1229,12 +1226,9 @@ func TestBackoffLock(t *testing.T) {
 	type test struct {
 		name  string
 		b     *Backoff
-		init  bool
 		wants bool
+		locks bool
 	}
-
-	mu := new(sync.Mutex)
-	mu.Lock()
 
 	var tests = []test{
 		{
@@ -1249,13 +1243,17 @@ func TestBackoffLock(t *testing.T) {
 			name: "from locked backoff",
 			b: &Backoff{
 				locked: true,
-				mu:     *mu,
+				mu:     sync.Mutex{},
 			},
 			wants: true,
+			locks: true,
 		},
 	}
 
 	var verify = func(idx int, test test) {
+		if test.locks {
+			test.b.mu.Lock()
+		}
 		test.b.Lock()
 
 		if test.b.locked != test.wants {
@@ -1288,6 +1286,7 @@ func TestBackoffUnlock(t *testing.T) {
 		name  string
 		b     *Backoff
 		wants bool
+		locks bool
 	}
 
 	mu := new(sync.Mutex)
@@ -1306,13 +1305,17 @@ func TestBackoffUnlock(t *testing.T) {
 			name: "from locked backoff",
 			b: &Backoff{
 				locked: true,
-				mu:     *mu,
+				mu:     sync.Mutex{},
 			},
 			wants: false,
+			locks: true,
 		},
 	}
 
 	var verify = func(idx int, test test) {
+		if test.locks {
+			test.b.mu.Lock()
+		}
 		test.b.Unlock()
 
 		if test.b.locked != test.wants {
@@ -1345,6 +1348,7 @@ func TestBackoffTryLock(t *testing.T) {
 		name  string
 		b     *Backoff
 		wants bool
+		locks bool
 	}
 
 	mu := new(sync.Mutex)
@@ -1363,13 +1367,17 @@ func TestBackoffTryLock(t *testing.T) {
 			name: "from locked backoff",
 			b: &Backoff{
 				locked: true,
-				mu:     *mu,
+				mu:     sync.Mutex{},
 			},
 			wants: true,
+			locks: true,
 		},
 	}
 
 	var verify = func(idx int, test test) {
+		if test.locks {
+			test.b.mu.Lock()
+		}
 		res := test.b.TryLock()
 
 		if res != test.wants {

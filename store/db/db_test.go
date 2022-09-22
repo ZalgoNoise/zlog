@@ -319,9 +319,7 @@ func TestMultiWriteCloserWrite(t *testing.T) {
 			var last error = err
 
 			for {
-				var inner error
-
-				inner = errors.Unwrap(last)
+				var inner error = errors.Unwrap(last)
 
 				if inner == nil {
 					break
@@ -487,9 +485,7 @@ func TestMultiWriteCloserClose(t *testing.T) {
 			var last error = err
 
 			for {
-				var inner error
-
-				inner = errors.Unwrap(last)
+				var inner error = errors.Unwrap(last)
 
 				if inner == nil {
 					break

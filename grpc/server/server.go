@@ -56,8 +56,6 @@ type gRPCLogServerBuilder struct {
 	interceptors serverInterceptors
 	logger       log.Logger
 	svcLogger    log.Logger
-	errCh        chan error
-	logSv        *pb.LogServer
 }
 
 // build method will merge the stream / unary gRPC interceptors as []grpc.ServerOption

@@ -192,7 +192,6 @@ func TestGRPCClientLogAction(t *testing.T) {
 	type test struct {
 		name string
 		cfg  []LogClientConfig
-		addr string
 		svr  *server.GRPCLogServer
 	}
 
@@ -344,7 +343,6 @@ func TestGRPCClientStreamAction(t *testing.T) {
 	type test struct {
 		name string
 		cfg  []LogClientConfig
-		addr string
 		svr  *server.GRPCLogServer
 	}
 

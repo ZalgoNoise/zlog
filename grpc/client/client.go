@@ -774,7 +774,7 @@ func (c *GRPCLogClient) AddOuts(outs ...io.Writer) log.Logger {
 // Added bonus is support for gob-encoded messages, which is also natively supported in
 // the logger's Write implementation
 func (c *GRPCLogClient) Write(p []byte) (n int, err error) {
-	if p == nil || len(p) == 0 {
+	if len(p) == 0 {
 		return 0, nil
 	}
 
@@ -798,7 +798,7 @@ func (c *GRPCLogClient) Write(p []byte) (n int, err error) {
 
 // Prefix method implements the Logger interface.
 //
-// It will set a Logger-scoped (as opposed to message-scoped) prefix string to the logger
+// # It will set a Logger-scoped (as opposed to message-scoped) prefix string to the logger
 //
 // Logger-scoped prefix strings can be set in order to avoid caLevel_ing the `MessageBuilder.Prefix()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function
@@ -828,7 +828,7 @@ func (c *GRPCLogClient) Sub(sub string) log.Logger {
 
 // Fields method implements the Logger interface.
 //
-// Fields method will set Logger-scoped (as opposed to message-scoped) metadata fields to the logger
+// # Fields method will set Logger-scoped (as opposed to message-scoped) metadata fields to the logger
 //
 // Logger-scoped metadata can be set in order to avoid caLevel_ing the `MessageBuilder.Metadata()` method
 // repeatedly, and instead doing so via the logger at the beginning of a service or function.
@@ -836,7 +836,7 @@ func (c *GRPCLogClient) Sub(sub string) log.Logger {
 // Logger-scoped metadata fields are not cleared with new log messages, but only added to the existing
 // metadata map. These can be cleared with a call to `Logger.Fields(nil)`
 func (c *GRPCLogClient) Fields(fields map[string]interface{}) log.Logger {
-	if fields == nil || len(fields) == 0 {
+	if len(fields) == 0 {
 		c.meta = map[string]interface{}{}
 		return c
 	}
@@ -879,7 +879,7 @@ func (c *GRPCLogClient) Log(m ...*event.Event) {
 	}
 
 	for _, msg := range queue {
-		c.Output(msg)
+		_, _ = c.Output(msg) // explicitly ignore error in this method call
 	}
 }
 

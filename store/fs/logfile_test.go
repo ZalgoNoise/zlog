@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"testing"
@@ -539,7 +538,7 @@ func TestLogfileMove(t *testing.T) {
 			return
 		}
 
-		files, err := ioutil.ReadDir(targetDir)
+		files, err := os.ReadDir(targetDir)
 		if err != nil {
 			t.Errorf(
 				"#%v -- FAILED -- [Logfile] Logfile.move() -- failed to list files in test dir with an error: %s",

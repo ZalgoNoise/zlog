@@ -5,7 +5,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
+
 	"time"
 
 	"github.com/zalgonoise/zlog/grpc/address"
@@ -451,7 +452,7 @@ func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials
 		return nil, ErrEmptyPath
 	}
 
-	ca, err := ioutil.ReadFile(caCert)
+	ca, err := os.ReadFile(caCert)
 
 	if err != nil {
 		return nil, err
@@ -485,7 +486,7 @@ func loadCreds(caCert string) (credentials.TransportCredentials, error) {
 		return nil, ErrEmptyPath
 	}
 
-	ca, err := ioutil.ReadFile(caCert)
+	ca, err := os.ReadFile(caCert)
 	if err != nil {
 		return nil, err
 	}

@@ -78,28 +78,6 @@ func TestFormat(t *testing.T) {
 	}
 }
 
-func match(want, got interface{}) bool {
-	switch value := got.(type) {
-	case []Field:
-		w := want.([]Field)
-		for idx, f := range value {
-			if f.Key != w[idx].Key {
-				return false
-			}
-			if !match(f.Val, w[idx].Val) {
-				return false
-			}
-		}
-		return true
-	// case field:
-	default:
-		if value == want {
-			return true
-		}
-	}
-	return false
-}
-
 func TestMappify(t *testing.T) {
 	module := "FmtXML"
 	funcname := "Mappify()"

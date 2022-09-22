@@ -10,7 +10,7 @@ type ConnAddr map[string]*grpc.ClientConn
 // New function will take in any number of addr and initialize a ConnAddr object with
 // those addresses. Then, returns a pointer to this ConnAddr object.
 func New(addr ...string) *ConnAddr {
-	if addr == nil || len(addr) == 0 {
+	if len(addr) == 0 {
 		return nil
 	}
 
@@ -43,7 +43,7 @@ func (a *ConnAddr) AsMap() map[string]*grpc.ClientConn {
 // Add method will allocate the input strings as entries in the map, with initialized
 // pointers to grpc.ClientConn
 func (a *ConnAddr) Add(addr ...string) {
-	if addr == nil || len(addr) == 0 {
+	if len(addr) == 0 {
 		return
 	}
 
@@ -59,7 +59,7 @@ func (a *ConnAddr) Add(addr ...string) {
 			v[address] = &grpc.ClientConn{}
 		}
 	}
-	a = &v
+	*a = v
 }
 
 // Keys method will return a ConnAddr object's keys (its addresses) in a slice of strings
@@ -87,7 +87,7 @@ func (a *ConnAddr) Set(k string, conn *grpc.ClientConn) {
 	v := *a
 	v[k] = conn
 
-	a = &v
+	*a = v
 }
 
 // Len method will return the size of the ConnAddr map

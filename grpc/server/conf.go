@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"io/ioutil"
+	"os"
 
 	"github.com/zalgonoise/zlog/log"
 	"google.golang.org/grpc"
@@ -349,7 +349,7 @@ func loadCreds(cert, key string) (credentials.TransportCredentials, error) {
 }
 
 func loadCredsMutual(caCert, cert, key string) (credentials.TransportCredentials, error) {
-	ca, err := ioutil.ReadFile(caCert)
+	ca, err := os.ReadFile(caCert)
 	if err != nil {
 		return nil, err
 	}

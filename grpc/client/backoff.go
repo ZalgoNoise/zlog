@@ -153,9 +153,7 @@ func (b *Backoff) Wait() (func(), error) {
 	if b.wait <= b.max {
 
 		timer := time.NewTimer(b.wait)
-		select {
-		case <-timer.C:
-		}
+		<-timer.C
 
 		switch v := b.call.(type) {
 		case streamFunc:
@@ -236,15 +234,14 @@ func (b *Backoff) WaitContext(ctx context.Context) (func(), error) {
 // Register method will take in a function with the same signature as a stream() function
 // and the error channel of the gRPC Log Client; and returns a pointer to itself for method chaining
 func (b *Backoff) Register(call interface{}) {
-
-	switch call.(type) {
+	switch call := call.(type) {
 	case logFunc:
-		b.call = call.(logFunc)
+		b.call = call
 	case streamFunc:
-		b.call = call.(streamFunc)
+		b.call = call
 	default:
+		return
 	}
-	return
 }
 
 // UnaryBackoffHandler method is the Unary gRPC Log Client's standard backoff flow, which
@@ -314,21 +311,18 @@ func (b *Backoff) StreamBackoffHandler(
 	}).Message("retrying connection").Build())
 
 	go call()
-	return
 }
 
 // Time method will set the ExpBackoff's deadline, and returns a pointer to
 // itself for chaining
 func (b *Backoff) Time(t time.Duration) {
 	b.max = t
-	return
 }
 
 // AddMessage method will append a new message to the exponential backoff's
 // message queue
 func (b *Backoff) AddMessage(msg *event.Event) {
 	b.msg = append(b.msg, msg)
-	return
 }
 
 // Counter method will return the current amount of retries since the connection

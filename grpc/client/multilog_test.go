@@ -171,7 +171,7 @@ func TestMultiLogger(t *testing.T) {
 		}
 
 		// test interface calls --
-		// TODO (zalgonoise): add individual tests for these
+		// TODO: (@zalgonoise) add individual tests for these
 		if ml != nil {
 
 			// log.Logger impl
@@ -187,10 +187,30 @@ func TestMultiLogger(t *testing.T) {
 			ml.Channels()
 
 			// io.Writer impl
-			ml.Write(event.New().Message("null").Build().Encode())
+			_, err := ml.Write(event.New().Message("null").Build().Encode())
+			if err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] Write() -- unexpected error error: %v -- action: %s",
+					idx,
+					module,
+					funcname,
+					err,
+					test.name,
+				)
+			}
 
 			// log.Printer impl
-			ml.Output(event.New().Message("null").Build())
+			_, err = ml.Output(event.New().Message("null").Build())
+			if err != nil {
+				t.Errorf(
+					"#%v -- FAILED -- [%s] [%s] Output() -- unexpected error error: %v -- action: %s",
+					idx,
+					module,
+					funcname,
+					err,
+					test.name,
+				)
+			}
 			ml.Log(event.New().Message("null").Build())
 			ml.Print("null")
 			ml.Println("null")

@@ -1487,6 +1487,7 @@ Command | Description
 `bazel run //examples/logger/simple_logger:simple_logger` | Executes the `simple_logger.go` example, in the form of `//path/to:target`
 `bazel run //:buildifier-check` | Executes the `buildifier` target in lint-checking mode for build files
 `bazel run //:buildifier-fix` | Executes the `buildifier` target and corrects any build file lint issues
+`bazel run //:lint` | Executes [`golangci-lint run ./...`](https://github.com/golangci/golangci-lint) with the `.go` files in the repository.
 
 ##### Target types
 
@@ -1572,6 +1573,47 @@ buildifier(
     multi_diff = True,
 )
 ```
+
+__Golangci-lint__
+
+Used to perform a lint check in Go files, this tool will not alter any data besides outputting suggested changes to the terminal. Its AMD64 executable is being fetched from the official repository and executed with all Go files, with the command `golangci-lint run ./...`. The binary is imported in [`WORKSPACE`](./WORKSPACE):
+
+```
+## golangci-lint
+http_archive(
+    name = "golangci_golangci-lint",
+    strip_prefix = "golangci-lint-1.49.0-linux-amd64",
+    sha256 = "5badc6e9fee2003621efa07e385910d9a88c89b38f6c35aded153193c5125178",
+    build_file = "//:BUILD.golanglint-ci",
+    urls = [
+        "https://github.com/golangci/golangci-lint/releases/download/v1.49.0/golangci-lint-1.49.0-linux-amd64.tar.gz",
+    ],
+)
+```
+
+It is bundled locally in the [`BUILD.golanci-lint` file](./BUILD.golanglint-ci):
+
+```
+filegroup(
+    name = "golangci",
+    srcs = glob([
+        "golangci-lint",
+    ]),
+    visibility = ["//visibility:public"],
+)
+```
+
+And executed alongside all Go files of the repository in [`BUILD.bazel`](./BUILD.bazel#L24):
+
+```
+sh_binary(
+  name = "lint",
+  srcs = [ "@golangci_golangci-lint//:golangci" ],
+  data = glob([ "**/*.go" ]),
+  args = [ "run", "./..." ],
+)
+```
+
 
 
 _________________

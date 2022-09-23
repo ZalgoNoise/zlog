@@ -1578,7 +1578,7 @@ __Golangci-lint__
 
 Used to perform a lint check in Go files, this tool will not alter any data besides outputting suggested changes to the terminal. Its AMD64 executable is being fetched from the official repository and executed with all Go files, with the command `golangci-lint run ./...`. The binary is imported in [`WORKSPACE`](./WORKSPACE):
 
-```
+```bzl
 ## golangci-lint
 http_archive(
     name = "golangci_golangci-lint",
@@ -1593,7 +1593,7 @@ http_archive(
 
 It is bundled locally in the [`BUILD.golanci-lint` file](./BUILD.golanglint-ci):
 
-```
+```bzl
 filegroup(
     name = "golangci",
     srcs = glob([
@@ -1605,7 +1605,7 @@ filegroup(
 
 And executed alongside all Go files of the repository in [`BUILD.bazel`](./BUILD.bazel#L24):
 
-```
+```bzl
 sh_binary(
   name = "lint",
   srcs = [ "@golangci_golangci-lint//:golangci" ],

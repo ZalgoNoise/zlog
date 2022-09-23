@@ -873,3 +873,14 @@ http_archive(
         "https://github.com/bazelbuild/buildtools/archive/refs/tags/4.2.2.tar.gz",
     ],
 )
+
+## golangci-lint
+http_archive(
+    name = "golangci_golangci-lint",
+    strip_prefix = "golangci-lint-1.49.0-linux-amd64",
+    sha256 = "5badc6e9fee2003621efa07e385910d9a88c89b38f6c35aded153193c5125178",
+    build_file = "//:BUILD.golanglint-ci",
+    urls = [
+        "https://github.com/golangci/golangci-lint/releases/download/v1.49.0/golangci-lint-1.49.0-linux-amd64.tar.gz",
+    ],
+)

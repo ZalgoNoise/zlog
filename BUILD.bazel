@@ -21,6 +21,13 @@ buildifier(
     multi_diff = True,
 )
 
+sh_binary(
+  name = "lint",
+  srcs = [ "@golangci_golangci-lint//:golangci" ],
+  data = glob([ "**/*.go" ]),
+  args = [ "run", "./..." ],
+)
+
 go_library(
     name = "zlog_lib",
     srcs = ["main.go"],
